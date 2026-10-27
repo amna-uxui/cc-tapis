@@ -29,29 +29,89 @@ let currentShape = SHAPES[0];
 
 const shapedPhotos = new Map(); // "colour/shape" -> image address, so each is only cut once
 
-// The biggest piece of the photo with the shape's proportions, from the middle
-// (a circle is cut as a square; the viewer rounds its edge)
+// The rug in its own shape: the photo as it is, with the rug's real edge. Another shape: the
+// biggest piece of the solid rug with that shape's proportions, from the middle, given an edge
+// like the photos' real ones (see softEdge)
 async function shapedSrc(color, shape) {
   const photo = color.photo;
-  const photoAspect = photo.naturalWidth / photo.naturalHeight;
-  if (Math.abs(photoAspect - shape.aspect) < 0.01) return color.src;
+  if (shape.name === color.shape) return color.src;
 
-  const key = `${color.name}/${shape.aspect}`;
+  const key = `${color.name}/${shape.name}`;
   if (shapedPhotos.has(key)) return shapedPhotos.get(key);
 
-  let w = photo.naturalWidth;
-  let h = photo.naturalHeight;
-  if (photoAspect > shape.aspect) w = Math.round(h * shape.aspect);
+  const rug = solidArea(photo);
+  let w = rug.w;
+  let h = rug.h;
+  if (w / h > shape.aspect) w = Math.round(h * shape.aspect);
   else h = Math.round(w / shape.aspect);
+  const sx = rug.x + (rug.w - w) / 2;
+  const sy = rug.y + (rug.h - h) / 2;
 
+  // the piece, with a see-through margin around it for the edge and shadow; a slightly larger copy
+  // behind it gives the fibres that stick out past the edge their colour
   const cut = document.createElement("canvas");
-  cut.width = w;
-  cut.height = h;
-  cut.getContext("2d").drawImage(photo, (photo.naturalWidth - w) / 2, (photo.naturalHeight - h) / 2, w, h, 0, 0, w, h);
-  const blob = await new Promise((done) => cut.toBlob(done, "image/jpeg", 0.92));
+  cut.width = w + EDGE_MARGIN * 2;
+  cut.height = h + EDGE_MARGIN * 2;
+  const ctx = cut.getContext("2d");
+  ctx.drawImage(photo, sx, sy, w, h, EDGE_MARGIN - 4, EDGE_MARGIN - 4, w + 8, h + 8);
+  ctx.drawImage(photo, sx, sy, w, h, EDGE_MARGIN, EDGE_MARGIN, w, h);
+  softEdge(ctx, cut.width, cut.height, Boolean(shape.round));
+
+  const blob = await new Promise((done) => cut.toBlob(done, "image/png"));
   const src = URL.createObjectURL(blob);
   shapedPhotos.set(key, src);
   return src;
+}
+
+// ---------- A rug edge like the real ones ----------
+
+const EDGE_MARGIN = 14;   // see-through space around a cut shape, for its edge and shadow (as in the photos)
+const EDGE_SOFT = 3;      // how many pixels the edge takes to fade out
+const EDGE_FUZZ = 2.2;    // how unevenly, pixel by pixel: fibres sticking out
+const EDGE_WOBBLE = 1.4;  // how much the outline wanders, so it isn't a perfect geometric line
+const EDGE_CORNER = 8;    // how rounded the corners of square and rectangle cuts are
+const EDGE_SHADOW = 0.14; // how strong the faint shadow just outside the rug is
+
+// Turn the hard outline of a cut piece into a soft, fuzzy rug edge with a faint shadow
+function softEdge(ctx, w, h, round) {
+  const image = ctx.getImageData(0, 0, w, h);
+  const d = image.data;
+  const cx = w / 2;
+  const cy = h / 2;
+  const halfW = w / 2 - EDGE_MARGIN;
+  const halfH = h / 2 - EDGE_MARGIN;
+  const shadow = [96, 88, 80];
+
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      // how far outside the shape this pixel is (negative inside)
+      let outside;
+      if (round) {
+        outside = Math.hypot(x + 0.5 - cx, y + 0.5 - cy) - halfW;
+      } else {
+        const qx = Math.abs(x + 0.5 - cx) - (halfW - EDGE_CORNER);
+        const qy = Math.abs(y + 0.5 - cy) - (halfH - EDGE_CORNER);
+        outside = Math.hypot(Math.max(qx, 0), Math.max(qy, 0)) + Math.min(Math.max(qx, qy), 0) - EDGE_CORNER;
+      }
+      if (outside < -EDGE_SOFT - EDGE_WOBBLE - EDGE_FUZZ) continue; // well inside: untouched
+
+      const a = Math.atan2(y - cy, x - cx);
+      const wobble = (Math.sin(a * 7 + 1.3) * 0.5 + Math.sin(a * 13 + 4) * 0.3 + Math.sin(a * 29) * 0.2) * EDGE_WOBBLE;
+      const fuzz = (Math.random() - 0.5) * EDGE_FUZZ;
+      const rug = Math.min(1, Math.max(0, (EDGE_SOFT / 2 - (outside + wobble + fuzz)) / EDGE_SOFT));
+      const shade = outside > 0 ? EDGE_SHADOW * Math.exp(-outside / 3.5) : 0;
+
+      const alpha = rug + shade * (1 - rug);
+      const o = (y * w + x) * 4;
+      if (alpha <= 0) {
+        d[o + 3] = 0;
+        continue;
+      }
+      for (let c = 0; c < 3; c++) d[o + c] = (d[o + c] * rug + shadow[c] * shade * (1 - rug)) / alpha;
+      d[o + 3] = alpha * 255;
+    }
+  }
+  ctx.putImageData(image, 0, 0);
 }
 
 // Show the current colour in the current shape (also used by js/carpet-colors.js)

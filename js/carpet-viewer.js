@@ -21,10 +21,17 @@ const ZOOM_DURATION = 650;   // ms for the double-tap / snap zoom animation
 const FIT_GAP = 16;     // space around the full carpet, between the bars
 const FIT_SIDE = 24;    // space left and right of the full carpet (52 makes room for the arrows)
 const FIT_LOW = 0.5;    // where the full carpet sits in the space it has, top (0) to bottom (1): centred
-const BRUSH_WIDTH = 40;      // how wide the brushed trail is, in carpet pixels
-const BRUSH_SMOOTHING = 0.3; // how gently the brush follows the finger (lower = smoother curves, more lag)
-const PILE_PUSH = 0.9;       // how far one stroke pushes the pile (1 = fully pushed after a brush width)
-const PILE_MARK = 0.6;       // how strong a fully pushed mark looks (0..1)
+const BRUSH_WIDTH = 56;      // how wide the brush is, in carpet pixels: between a fingertip and a palm
+const PILE_PUSH = 1.4;       // how far one stroke pushes the pile (1 = fully pushed after a brush width)
+const PILE_FLATTEN = 0;      // brushed pile combed flat: how far its tufts turn into lines (0 = not at all)
+const PILE_COMB = 2;         // how long those combed lines are, in photo pixels either side
+const PILE_DEEP = 0.26;      // brushed pile always turns this much darker, whichever way it goes, so every stroke shows
+const PILE_TONE = 0.14;      // and the direction adds a little: a bit lighter towards the light, darker away from it;
+                             // the texture stays, only the light changes
+const PILE_RICH = 0.45;      // darker pile also turns this much richer in colour, as in real velvet
+const PILE_STREAKS = 0;      // fine streaks along each stroke (0 = none)
+const PILE_SOFT = 0.3;       // how much of the brush's width fades out softly: a firm, organic edge
+const PILE_WOBBLE = 0.35;    // how much the stroke's outline wanders, like the shapes in brushed velvet (0..1)
 const BRUSH_LIGHT = [218, 170, 125]; // the colour of brushed wool catching the light (r, g, b)
 const BRUSH_SHADE = [196, 146, 104]; // a slightly deeper wool tone, mixed in for depth
 
@@ -256,37 +263,81 @@ function glide(vx, vy) {
   The lamp (js/carpet-lamp.js) makes marks brighter where the pile leans towards it.
 */
 
-let pile = null;    // { w, h, x, y (the arrows), grain, mode, image }
+let pile = null;    // { w, h, x, y (the arrows), mode, photo (its pixels), image }
 let strokeId = 0;   // each stroke's number, so a pixel decides once per stroke: draw or erase
+let strokeSeed = 0; // each stroke's own pattern of streaks and wobbles
+let strokeTravel = 0; // how far the current stroke has gone, so its outline wobbles along its length
 
 // Screen point -> point on the carpet photo
 function toCarpet(p) {
   return { x: (p.x - view.x) / view.scale, y: (p.y - view.y) / view.scale };
 }
 
-// A fresh, untouched pile the size of the rug photo
+// Where the solid rug is inside a cut-out photo (the photos keep the rug's soft edge and a little
+// see-through margin around it): measured along the middle row and column
+function solidArea(image) {
+  const w = image.naturalWidth;
+  const h = image.naturalHeight;
+  const c = document.createElement("canvas");
+  c.width = w;
+  c.height = h;
+  const ctx = c.getContext("2d");
+  ctx.drawImage(image, 0, 0);
+  const row = ctx.getImageData(0, Math.floor(h / 2), w, 1).data;
+  const col = ctx.getImageData(Math.floor(w / 2), 0, 1, h).data;
+  const solid = (data, i) => data[i * 4 + 3] > 245;
+  let left = 0;
+  let right = w - 1;
+  let top = 0;
+  let bottom = h - 1;
+  while (left < w - 1 && !solid(row, left)) left++;
+  while (right > 0 && !solid(row, right)) right--;
+  while (top < h - 1 && !solid(col, top)) top++;
+  while (bottom > 0 && !solid(col, bottom)) bottom--;
+  return { x: left, y: top, w: right - left + 1, h: bottom - top + 1 };
+}
+
+// A fresh, untouched pile the size of the rug photo, with the photo's own pixels to shade
 function makePile(w, h) {
-  const grain = new Float32Array(w * h);
-  for (let i = 0; i < grain.length; i++) grain[i] = 0.7 + Math.random() * 0.6; // velvet isn't perfectly even
+  const copy = document.createElement("canvas");
+  copy.width = w;
+  copy.height = h;
+  const copyCtx = copy.getContext("2d");
+  copyCtx.drawImage(img, 0, 0, w, h);
+  const photo = copyCtx.getImageData(0, 0, w, h).data;
   return {
     w,
     h,
     x: new Float32Array(w * h),
     y: new Float32Array(w * h),
-    grain,
     mode: new Int32Array(w * h),
+    photo,
     image: brushCtx.createImageData(w, h),
   };
 }
 
-// Push the pile under the brush as it moves from one point to the next
-function pushPile(from, to) {
+// Smooth random wiggle, 0..1, for the streaks along a stroke (the same input always gives the same value)
+function wiggle(t) {
+  const i = Math.floor(t);
+  const f = t - i;
+  const hash = (k) => {
+    const v = Math.sin(k * 127.1 + strokeSeed * 311.7) * 43758.5453;
+    return v - Math.floor(v);
+  };
+  const s = f * f * (3 - 2 * f);
+  return hash(i) + (hash(i + 1) - hash(i)) * s;
+}
+
+// Push the pile under the brush as it moves from one point to the next, in the stroke's direction
+function pushPile(from, to, dir) {
   const dx = to.x - from.x;
   const dy = to.y - from.y;
   const length = Math.hypot(dx, dy);
   if (length < 0.3) return;
-  const ux = dx / length;
-  const uy = dy / length;
+  const sx = dx / length; // the path of the brush
+  const sy = dy / length;
+  const ux = dir.x; // the way the pile is pushed (the stroke's steady direction)
+  const uy = dir.y;
   const r = BRUSH_WIDTH / 2;
   const push = (PILE_PUSH * length) / r;
 
@@ -297,17 +348,29 @@ function pushPile(from, to) {
 
   for (let py = top; py <= bottom; py++) {
     for (let px = left; px <= right; px++) {
-      // how far this pixel is from the brush's path, and so how hard the brush presses on it
-      const along = Math.max(0, Math.min(length, (px - from.x) * ux + (py - from.y) * uy));
-      const gap = Math.hypot(px - (from.x + ux * along), py - (from.y + uy * along));
+      // how far this pixel is from the brush's path, and so how hard the brush presses on it:
+      // fully across the middle of the brush, fading out over its outer edge
+      const along = Math.max(0, Math.min(length, (px - from.x) * sx + (py - from.y) * sy));
+      const gap = Math.hypot(px - (from.x + sx * along), py - (from.y + sy * along));
       if (gap >= r) continue;
-      const press = (1 - (gap / r) ** 2) ** 2 * push;
+      const side = (px - from.x) * -sy + (py - from.y) * sx; // which side of the path, and how far
+      // the outline wanders: each side of the stroke is a little wider or narrower along its length
+      const reach = r * (1 - PILE_WOBBLE * wiggle((strokeTravel + along) * 0.035 + (side > 0 ? 0 : 61)));
+      if (gap >= reach) continue;
+      const edge = Math.max(0, (gap / reach - (1 - PILE_SOFT)) / PILE_SOFT);
+      const streak = 1 - PILE_STREAKS * wiggle(side * 0.45 + 50); // fine lines running along the stroke
+      const press = (1 - edge * edge * (3 - 2 * edge)) * push * streak;
 
       const i = py * pile.w + px;
       const leaning = pile.x[i] * ux + pile.y[i] * uy; // how far the pile already leans this way
 
-      // First touch in this stroke: against the pile -> this stroke erases here, else it draws
-      if (pile.mode[i] >> 1 !== strokeId) pile.mode[i] = (strokeId << 1) | (leaning < -0.02 ? 1 : 0);
+      // First touch in this stroke: brushing back along an earlier line (roughly the opposite way,
+      // not just crossing it) -> this stroke erases here, else it draws
+      if (pile.mode[i] >> 1 !== strokeId) {
+        const lean = Math.hypot(pile.x[i], pile.y[i]);
+        const against = lean > 0.02 && leaning / lean < -0.6;
+        pile.mode[i] = (strokeId << 1) | (against ? 1 : 0);
+      }
 
       if (pile.mode[i] & 1) {
         // erase: push the pile back towards home, but not past it; sideways lean fades too
@@ -318,44 +381,108 @@ function pushPile(from, to) {
         pile.x[i] = (leaning + back) * ux + sideX;
         pile.y[i] = (leaning + back) * uy + sideY;
       } else {
-        // draw: push the pile along the stroke, up to fully pushed
-        let x = pile.x[i] + ux * press;
-        let y = pile.y[i] + uy * press;
-        const size = Math.hypot(x, y);
-        if (size > 1) {
-          x /= size;
-          y /= size;
-        }
-        pile.x[i] = x;
-        pile.y[i] = y;
+        // draw: the pile now lies the way this stroke goes (so going back over your own line in the
+        // same stroke doesn't undo it), and it's pushed a little further, up to fully pushed
+        const size = Math.hypot(pile.x[i], pile.y[i]);
+        let x = ux + (size ? (pile.x[i] / size) * 0.3 : 0);
+        let y = uy + (size ? (pile.y[i] / size) * 0.3 : 0);
+        const length = Math.hypot(x, y) || 1;
+        const strength = Math.min(1, size + press);
+        pile.x[i] = (x / length) * strength;
+        pile.y[i] = (y / length) * strength;
       }
     }
   }
+  strokeTravel += length;
+  markDirty(left, top, right, bottom);
+}
+
+// The area of the rug that changed since the last frame: it's repainted once per frame, not after
+// every small step of the brush (that was the lag on phones)
+let dirty = null;
+let painting = null;
+
+function markDirty(left, top, right, bottom) {
+  dirty = dirty
+    ? {
+        left: Math.min(dirty.left, left),
+        top: Math.min(dirty.top, top),
+        right: Math.max(dirty.right, right),
+        bottom: Math.max(dirty.bottom, bottom),
+      }
+    : { left, top, right, bottom };
+  if (!painting) painting = requestAnimationFrame(paintDirty);
+}
+
+function paintDirty() {
+  painting = null;
+  if (!dirty) return;
+  const { left, top, right, bottom } = dirty;
+  dirty = null;
   paintPile(left, top, right - left + 1, bottom - top + 1);
 }
 
-// Show the pushed pile: lighter wool where it's pushed, brighter where it leans towards the lamp
+// Show the pushed pile on the rug photo itself: brushed pile is combed flat, so its tufts are
+// drawn out into fine lines along the way it leans (each pixel averages the photo along that
+// line), and it turns a little lighter where it leans towards the lamp, darker where it leans away
 function paintPile(left = 0, top = 0, w = pile.w, h = pile.h) {
   const d = pile.image.data;
+  const { photo } = pile;
+  const W = pile.w;
+  const H = pile.h;
   const lamp = typeof lampAngle === "number" ? (lampAngle * Math.PI) / 180 : -Math.PI * 0.75;
   const lx = Math.cos(lamp);
   const ly = Math.sin(lamp);
-  const { light, shade } = brushTone;
 
   for (let py = top; py < top + h; py++) {
     for (let px = left; px < left + w; px++) {
       const i = py * pile.w + px;
-      const pushed = Math.hypot(pile.x[i], pile.y[i]);
+      const lean = Math.hypot(pile.x[i], pile.y[i]);
+      const pushed = Math.min(1, lean);
       const o = i * 4;
       if (pushed < 0.004) {
-        d[o + 3] = 0;
+        d[o + 3] = 0; // untouched: the photo shows as it is
         continue;
       }
-      const facing = 0.5 + 0.5 * ((pile.x[i] * lx + pile.y[i] * ly) / pushed); // 0 away .. 1 towards the lamp
-      d[o] = shade[0] + (light[0] - shade[0]) * facing;
-      d[o + 1] = shade[1] + (light[1] - shade[1]) * facing;
-      d[o + 2] = shade[2] + (light[2] - shade[2]) * facing;
-      d[o + 3] = 255 * Math.min(1, PILE_MARK * pushed ** 0.8 * pile.grain[i] * (0.75 + 0.5 * facing));
+      const ux = pile.x[i] / lean;
+      const uy = pile.y[i] / lean;
+      const facing = ux * lx + uy * ly; // -1 away from the lamp .. 1 towards it
+
+      // the photo averaged along the lean: combed fibres (skipped when combing is off)
+      let r = photo[o];
+      let g = photo[o + 1];
+      let b = photo[o + 2];
+      let n = 1;
+      if (PILE_FLATTEN > 0) {
+        r = g = b = 0;
+        for (let k = -PILE_COMB; k <= PILE_COMB; k++) {
+          const sx = Math.min(W - 1, Math.max(0, Math.round(px + ux * k)));
+          const sy = Math.min(H - 1, Math.max(0, Math.round(py + uy * k)));
+          const q = (sy * W + sx) * 4;
+          r += photo[q];
+          g += photo[q + 1];
+          b += photo[q + 2];
+        }
+        n = 2 * PILE_COMB + 1;
+      }
+
+      const comb = PILE_FLATTEN * pushed;
+      const tone = 1 + (PILE_TONE * facing - PILE_DEEP) * pushed; // always below 1: brushed pile is deeper
+      let cr = photo[o] + (r / n - photo[o]) * comb;
+      let cg = photo[o + 1] + (g / n - photo[o + 1]) * comb;
+      let cb = photo[o + 2] + (b / n - photo[o + 2]) * comb;
+      {
+        // deeper pile is also richer: its colour pulls away from grey
+        const rich = 1 + PILE_RICH * (1 - tone) / (PILE_DEEP + PILE_TONE);
+        const grey = 0.3 * cr + 0.59 * cg + 0.11 * cb;
+        cr = grey + (cr - grey) * rich;
+        cg = grey + (cg - grey) * rich;
+        cb = grey + (cb - grey) * rich;
+      }
+      d[o] = cr * tone;
+      d[o + 1] = cg * tone;
+      d[o + 2] = cb * tone;
+      d[o + 3] = photo[o + 3]; // only on the rug: never on the see-through margin around it
     }
   }
   brushCtx.putImageData(pile.image, 0, 0, left, top, w, h);
@@ -386,6 +513,7 @@ function setBrushTone(tone) {
 function resizePile(w, h) {
   const old = pile;
   pile = makePile(w, h);
+  dirty = null; // a repaint waiting for the old rug no longer fits; the whole new one is painted
   brush.width = w;
   brush.height = h;
   if (!old) return;
@@ -405,22 +533,42 @@ function resizePile(w, h) {
 
 function startStroke(stroke, point) {
   strokeId++;
-  stroke.at = point; // where the brush is (it eases after the finger, so curves stay smooth)
+  strokeSeed = Math.random() * 1000;
+  strokeTravel = 0;
+  stroke.at = point;   // where the drawn line has reached
+  stroke.bend = point; // the last finger position: the line curves towards it
 }
 
-// Move the brush a little towards the finger, pushing the pile on the way
-function brushTowards(stroke, finger, ease = BRUSH_SMOOTHING) {
-  const to = {
-    x: stroke.at.x + (finger.x - stroke.at.x) * ease,
-    y: stroke.at.y + (finger.y - stroke.at.y) * ease,
-  };
-  pushPile(stroke.at, to);
-  stroke.at = to;
+// Draw a smooth curve from a to c, bending towards b, pushing the pile in small steps along it
+function brushCurve(a, b, c) {
+  const steps = Math.max(1, Math.ceil((Math.hypot(b.x - a.x, b.y - a.y) + Math.hypot(c.x - b.x, c.y - b.y)) / 2));
+  let from = a;
+  for (let k = 1; k <= steps; k++) {
+    const t = k / steps;
+    const to = {
+      x: (1 - t) * (1 - t) * a.x + 2 * (1 - t) * t * b.x + t * t * c.x,
+      y: (1 - t) * (1 - t) * a.y + 2 * (1 - t) * t * b.y + t * t * c.y,
+    };
+    const length = Math.hypot(to.x - from.x, to.y - from.y);
+    if (length >= 0.3) {
+      pushPile(from, to, { x: (to.x - from.x) / length, y: (to.y - from.y) / length });
+      from = to;
+    }
+  }
 }
 
-// Lifting the finger: let the brush catch up with where the finger left
+// A new finger position: curve on to halfway between the last one and this one
+// (joining the halfway points with curves gives smooth lines, never corners)
+function brushTo(stroke, finger) {
+  const half = { x: (stroke.bend.x + finger.x) / 2, y: (stroke.bend.y + finger.y) / 2 };
+  brushCurve(stroke.at, stroke.bend, half);
+  stroke.at = half;
+  stroke.bend = finger;
+}
+
+// Lifting the finger: finish the line at the last position
 function finishStroke(stroke, finger) {
-  for (let i = 0; i < 12; i++) brushTowards(stroke, finger, 0.5);
+  brushCurve(stroke.at, stroke.bend, finger);
 }
 
 // Double-tap: back to the untouched pile
@@ -495,8 +643,10 @@ stage.addEventListener("pointermove", (e) => {
       startStroke(gesture.stroke, gesture.last);
     }
 
+    // every position the phone recorded since the last move (it sends them in batches)
+    const recorded = e.getCoalescedEvents ? e.getCoalescedEvents() : [];
+    (recorded.length ? recorded : [e]).forEach((ev) => brushTo(gesture.stroke, toCarpet(localPoint(ev))));
     gesture.last = toCarpet(p);
-    brushTowards(gesture.stroke, gesture.last);
 
     // Brushing sound (js/carpet-sound.js), as loud as the finger is fast
     const now = performance.now();
@@ -636,6 +786,9 @@ if (zoomButton) {
 function sizeCarpet() {
   carpet.style.width = `${img.naturalWidth}px`;
   carpet.style.height = `${img.naturalHeight}px`;
+  // the lamp's light falls on the rug only, following its outline, not on the see-through margin around it
+  const light = carpet.querySelector(".carpet__light");
+  if (light) light.style.webkitMaskImage = light.style.maskImage = `url("${img.src}")`;
   resizePile(img.naturalWidth, img.naturalHeight);
   paintPile();
 }
