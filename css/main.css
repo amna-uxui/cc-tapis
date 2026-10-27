@@ -466,6 +466,17 @@ body {
   touch-action: none;
 }
 
+/* A short word under the dial: is the tilt working? (js/carpet-lamp.js) */
+.lamp-dial__status {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: -2px;
+  font-size: var(--text-xs);
+  color: #6b6b6b;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
 /* Following the phone's tilt: nothing to drag */
 .lamp-dial.is-tilting {
   cursor: default;

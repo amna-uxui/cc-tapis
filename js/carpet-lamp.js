@@ -18,6 +18,7 @@ const TILT_FOLLOW = 0.15;  // how quickly the lamp follows the tilt (lower = smo
 
 const lampDial = document.querySelector("[data-lamp]");
 const light = carpet.querySelector(".carpet__light");
+const lampStatus = lampDial.querySelector("[data-lamp-status]");
 
 let lampAngle = LAMP_START;
 
@@ -37,9 +38,21 @@ let level = null;     // how the phone was held when motion started: that counts
 let aim = lampAngle;  // where the tilt points the lamp; the lamp eases towards it
 let easing = null;
 
+// A short word under the dial for a moment, saying whether the tilt is working
+let statusTimer = null;
+function showStatus(text) {
+  lampStatus.textContent = text;
+  clearTimeout(statusTimer);
+  statusTimer = setTimeout(() => (lampStatus.textContent = ""), 2500);
+}
+
 function onTilt(e) {
   if (e.beta === null || e.gamma === null) return;
-  if (!level) level = { beta: e.beta, gamma: e.gamma };
+  if (!level) {
+    level = { beta: e.beta, gamma: e.gamma };
+    if (waitingForMotion) showStatus("Tilt on");
+    waitingForMotion = false;
+  }
 
   const x = e.gamma - level.gamma; // tilted right (+) or left (-)
   const y = e.beta - level.beta;   // top tipped away (-) or towards you (+)
@@ -57,6 +70,8 @@ function easeLamp() {
   easing = Math.abs(turn) > 0.5 ? requestAnimationFrame(easeLamp) : null;
 }
 
+let waitingForMotion = false; // asked for motion after a tap: say so when it arrives (or doesn't)
+
 function startTilt() {
   if (tilting) return;
   tilting = true;
@@ -67,11 +82,28 @@ function startTilt() {
 
 // iPhone asks for permission, and only after a tap; other phones just send the motion
 function askForTilt() {
-  if (!window.DeviceOrientationEvent || !window.isSecureContext) return;
+  if (tilting) return;
+  if (!window.DeviceOrientationEvent || !window.isSecureContext) {
+    showStatus("No motion");
+    return;
+  }
+  waitingForMotion = true;
+  // if no motion arrives soon, the phone isn't sending any
+  setTimeout(() => waitingForMotion && !level && showStatus("No motion"), 1500);
+
   if (typeof DeviceOrientationEvent.requestPermission === "function") {
     DeviceOrientationEvent.requestPermission()
-      .then((answer) => answer === "granted" && startTilt())
-      .catch(() => {});
+      .then((answer) => {
+        if (answer === "granted") startTilt();
+        else {
+          waitingForMotion = false;
+          showStatus("Not allowed");
+        }
+      })
+      .catch(() => {
+        waitingForMotion = false;
+        showStatus("Not allowed");
+      });
   } else {
     startTilt();
   }
