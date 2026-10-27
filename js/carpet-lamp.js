@@ -4,7 +4,8 @@
   the far side, so you see how the velvet catches the light.
 
   On its own the lamp slowly circles the rug, so nothing has to be switched on. Tap the dial to
-  steer it by tilting the phone instead (iPhone asks for permission then, and only then).
+  switch the light in the room (Evening, Daylight, Night); the first tap also lets you steer the
+  lamp by tilting the phone (iPhone asks for permission then, and only then).
   Phones only share their motion with secure (https) pages; where there is no motion
   (a computer, or http), drag the lamp round the dial.
 
@@ -13,6 +14,7 @@
 
 const LAMP_START = -135;   // degrees: where the lamp starts (0 = right, -90 = top, -135 = top left)
 const LAMP_REACH = 0.75;   // how far out the light sits, from the rug's middle (0.5 = on its edge)
+const SPOT_REACH = 0.22;   // the night spotlight: on the rug, this far from its middle towards the lamp
 const TILT_MIN = 4;        // degrees of tilt before the lamp moves (so holding still keeps it still)
 const TILT_FOLLOW = 0.15;  // how quickly the lamp follows the tilt (lower = smoother, lazier)
 const ORBIT_SPEED = 12;    // degrees per second the lamp circles on its own (until tilt takes over)
@@ -31,6 +33,9 @@ function setLamp(degrees) {
   lampDial.setAttribute("aria-valuenow", Math.round(lampAngle));
   light.style.setProperty("--light-x", `${(0.5 + Math.cos(radians) * LAMP_REACH) * 100}%`);
   light.style.setProperty("--light-y", `${(0.5 + Math.sin(radians) * LAMP_REACH) * 100}%`);
+  // the night spotlight falls on the rug itself, part way out towards the lamp
+  light.style.setProperty("--spot-x", `${(0.5 + Math.cos(radians) * SPOT_REACH) * 100}%`);
+  light.style.setProperty("--spot-y", `${(0.5 + Math.sin(radians) * SPOT_REACH) * 100}%`);
   if (typeof relightPile === "function") relightPile(); // velvet marks catch the light (js/carpet-viewer.js)
 }
 
@@ -84,15 +89,15 @@ function startTilt() {
 }
 
 // iPhone asks for permission, and only after a tap; other phones just send the motion
-function askForTilt() {
+function askForTilt(quiet = false) {
   if (tilting) return;
   if (!window.DeviceOrientationEvent || !window.isSecureContext) {
-    showStatus("No motion");
+    if (!quiet) showStatus("No motion");
     return;
   }
   waitingForMotion = true;
   // if no motion arrives soon, the phone isn't sending any
-  setTimeout(() => waitingForMotion && !level && showStatus("No motion"), 1500);
+  setTimeout(() => waitingForMotion && !level && !quiet && showStatus("No motion"), 1500);
 
   if (typeof DeviceOrientationEvent.requestPermission === "function") {
     DeviceOrientationEvent.requestPermission()
@@ -100,12 +105,12 @@ function askForTilt() {
         if (answer === "granted") startTilt();
         else {
           waitingForMotion = false;
-          showStatus("Not allowed");
+          if (!quiet) showStatus("Not allowed");
         }
       })
       .catch(() => {
         waitingForMotion = false;
-        showStatus("Not allowed");
+        if (!quiet) showStatus("Not allowed");
       });
   } else {
     startTilt();
@@ -138,28 +143,54 @@ function angleTo(e) {
   return (Math.atan2(y, x) * 180) / Math.PI;
 }
 
-let dragging = false;
+// ---------- Lighting moods ----------
 
-// iPhone only accepts the permission request on a finished tap (a click), not on touch-down
-lampDial.addEventListener("click", askForTilt);
+// Tap the lamp to switch the light in the room; its name shows under the lamp for a moment
+// (the looks are in css/main.css: .mood-daylight, .mood-night; Evening is the plain look)
+const MOODS = ["Evening", "Daylight", "Night"];
+let mood = 0;
+
+function nextMood() {
+  document.body.classList.remove(`mood-${MOODS[mood].toLowerCase()}`);
+  mood = (mood + 1) % MOODS.length;
+  document.body.classList.add(`mood-${MOODS[mood].toLowerCase()}`);
+  showStatus(MOODS[mood]);
+}
+
+// ---------- The dial: tap to switch the mood, drag to move the lamp ----------
+
+let dragging = false; // the finger is down on the dial
+let dragged = false;  // ... and has moved: it's a drag, not a tap
+let downAt = null;
+
+// A finished tap (a click): switch the mood. iPhone also only accepts the motion permission
+// request here, so the first tap asks for it too
+lampDial.addEventListener("click", () => {
+  if (dragged) return;
+  nextMood();
+  askForTilt(true);
+});
 
 lampDial.addEventListener("pointerdown", (e) => {
+  dragged = false;
   if (tilting) {
     level = null; // tapping the dial while tilting: how the phone is held now counts as level
     return;
   }
   dragging = true;
+  downAt = { x: e.clientX, y: e.clientY };
   lampDial.setPointerCapture(e.pointerId);
-  setLamp(angleTo(e));
 });
 
 lampDial.addEventListener("pointermove", (e) => {
-  if (dragging) setLamp(angleTo(e));
+  if (!dragging) return;
+  if (!dragged && Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) > 4) dragged = true;
+  if (dragged) setLamp(angleTo(e));
 });
 
 ["pointerup", "pointercancel"].forEach((type) =>
   lampDial.addEventListener(type, () => {
-    if (dragging) orbitPausedUntil = performance.now() + ORBIT_RESUME;
+    if (dragged) orbitPausedUntil = performance.now() + ORBIT_RESUME;
     dragging = false;
   })
 );
