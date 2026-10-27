@@ -201,7 +201,7 @@ body {
 
 .bar__side--left {
   justify-self: start;
-  font-size: 18px;
+  font-size: 24px;
   line-height: 1;
   width: 32px;
   height: 32px;
@@ -210,6 +210,7 @@ body {
 
 .bar__side--right {
   justify-self: end;
+  font-size: 14px;
 }
 
 .bar--bottom {
