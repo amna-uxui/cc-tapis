@@ -78,6 +78,7 @@ function averageColor(photo) {
 function loadColor(color) {
   const photo = new Image();
   photo.src = color.src;
+  color.photo = photo;
   color.loaded = whenLoaded(photo).then(() => {
     const rgb = averageColor(photo);
     color.swatch = rgbToHex(rgb);
@@ -97,9 +98,7 @@ async function chooseColor(color) {
   current = color;
   markChosen();
 
-  await color.loaded;
-  await changeRug(color.src);
-  setBrushTone(color.tone);
+  await renderRug(); // js/carpet-shapes.js: this colour in the current shape
   changing = false;
 }
 
@@ -124,24 +123,32 @@ function buildSwatches() {
   markChosen();
 }
 
-function openPalette() {
-  palette.classList.add("is-open");
-  palette.setAttribute("aria-hidden", "false");
-  colorButton.setAttribute("aria-expanded", "true");
+// The floating colour menu
+function openPalette(menu, button) {
+  closePalette();
+  menu.classList.add("is-open");
+  menu.setAttribute("aria-hidden", "false");
+  button.setAttribute("aria-expanded", "true");
 }
 
-// Returns true if it was open (so the touch that closed it doesn't also draw)
+// Closes whichever menu is open. Returns true if one was (so the touch that closed it doesn't also draw)
 function closePalette() {
-  if (!palette.classList.contains("is-open")) return false;
-  palette.classList.remove("is-open");
-  palette.setAttribute("aria-hidden", "true");
-  colorButton.setAttribute("aria-expanded", "false");
+  const open = document.querySelector(".palette.is-open");
+  if (!open) return false;
+  open.classList.remove("is-open");
+  open.setAttribute("aria-hidden", "true");
+  document.querySelectorAll("[aria-expanded]").forEach((b) => b.setAttribute("aria-expanded", "false"));
   return true;
 }
 
-colorButton.addEventListener("click", () => {
-  if (!closePalette()) openPalette();
-});
+// Tapping a menu's button opens it, or closes it if it was already open
+function togglePalette(menu, button) {
+  const wasOpen = menu.classList.contains("is-open");
+  closePalette();
+  if (!wasOpen) openPalette(menu, button);
+}
+
+colorButton.addEventListener("click", () => togglePalette(palette, colorButton));
 
 // ---------- Start ----------
 

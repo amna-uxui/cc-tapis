@@ -9,13 +9,13 @@
   - You can zoom out until the whole carpet fits, but never lose it off screen.
 */
 
-const START_ZOOM = 3;   // how close we start, relative to the full carpet (never less than covering the screen)
-const MAX_ZOOM = 8;     // how close you can get, relative to the full carpet
+// Only two zoom levels: the full carpet (100%) and the close-up (300%), nothing in between
+const START_ZOOM = 3;   // the close-up, relative to the full carpet (never less than covering the screen)
 const FRICTION = 0.92;  // how quickly a flick slows down (closer to 1 = longer glide)
 const ZOOM_SPEED = 0.5; // how strongly a pinch zooms (1 = follows the fingers exactly, lower = slower)
 const ZOOM_SMOOTHING = 0.18; // how softly the zoom catches up with the fingers (lower = softer, 1 = instant)
 const ZOOM_STRETCH = 0.35;   // how far you can pinch past the limits before it resists (it springs back)
-const SNAP_TO_FULL = 1.35;   // let go below this zoom (x the full carpet) and it glides to the full carpet
+const ZOOM_SNAP = 0.1;       // pinch at least this much (10%) to switch between full carpet and close-up
 const ZOOM_DURATION = 650;   // ms for the double-tap / snap zoom animation
 const FIT_GAP = 16;     // space around the full carpet, between the bars
 const FIT_SIDE = 52;    // space left and right of the full carpet, for the arrows
@@ -39,6 +39,7 @@ const brushBase = document.createElement("canvas");
 const baseCtx = brushBase.getContext("2d");
 let brushTone = { light: BRUSH_LIGHT, shade: BRUSH_SHADE }; // the wool tones for the current rug colour
 const topBar = document.querySelector("[data-fit-top]");
+const rugInfo = document.querySelector("[data-rug-info]"); // collection name and size, under the top bar
 const bottomBar = document.querySelector("[data-fit-bottom]");
 
 // Where the carpet is: top-left corner (x, y) and size multiplier (scale)
@@ -51,30 +52,37 @@ let fit = { left: 0, top: 0, width: 0, height: 0 }; // the area the full carpet 
 
 const arrows = stage.querySelectorAll(".arrow");
 
+const OUT_ZOOM = 1.2; // zoomed out to less than this (x the full carpet): arrows, name, size and shapes show
+
 function render() {
   carpet.style.transform = `translate3d(${view.x}px, ${view.y}px, 0) scale(${view.scale})`;
   updateArrows();
+  document.body.classList.toggle("is-zoomed-out", view.scale < fitScale * OUT_ZOOM);
+}
+
+// Is this screen point on the rug (and not on the white page around it)?
+function onCarpet(x, y) {
+  const w = img.naturalWidth * view.scale;
+  const h = img.naturalHeight * view.scale;
+  const u = (x - view.x) / w;
+  const v = (y - view.y) / h;
+  if (carpet.classList.contains("is-round")) return (u - 0.5) ** 2 + (v - 0.5) ** 2 < 0.25;
+  return u > 0 && u < 1 && v > 0 && v < 1;
 }
 
 // White arrows over the carpet, black arrows when they sit on the white page
 function updateArrows() {
-  const left = view.x;
-  const right = view.x + img.naturalWidth * view.scale;
-  const midY = stage.clientHeight / 2;
-  const coversMid = view.y < midY && view.y + img.naturalHeight * view.scale > midY;
-
   arrows.forEach((arrow) => {
-    const centre = arrow.offsetLeft + arrow.offsetWidth / 2;
-    const overCarpet = coversMid && centre > left && centre < right;
-    arrow.classList.toggle("is-on-paper", !overCarpet);
+    const box = arrow.getBoundingClientRect();
+    arrow.classList.toggle("is-on-paper", !onCarpet(box.left + box.width / 2, box.top + box.height / 2));
   });
 }
 
 // ---------- Measuring ----------
 
-// The full carpet fits between the top and bottom bars
+// The full carpet fits between the name and size (under the top bar) and the bottom bar
 function measure() {
-  const top = topBar.getBoundingClientRect().bottom + FIT_GAP;
+  const top = rugInfo.getBoundingClientRect().bottom + FIT_GAP;
   const bottom = bottomBar.getBoundingClientRect().top - FIT_GAP;
 
   fit = {
@@ -98,13 +106,13 @@ function measure() {
 // ---------- Keeping the carpet in view ----------
 
 function clampScale(scale) {
-  return Math.min(Math.max(scale, fitScale), fitScale * MAX_ZOOM);
+  return Math.min(Math.max(scale, fitScale), closeUpScale());
 }
 
 // Like clampScale, but lets you pinch a little past the limits with growing resistance
 function stretchScale(scale) {
   const min = fitScale;
-  const max = fitScale * MAX_ZOOM;
+  const max = closeUpScale();
   if (scale < min) return min * Math.pow(scale / min, ZOOM_STRETCH);
   if (scale > max) return max * Math.pow(scale / max, ZOOM_STRETCH);
   return scale;
@@ -213,7 +221,7 @@ function animateTo(target, duration = ZOOM_DURATION) {
       y: from.y + (target.y - from.y) * e,
     };
     render();
-    if (t < 1) animation = requestAnimationFrame(step);
+    animation = t < 1 ? requestAnimationFrame(step) : null;
   }
 
   animation = requestAnimationFrame(step);
@@ -228,9 +236,8 @@ function glide(vx, vy) {
     vy *= FRICTION;
     view = clampView({ ...view, x: view.x + vx, y: view.y + vy });
     render();
-    if (Math.abs(vx) > 0.2 || Math.abs(vy) > 0.2) {
-      animation = requestAnimationFrame(step);
-    }
+    const moving = Math.abs(vx) > 0.2 || Math.abs(vy) > 0.2;
+    animation = moving ? requestAnimationFrame(step) : null;
   }
 
   animation = requestAnimationFrame(step);
@@ -482,15 +489,20 @@ function endPointer(e) {
 
   const now = performance.now();
 
-  // The first finger lifts from a pinch: near the full carpet, glide to it;
-  // past the limits, spring back; after a quick two-finger swipe, keep gliding.
+  // The first finger lifts from a pinch: it settles on the full carpet or the close-up, never in between.
+  // Pinched out from the close-up -> full carpet; pinched in from the full carpet -> close-up where the
+  // fingers were; otherwise back to where it started (a quick two-finger swipe in the close-up keeps gliding).
   // Then wait for every finger to lift (a finger left behind does not start drawing).
   if (gesture.type === "pinch") {
-    const scale = (target || view).scale;
-    if (scale < fitScale * SNAP_TO_FULL) {
+    const change = (target || view).scale / gesture.view.scale;
+    const wasFull = gesture.view.scale < fitScale * 1.05;
+    const toFull = wasFull ? change < 1 + ZOOM_SNAP : change < 1 - ZOOM_SNAP;
+    const mid = gesture.mid; // where the pinch started
+
+    if (toFull) {
       animateTo(centredView(fitScale));
-    } else if (scale > fitScale * MAX_ZOOM) {
-      animateTo(clampView(zoomAt(view, fitScale * MAX_ZOOM, gesture.mid.x, gesture.mid.y)));
+    } else if (wasFull || Math.abs((target || view).scale / closeUpScale() - 1) > 0.01) {
+      animateTo(clampView(zoomAt(target || view, closeUpScale(), mid.x, mid.y)));
     } else if (now - lastMove.time < 80) {
       if (target) view = target;
       glide(velocity.x, velocity.y);
@@ -524,15 +536,21 @@ stage.addEventListener(
   "wheel",
   (e) => {
     e.preventDefault();
-    if (animation) stopAnimation();
     const p = localPoint(e);
-    const from = target || view;
 
+    // Zoom: one step out to the full carpet, or in to the close-up (the rest of the gesture is ignored)
     if (e.ctrlKey) {
-      setTarget(clampView(zoomAt(from, from.scale * Math.exp(-e.deltaY * 0.01 * ZOOM_SPEED), p.x, p.y)));
-    } else {
-      setTarget(clampView({ ...from, x: from.x - e.deltaX, y: from.y - e.deltaY }));
+      if (animation || Math.abs(e.deltaY) < 2) return;
+      const isFull = view.scale < fitScale * 1.05;
+      if (e.deltaY > 0 && !isFull) animateTo(centredView(fitScale));
+      if (e.deltaY < 0 && isFull) animateTo(clampView(zoomAt(view, closeUpScale(), p.x, p.y)));
+      return;
     }
+
+    // Move around
+    if (animation) stopAnimation();
+    const from = target || view;
+    setTarget(clampView({ ...from, x: from.x - e.deltaX, y: from.y - e.deltaY }));
   },
   { passive: false }
 );
@@ -593,8 +611,9 @@ function whenLoaded(image) {
 }
 
 // Show another rug photo. The drawing comes along: scaled to fit the new rug, centred.
-// You stay at the same zoom, looking at the same part of the carpet.
-async function changeRug(src) {
+// You stay at the same zoom, looking at the same part of the carpet, unless zoomOut is set:
+// then the whole new rug is shown. round: the rug is a circle.
+async function changeRug(src, { round = false, zoomOut = false } = {}) {
   const next = new Image();
   next.src = src;
   await whenLoaded(next);
@@ -614,6 +633,7 @@ async function changeRug(src) {
   img.src = src;
   await whenLoaded(img);
   sizeCarpet();
+  carpet.classList.toggle("is-round", round);
 
   const fitDrawing = Math.min(brushBase.width / drawing.width, brushBase.height / drawing.height);
   const w = drawing.width * fitDrawing;
@@ -624,12 +644,17 @@ async function changeRug(src) {
   baseCtx.restore();
 
   measure();
-  const scale = clampScale(fitScale * zoom);
-  view = clampView({
-    scale,
-    x: stage.clientWidth / 2 - fx * img.naturalWidth * scale,
-    y: stage.clientHeight / 2 - fy * img.naturalHeight * scale,
-  });
+  stopAnimation();
+  if (zoomOut) {
+    view = centredView(fitScale);
+  } else {
+    const scale = clampScale(fitScale * zoom);
+    view = clampView({
+      scale,
+      x: stage.clientWidth / 2 - fx * img.naturalWidth * scale,
+      y: stage.clientHeight / 2 - fy * img.naturalHeight * scale,
+    });
+  }
   render();
   carpet.classList.remove("is-changing");
 }

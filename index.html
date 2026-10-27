@@ -35,9 +35,19 @@
     <a class="bar__side bar__side--right mono" href="https://cc-tapis.com/shop" target="_blank" rel="noopener">Shop</a>
   </header>
 
-  <!-- Bottom: shapes (left), buy + learn (centre), colour (right) -->
+  <!-- While the whole rug is in view, under the top bar: collection name and size (centre),
+       and the shapes to choose from (right) -->
+  <div class="rug-info" data-rug-info>
+    <div class="rug-info__text" aria-live="polite">
+      <p class="rug-info__name" data-rug-name></p>
+      <p class="rug-info__size mono" data-rug-size></p>
+    </div>
+    <div class="rug-info__shapes" data-shape-options></div>
+  </div>
+
+  <!-- Bottom: buy + learn (centre), colour (right) -->
   <nav class="bar bar--bottom" data-fit-bottom>
-    <button class="tool tool--shape" aria-label="Shapes of the carpet"></button>
+    <span class="tool" aria-hidden="true"></span> <!-- keeps buy + learn in the centre -->
 
     <div class="actions">
       <button class="button mono">Buy</button>
@@ -47,12 +57,13 @@
     <button class="tool tool--color" aria-label="Colour of the carpet" aria-expanded="false"></button>
   </nav>
 
-  <!-- Colour palette: a small vertical bar that floats up above the colour circle when you tap it -->
+  <!-- Colours: float up above the colour circle when you tap it -->
   <div class="palette" data-palette aria-hidden="true">
     <div class="palette__sheet" data-palette-swatches></div>
   </div>
 
   <script src="js/carpet-viewer.js"></script>
   <script src="js/carpet-colors.js"></script>
+  <script src="js/carpet-shapes.js"></script>
 </body>
 </html>
