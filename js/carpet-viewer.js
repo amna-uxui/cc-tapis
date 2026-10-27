@@ -21,14 +21,15 @@ const ZOOM_DURATION = 650;   // ms for the double-tap / snap zoom animation
 const FIT_GAP = 16;     // space around the full carpet, between the bars
 const FIT_SIDE = 24;    // space left and right of the full carpet (52 makes room for the arrows)
 const FIT_LOW = 0.5;    // where the full carpet sits in the space it has, top (0) to bottom (1): centred
-const BRUSH_WIDTH = 26;      // how wide the brushed trail is, in carpet pixels (a fingertip)
-const PILE_PUSH = 1.6;       // how far one stroke pushes the pile (1 = fully pushed after a brush width)
-const PILE_FLATTEN = 0.45;   // brushed pile is combed a little flat: how far its tufts turn into lines along the stroke (0..1)
-const PILE_COMB = 3;         // how long those combed lines are, in photo pixels either side
-const PILE_TONE = 0.32;      // it turns up to this much lighter towards the light, darker away from it
-const PILE_SHEEN = 0.12;     // and a touch lighter overall, so every line shows, whichever way it goes
-const PILE_STREAKS = 0;      // fine streaks along each stroke, like fingertips dragging the fibres (0 = none)
-const PILE_SOFT = 0.25;      // how much of the brush's width fades out softly at its edges (0..1): a crisp line
+const BRUSH_WIDTH = 90;      // how wide the brush is, in carpet pixels: a palm sweeping the velvet
+const PILE_PUSH = 1.0;       // how far one sweep pushes the pile (1 = fully pushed after a brush width)
+const PILE_FLATTEN = 0;      // brushed pile combed flat: how far its tufts turn into lines (0 = not at all)
+const PILE_COMB = 2;         // how long those combed lines are, in photo pixels either side
+const PILE_TONE = 0.38;      // the velvet sheen: up to this much lighter where the pile leans towards the
+                             // light, darker where it leans away; the texture stays, only the light changes
+const PILE_SHEEN = 0;        // a touch lighter overall, whichever way it goes (0 = none: pure sheen)
+const PILE_STREAKS = 0;      // fine streaks along each sweep (0 = none)
+const PILE_SOFT = 1;         // how much of the brush's width fades out softly (1 = from the middle: no edges)
 const BRUSH_LIGHT = [218, 170, 125]; // the colour of brushed wool catching the light (r, g, b)
 const BRUSH_SHADE = [196, 146, 104]; // a slightly deeper wool tone, mixed in for depth
 
@@ -440,19 +441,23 @@ function paintPile(left = 0, top = 0, w = pile.w, h = pile.h) {
       const uy = pile.y[i] / lean;
       const facing = ux * lx + uy * ly; // -1 away from the lamp .. 1 towards it
 
-      // the photo averaged along the lean: combed fibres
-      let r = 0;
-      let g = 0;
-      let b = 0;
-      for (let k = -PILE_COMB; k <= PILE_COMB; k++) {
-        const sx = Math.min(W - 1, Math.max(0, Math.round(px + ux * k)));
-        const sy = Math.min(H - 1, Math.max(0, Math.round(py + uy * k)));
-        const q = (sy * W + sx) * 4;
-        r += photo[q];
-        g += photo[q + 1];
-        b += photo[q + 2];
+      // the photo averaged along the lean: combed fibres (skipped when combing is off)
+      let r = photo[o];
+      let g = photo[o + 1];
+      let b = photo[o + 2];
+      let n = 1;
+      if (PILE_FLATTEN > 0) {
+        r = g = b = 0;
+        for (let k = -PILE_COMB; k <= PILE_COMB; k++) {
+          const sx = Math.min(W - 1, Math.max(0, Math.round(px + ux * k)));
+          const sy = Math.min(H - 1, Math.max(0, Math.round(py + uy * k)));
+          const q = (sy * W + sx) * 4;
+          r += photo[q];
+          g += photo[q + 1];
+          b += photo[q + 2];
+        }
+        n = 2 * PILE_COMB + 1;
       }
-      const n = 2 * PILE_COMB + 1;
 
       const comb = PILE_FLATTEN * pushed;
       const tone = 1 + (PILE_SHEEN + PILE_TONE * facing) * pushed;
