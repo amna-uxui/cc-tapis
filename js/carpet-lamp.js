@@ -29,6 +29,7 @@ function setLamp(degrees) {
   lampDial.setAttribute("aria-valuenow", Math.round(lampAngle));
   light.style.setProperty("--light-x", `${(0.5 + Math.cos(radians) * LAMP_REACH) * 100}%`);
   light.style.setProperty("--light-y", `${(0.5 + Math.sin(radians) * LAMP_REACH) * 100}%`);
+  if (typeof relightPile === "function") relightPile(); // velvet marks catch the light (js/carpet-viewer.js)
 }
 
 // ---------- Tilting the phone ----------

@@ -2,7 +2,8 @@
   Carpet viewer: zoom and move around the carpet.
 
   - Starts zoomed in, with the carpet covering the whole screen.
-  - Draw with one finger (or the mouse): it brushes the pile, leaving lighter fibres like on velvet.
+  - Draw with one finger (or the mouse): it pushes the velvet's pile the way you brush, leaving a
+    mark. Brush back over a mark the opposite way and it disappears, like on real velvet.
   - Move and pinch with two fingers to move around and zoom. Flicks keep gliding.
   - On a computer: scroll to move, trackpad pinch / ctrl + scroll to zoom.
   - Double-tap to wipe the drawing, back to the plain carpet.
@@ -20,10 +21,9 @@ const ZOOM_DURATION = 650;   // ms for the double-tap / snap zoom animation
 const FIT_GAP = 16;     // space around the full carpet, between the bars
 const FIT_SIDE = 52;    // space left and right of the full carpet, for the arrows
 const BRUSH_WIDTH = 40;      // how wide the brushed trail is, in carpet pixels
-const BRUSH_BRISTLES = 60;   // fine fibres side by side across the brush
-const BRUSH_SHEEN = 0.028;   // strength of the soft light under the fibres (the velvet sheen)
 const BRUSH_SMOOTHING = 0.3; // how gently the brush follows the finger (lower = smoother curves, more lag)
-const BRUSH_DETAIL = 3;      // canvas pixels per carpet pixel, so the fibres stay sharp when zoomed in
+const PILE_PUSH = 0.9;       // how far one stroke pushes the pile (1 = fully pushed after a brush width)
+const PILE_MARK = 0.6;       // how strong a fully pushed mark looks (0..1)
 const BRUSH_LIGHT = [218, 170, 125]; // the colour of brushed wool catching the light (r, g, b)
 const BRUSH_SHADE = [196, 146, 104]; // a slightly deeper wool tone, mixed in for depth
 
@@ -33,10 +33,6 @@ const img = carpet.querySelector("img");
 const brush = carpet.querySelector(".carpet__brush");
 const brushCtx = brush.getContext("2d");
 
-// The drawing is also kept in the original brown tones on a hidden copy, so when the rug
-// changes colour every stroke can be re-tinted to the new colour (js/carpet-colors.js)
-const brushBase = document.createElement("canvas");
-const baseCtx = brushBase.getContext("2d");
 let brushTone = { light: BRUSH_LIGHT, shade: BRUSH_SHADE }; // the wool tones for the current rug colour
 const topBar = document.querySelector("[data-fit-top]");
 const rugInfo = document.querySelector("[data-rug-info]"); // collection name and size, under the top bar
@@ -245,129 +241,169 @@ function glide(vx, vy) {
 
 // ---------- Brushing the pile ----------
 
+/*
+  The velvet: every pixel of the rug remembers which way its pile has been pushed, and how far
+  (a little arrow, from 0 = untouched to 1 = fully pushed). Brushing pushes the pile under the
+  brush along the stroke, and the pushed pile shows as a lighter mark. Brushing back the other
+  way pushes it home again, so the mark disappears (but never further than home in that stroke).
+  The lamp (js/carpet-lamp.js) makes marks brighter where the pile leans towards it.
+*/
+
+let pile = null;    // { w, h, x, y (the arrows), grain, mode, image }
+let strokeId = 0;   // each stroke's number, so a pixel decides once per stroke: draw or erase
+
 // Screen point -> point on the carpet photo
 function toCarpet(p) {
   return { x: (p.x - view.x) / view.scale, y: (p.y - view.y) / view.scale };
 }
 
-// A brush is a row of fine bristles. Each one keeps its place across the brush for the whole
-// stroke, so it leaves one long, unbroken fibre: together they look like combed, smooth pile.
-// Bristles near the middle press hardest, so the trail fades out softly at its edges.
-function makeBristles() {
-  const bristles = [];
-  for (let i = 0; i < BRUSH_BRISTLES; i++) {
-    const across = Math.random() * 2 - 1; // -1..1, spread evenly across the brush
-    const shade = Math.random();
-    const mix = (tone) => tone.light.map((c, k) => Math.round(c + (tone.shade[k] - c) * shade)).join(",");
-    const alpha = (0.04 + Math.random() * 0.07) * Math.exp(-across * across * 2.5);
-    bristles.push({
-      offset: (across * BRUSH_WIDTH) / 2,
-      color: `rgba(${mix(brushTone)}, ${alpha})`,
-      baseColor: `rgba(${mix({ light: BRUSH_LIGHT, shade: BRUSH_SHADE })}, ${alpha})`,
-      width: 0.5 + Math.random() * 0.9,
-    });
+// A fresh, untouched pile the size of the rug photo
+function makePile(w, h) {
+  const grain = new Float32Array(w * h);
+  for (let i = 0; i < grain.length; i++) grain[i] = 0.7 + Math.random() * 0.6; // velvet isn't perfectly even
+  return {
+    w,
+    h,
+    x: new Float32Array(w * h),
+    y: new Float32Array(w * h),
+    grain,
+    mode: new Int32Array(w * h),
+    image: brushCtx.createImageData(w, h),
+  };
+}
+
+// Push the pile under the brush as it moves from one point to the next
+function pushPile(from, to) {
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const length = Math.hypot(dx, dy);
+  if (length < 0.3) return;
+  const ux = dx / length;
+  const uy = dy / length;
+  const r = BRUSH_WIDTH / 2;
+  const push = (PILE_PUSH * length) / r;
+
+  const left = Math.max(0, Math.floor(Math.min(from.x, to.x) - r));
+  const right = Math.min(pile.w - 1, Math.ceil(Math.max(from.x, to.x) + r));
+  const top = Math.max(0, Math.floor(Math.min(from.y, to.y) - r));
+  const bottom = Math.min(pile.h - 1, Math.ceil(Math.max(from.y, to.y) + r));
+
+  for (let py = top; py <= bottom; py++) {
+    for (let px = left; px <= right; px++) {
+      // how far this pixel is from the brush's path, and so how hard the brush presses on it
+      const along = Math.max(0, Math.min(length, (px - from.x) * ux + (py - from.y) * uy));
+      const gap = Math.hypot(px - (from.x + ux * along), py - (from.y + uy * along));
+      if (gap >= r) continue;
+      const press = (1 - (gap / r) ** 2) ** 2 * push;
+
+      const i = py * pile.w + px;
+      const leaning = pile.x[i] * ux + pile.y[i] * uy; // how far the pile already leans this way
+
+      // First touch in this stroke: against the pile -> this stroke erases here, else it draws
+      if (pile.mode[i] >> 1 !== strokeId) pile.mode[i] = (strokeId << 1) | (leaning < -0.02 ? 1 : 0);
+
+      if (pile.mode[i] & 1) {
+        // erase: push the pile back towards home, but not past it; sideways lean fades too
+        const back = Math.min(-leaning, press);
+        const keep = Math.max(0, 1 - press);
+        const sideX = (pile.x[i] - leaning * ux) * keep;
+        const sideY = (pile.y[i] - leaning * uy) * keep;
+        pile.x[i] = (leaning + back) * ux + sideX;
+        pile.y[i] = (leaning + back) * uy + sideY;
+      } else {
+        // draw: push the pile along the stroke, up to fully pushed
+        let x = pile.x[i] + ux * press;
+        let y = pile.y[i] + uy * press;
+        const size = Math.hypot(x, y);
+        if (size > 1) {
+          x /= size;
+          y /= size;
+        }
+        pile.x[i] = x;
+        pile.y[i] = y;
+      }
+    }
   }
-  return bristles;
+  paintPile(left, top, right - left + 1, bottom - top + 1);
 }
 
-// The sheen: a soft round glow, stamped close together along the stroke so it blends into one smooth band
-function makeSheen(light) {
-  const glowCanvas = document.createElement("canvas");
-  glowCanvas.width = glowCanvas.height = BRUSH_WIDTH * BRUSH_DETAIL;
-  const r = glowCanvas.width / 2;
-  const ctx = glowCanvas.getContext("2d");
-  const glow = ctx.createRadialGradient(r, r, 0, r, r, r);
-  glow.addColorStop(0, `rgba(${light.join(",")}, ${BRUSH_SHEEN})`);
-  glow.addColorStop(1, `rgba(${light.join(",")}, 0)`);
-  ctx.fillStyle = glow;
-  ctx.fillRect(0, 0, glowCanvas.width, glowCanvas.height);
-  return glowCanvas;
+// Show the pushed pile: lighter wool where it's pushed, brighter where it leans towards the lamp
+function paintPile(left = 0, top = 0, w = pile.w, h = pile.h) {
+  const d = pile.image.data;
+  const lamp = typeof lampAngle === "number" ? (lampAngle * Math.PI) / 180 : -Math.PI * 0.75;
+  const lx = Math.cos(lamp);
+  const ly = Math.sin(lamp);
+  const { light, shade } = brushTone;
+
+  for (let py = top; py < top + h; py++) {
+    for (let px = left; px < left + w; px++) {
+      const i = py * pile.w + px;
+      const pushed = Math.hypot(pile.x[i], pile.y[i]);
+      const o = i * 4;
+      if (pushed < 0.004) {
+        d[o + 3] = 0;
+        continue;
+      }
+      const facing = 0.5 + 0.5 * ((pile.x[i] * lx + pile.y[i] * ly) / pushed); // 0 away .. 1 towards the lamp
+      d[o] = shade[0] + (light[0] - shade[0]) * facing;
+      d[o + 1] = shade[1] + (light[1] - shade[1]) * facing;
+      d[o + 2] = shade[2] + (light[2] - shade[2]) * facing;
+      d[o + 3] = 255 * Math.min(1, PILE_MARK * pushed ** 0.8 * pile.grain[i] * (0.75 + 0.5 * facing));
+    }
+  }
+  brushCtx.putImageData(pile.image, 0, 0, left, top, w, h);
 }
 
-const baseSheen = makeSheen(BRUSH_LIGHT);
-let sheen = baseSheen;
+// The lamp moved (js/carpet-lamp.js): light the marks again, at most once a frame
+let relighting = null;
+function relightPile() {
+  if (!pile || relighting) return;
+  relighting = requestAnimationFrame(() => {
+    relighting = null;
+    paintPile();
+  });
+}
 
-// A new rug colour: new wool tones for the brush, and the strokes already drawn re-tinted to match
+// A new rug colour (js/carpet-colors.js): new wool tones for the marks
 function setBrushTone(tone) {
   brushTone = tone;
-  sheen = makeSheen(tone.light);
-
-  const w = brush.width;
-  const h = brush.height;
-  const pixels = baseCtx.getImageData(0, 0, w, h);
-  const d = pixels.data;
-  const ratio = tone.light.map((c, k) => c / BRUSH_LIGHT[k]);
-  for (let i = 0; i < d.length; i += 4) {
-    if (!d[i + 3]) continue;
-    d[i] = d[i] * ratio[0];
-    d[i + 1] = d[i + 1] * ratio[1];
-    d[i + 2] = d[i + 2] * ratio[2];
-  }
-  brushCtx.save();
-  brushCtx.setTransform(1, 0, 0, 1, 0, 0);
-  brushCtx.putImageData(pixels, 0, 0);
-  brushCtx.restore();
+  if (pile) paintPile();
 }
 
-function stampSheen(stroke, to) {
-  const spacing = 2;
-  let dx = to.x - stroke.sheenAt.x;
-  let dy = to.y - stroke.sheenAt.y;
-  let gap = Math.hypot(dx, dy);
-  while (gap >= spacing) {
-    stroke.sheenAt = {
-      x: stroke.sheenAt.x + (dx / gap) * spacing,
-      y: stroke.sheenAt.y + (dy / gap) * spacing,
-    };
-    const x = stroke.sheenAt.x - BRUSH_WIDTH / 2;
-    const y = stroke.sheenAt.y - BRUSH_WIDTH / 2;
-    brushCtx.drawImage(sheen, x, y, BRUSH_WIDTH, BRUSH_WIDTH);
-    baseCtx.drawImage(baseSheen, x, y, BRUSH_WIDTH, BRUSH_WIDTH);
-    dx = to.x - stroke.sheenAt.x;
-    dy = to.y - stroke.sheenAt.y;
-    gap = Math.hypot(dx, dy);
+// A new rug photo: a new pile that size, with the old marks scaled to fit it, centred
+function resizePile(w, h) {
+  const old = pile;
+  pile = makePile(w, h);
+  brush.width = w;
+  brush.height = h;
+  if (!old) return;
+  const fit = Math.min(w / old.w, h / old.h);
+  const offX = (w - old.w * fit) / 2;
+  const offY = (h - old.h * fit) / 2;
+  for (let py = 0; py < h; py++) {
+    for (let px = 0; px < w; px++) {
+      const ox = Math.floor((px - offX) / fit);
+      const oy = Math.floor((py - offY) / fit);
+      if (ox < 0 || oy < 0 || ox >= old.w || oy >= old.h) continue;
+      pile.x[py * w + px] = old.x[oy * old.w + ox];
+      pile.y[py * w + px] = old.y[oy * old.w + ox];
+    }
   }
 }
 
 function startStroke(stroke, point) {
-  stroke.bristles = makeBristles();
-  stroke.at = point;     // where the brush is (it eases after the finger)
-  stroke.normal = null;  // the brush's sideways direction, turning smoothly
-  stroke.sheenAt = point;
+  strokeId++;
+  stroke.at = point; // where the brush is (it eases after the finger, so curves stay smooth)
 }
 
-// Move the brush a little towards the finger and lay down every bristle's fibre
+// Move the brush a little towards the finger, pushing the pile on the way
 function brushTowards(stroke, finger, ease = BRUSH_SMOOTHING) {
-  const from = stroke.at;
   const to = {
-    x: from.x + (finger.x - from.x) * ease,
-    y: from.y + (finger.y - from.y) * ease,
+    x: stroke.at.x + (finger.x - stroke.at.x) * ease,
+    y: stroke.at.y + (finger.y - stroke.at.y) * ease,
   };
-  const length = Math.hypot(to.x - from.x, to.y - from.y);
-  if (length < 1) return;
-
-  // Sideways direction, turned gently so curves stay round
-  const n = { x: -(to.y - from.y) / length, y: (to.x - from.x) / length };
-  const oldNormal = stroke.normal || n;
-  let newNormal = { x: oldNormal.x + (n.x - oldNormal.x) * 0.35, y: oldNormal.y + (n.y - oldNormal.y) * 0.35 };
-  const size = Math.hypot(newNormal.x, newNormal.y) || 1;
-  newNormal = { x: newNormal.x / size, y: newNormal.y / size };
-
-  stampSheen(stroke, to);
-
-  stroke.bristles.forEach((b) => {
-    [[brushCtx, b.color], [baseCtx, b.baseColor]].forEach(([ctx, color]) => {
-      ctx.beginPath();
-      ctx.moveTo(from.x + oldNormal.x * b.offset, from.y + oldNormal.y * b.offset);
-      ctx.lineTo(to.x + newNormal.x * b.offset, to.y + newNormal.y * b.offset);
-      ctx.strokeStyle = color;
-      ctx.lineWidth = b.width;
-      ctx.stroke();
-    });
-  });
-
+  pushPile(stroke.at, to);
   stroke.at = to;
-  stroke.normal = newNormal;
 }
 
 // Lifting the finger: let the brush catch up with where the finger left
@@ -375,10 +411,11 @@ function finishStroke(stroke, finger) {
   for (let i = 0; i < 12; i++) brushTowards(stroke, finger, 0.5);
 }
 
-// Double-tap: back to the plain carpet
+// Double-tap: back to the untouched pile
 function wipeDrawing() {
-  brushCtx.clearRect(0, 0, img.naturalWidth, img.naturalHeight);
-  baseCtx.clearRect(0, 0, img.naturalWidth, img.naturalHeight);
+  pile.x.fill(0);
+  pile.y.fill(0);
+  paintPile();
 }
 
 // ---------- Touch, mouse and pen ----------
@@ -570,16 +607,12 @@ stage.addEventListener(
 
 // ---------- Start ----------
 
-// Size the carpet and its drawing canvases to the rug photo
+// Size the carpet and its pile to the rug photo (the marks come along, scaled to fit)
 function sizeCarpet() {
   carpet.style.width = `${img.naturalWidth}px`;
   carpet.style.height = `${img.naturalHeight}px`;
-  [[brush, brushCtx], [brushBase, baseCtx]].forEach(([canvas, ctx]) => {
-    canvas.width = img.naturalWidth * BRUSH_DETAIL;
-    canvas.height = img.naturalHeight * BRUSH_DETAIL;
-    ctx.scale(BRUSH_DETAIL, BRUSH_DETAIL);
-    ctx.lineCap = "butt"; // round ends would overlap and leave beads along the fibres
-  });
+  resizePile(img.naturalWidth, img.naturalHeight);
+  paintPile();
 }
 
 function setup() {
@@ -618,7 +651,7 @@ function whenLoaded(image) {
   });
 }
 
-// Show another rug photo. The drawing comes along: scaled to fit the new rug, centred.
+// Show another rug photo. The marks come along: scaled to fit the new rug, centred.
 // You stay at the same zoom, looking at the same part of the carpet, unless zoomOut is set:
 // then the whole new rug is shown. round: the rug is a circle.
 async function changeRug(src, { round = false, zoomOut = false } = {}) {
@@ -633,23 +666,10 @@ async function changeRug(src, { round = false, zoomOut = false } = {}) {
   const fx = (stage.clientWidth / 2 - view.x) / (img.naturalWidth * view.scale);
   const fy = (stage.clientHeight / 2 - view.y) / (img.naturalHeight * view.scale);
 
-  const drawing = document.createElement("canvas");
-  drawing.width = brushBase.width;
-  drawing.height = brushBase.height;
-  drawing.getContext("2d").drawImage(brushBase, 0, 0);
-
   img.src = src;
   await whenLoaded(img);
   sizeCarpet();
   carpet.classList.toggle("is-round", round);
-
-  const fitDrawing = Math.min(brushBase.width / drawing.width, brushBase.height / drawing.height);
-  const w = drawing.width * fitDrawing;
-  const h = drawing.height * fitDrawing;
-  baseCtx.save();
-  baseCtx.setTransform(1, 0, 0, 1, 0, 0);
-  baseCtx.drawImage(drawing, (brushBase.width - w) / 2, (brushBase.height - h) / 2, w, h);
-  baseCtx.restore();
 
   measure();
   stopAnimation();
