@@ -89,8 +89,10 @@ function angleTo(e) {
 
 let dragging = false;
 
+// iPhone only accepts the permission request on a finished tap (a click), not on touch-down
+lampDial.addEventListener("click", askForTilt);
+
 lampDial.addEventListener("pointerdown", (e) => {
-  askForTilt();
   if (tilting) {
     level = null; // tapping the dial while tilting: how the phone is held now counts as level
     return;
