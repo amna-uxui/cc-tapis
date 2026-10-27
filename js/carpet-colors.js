@@ -84,7 +84,7 @@ function loadColor(color) {
     color.swatch = rgbToHex(rgb);
     color.tone = color.tone || toneFor(rgb);
     swatchRow.querySelector(`[data-name="${color.name}"]`).style.background = color.swatch;
-    if (color === current) colorButton.style.background = color.swatch;
+    if (color === current) showSwatch(color.swatch);
   });
 }
 
@@ -102,8 +102,14 @@ async function chooseColor(color) {
   changing = false;
 }
 
+// The current rug colour: on the colour circle, and filling the shapes (js/carpet-shapes.js)
+function showSwatch(hex) {
+  colorButton.style.background = hex;
+  rugInfo.style.setProperty("--rug-color", hex);
+}
+
 function markChosen() {
-  if (current.swatch) colorButton.style.background = current.swatch;
+  if (current.swatch) showSwatch(current.swatch);
   swatchRow.querySelectorAll(".swatch").forEach((s) => {
     s.setAttribute("aria-pressed", s.dataset.name === current.name);
   });

@@ -7,7 +7,9 @@
   (current) to be loaded first.
 */
 
-const COLLECTION = "Collection name"; // placeholder: the name of the cc-tapis collection
+// The rug's name is the collection plus its shape: "Hypercode Rectangle", "Hypercode Square", ...
+const COLLECTION = "Hypercode";
+const DESIGNER = "Roberto Sironi";
 
 // The first one is the shape the page opens with. aspect: width / height.
 // size: placeholder dimensions, shown under the collection name.
@@ -19,6 +21,7 @@ const SHAPES = [
 
 const shapeRow = rugInfo.querySelector("[data-shape-options]");
 const infoName = rugInfo.querySelector("[data-rug-name]");
+const infoDesigner = rugInfo.querySelector("[data-rug-designer]");
 const infoSize = rugInfo.querySelector("[data-rug-size]");
 
 let currentShape = SHAPES[0];
@@ -79,12 +82,13 @@ function shapeIcon(shape) {
   return icon;
 }
 
-// Mark the chosen shape and show its size
+// Mark the chosen shape and show its name and size
 function markShape() {
   shapeRow.querySelectorAll(".shape-option").forEach((option) => {
     option.setAttribute("aria-pressed", option.dataset.name === currentShape.name);
   });
-  infoName.textContent = COLLECTION;
+  infoName.textContent = `${COLLECTION} ${currentShape.name}`;
+  infoDesigner.textContent = `by ${DESIGNER}`;
   infoSize.textContent = currentShape.size;
 }
 
