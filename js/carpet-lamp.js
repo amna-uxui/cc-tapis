@@ -1,12 +1,12 @@
 /*
   The lamp: while zoomed out, a small dial sits left of the collection name, with the lamp as
-  a dot on its ring. Tilt the phone and the lamp follows the tilt round the ring; the light on
-  the rug moves with it: bright on the lamp's side, shadow on the far side, so you see how the
-  velvet catches the light.
+  a dot on its ring, and the light on the rug follows it: bright on the lamp's side, shadow on
+  the far side, so you see how the velvet catches the light.
 
-  Phones only share their motion with secure (https) pages, and iPhone asks first: tapping the
-  dial asks for permission. Where there is no motion (a computer, or http), drag the lamp
-  round the dial instead.
+  On its own the lamp slowly circles the rug, so nothing has to be switched on. Tap the dial to
+  steer it by tilting the phone instead (iPhone asks for permission then, and only then).
+  Phones only share their motion with secure (https) pages; where there is no motion
+  (a computer, or http), drag the lamp round the dial.
 
   Needs js/carpet-viewer.js (carpet) to be loaded first.
 */
@@ -15,6 +15,8 @@ const LAMP_START = -135;   // degrees: where the lamp starts (0 = right, -90 = t
 const LAMP_REACH = 0.75;   // how far out the light sits, from the rug's middle (0.5 = on its edge)
 const TILT_MIN = 4;        // degrees of tilt before the lamp moves (so holding still keeps it still)
 const TILT_FOLLOW = 0.15;  // how quickly the lamp follows the tilt (lower = smoother, lazier)
+const ORBIT_SPEED = 12;    // degrees per second the lamp circles on its own (until tilt takes over)
+const ORBIT_RESUME = 3000; // ms after you let go of a dragged lamp before it circles again
 
 const lampDial = document.querySelector("[data-lamp]");
 const light = carpet.querySelector(".carpet__light");
@@ -110,6 +112,22 @@ function askForTilt() {
   }
 }
 
+// ---------- Circling on its own ----------
+
+let orbitPausedUntil = 0;
+let lastFrame = performance.now();
+
+// While zoomed out, and nothing else is steering it, the lamp drifts slowly round the rug
+function orbit(now) {
+  const seconds = Math.min((now - lastFrame) / 1000, 0.1);
+  lastFrame = now;
+  const free = !tilting && !dragging && now > orbitPausedUntil;
+  if (free && document.body.classList.contains("is-zoomed-out")) {
+    setLamp(lampAngle + ORBIT_SPEED * seconds);
+  }
+  if (!tilting) requestAnimationFrame(orbit); // once tilt steers the lamp, circling stops for good
+}
+
 // ---------- Dragging the lamp (where there is no motion) ----------
 
 // The angle from the dial's middle to the finger
@@ -140,7 +158,10 @@ lampDial.addEventListener("pointermove", (e) => {
 });
 
 ["pointerup", "pointercancel"].forEach((type) =>
-  lampDial.addEventListener(type, () => (dragging = false))
+  lampDial.addEventListener(type, () => {
+    if (dragging) orbitPausedUntil = performance.now() + ORBIT_RESUME;
+    dragging = false;
+  })
 );
 
 // Keyboard: arrow keys turn the lamp
@@ -154,6 +175,7 @@ lampDial.addEventListener("keydown", (e) => {
 // ---------- Start ----------
 
 setLamp(LAMP_START);
+requestAnimationFrame(orbit);
 
 // Phones that don't ask permission (Android) can start following the tilt straight away
 if (window.isSecureContext && window.DeviceOrientationEvent &&

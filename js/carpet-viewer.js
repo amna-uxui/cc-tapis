@@ -354,14 +354,19 @@ function paintPile(left = 0, top = 0, w = pile.w, h = pile.h) {
   brushCtx.putImageData(pile.image, 0, 0, left, top, w, h);
 }
 
-// The lamp moved (js/carpet-lamp.js): light the marks again, at most once a frame
+// The lamp moved (js/carpet-lamp.js): light the marks again. Repainting the whole rug is heavy,
+// so at most every RELIGHT_EVERY ms (the lamp circles all the time when zoomed out)
+const RELIGHT_EVERY = 150;
 let relighting = null;
+let lastRelight = 0;
 function relightPile() {
   if (!pile || relighting) return;
-  relighting = requestAnimationFrame(() => {
+  const wait = Math.max(0, lastRelight + RELIGHT_EVERY - performance.now());
+  relighting = setTimeout(() => {
     relighting = null;
+    lastRelight = performance.now();
     paintPile();
-  });
+  }, wait);
 }
 
 // A new rug colour (js/carpet-colors.js): new wool tones for the marks
