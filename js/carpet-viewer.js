@@ -21,10 +21,12 @@ const ZOOM_DURATION = 650;   // ms for the double-tap / snap zoom animation
 const FIT_GAP = 16;     // space around the full carpet, between the bars
 const FIT_SIDE = 24;    // space left and right of the full carpet (52 makes room for the arrows)
 const FIT_LOW = 0.5;    // where the full carpet sits in the space it has, top (0) to bottom (1): centred
-const BRUSH_WIDTH = 40;      // how wide the brushed trail is, in carpet pixels
+const BRUSH_WIDTH = 70;      // how wide the brushed trail is, in carpet pixels (about a hand's sweep)
 const BRUSH_SMOOTHING = 0.3; // how gently the brush follows the finger (lower = smoother curves, more lag)
 const PILE_PUSH = 0.9;       // how far one stroke pushes the pile (1 = fully pushed after a brush width)
-const PILE_MARK = 0.6;       // how strong a fully pushed mark looks (0..1)
+const PILE_MARK = 0.9;       // how strong a fully pushed mark looks (0..1)
+const PILE_CONTRAST = 0.45;  // how far marks go lighter / darker (0..0.5)
+const PILE_SHEEN = 0.3;      // pile pushed sideways to the light still shows a little lighter (0 = not at all)
 const BRUSH_LIGHT = [218, 170, 125]; // the colour of brushed wool catching the light (r, g, b)
 const BRUSH_SHADE = [196, 146, 104]; // a slightly deeper wool tone, mixed in for depth
 
@@ -334,13 +336,14 @@ function pushPile(from, to) {
   paintPile(left, top, right - left + 1, bottom - top + 1);
 }
 
-// Show the pushed pile: lighter wool where it's pushed, brighter where it leans towards the lamp
+// Show the pushed pile by shading the rug photo itself (the canvas is blended "soft-light" over it,
+// so the pile's own texture shows through): pile leaning towards the lamp catches the light and
+// goes lighter, pile leaning away goes into shadow and darker. Mid grey = no change.
 function paintPile(left = 0, top = 0, w = pile.w, h = pile.h) {
   const d = pile.image.data;
   const lamp = typeof lampAngle === "number" ? (lampAngle * Math.PI) / 180 : -Math.PI * 0.75;
   const lx = Math.cos(lamp);
   const ly = Math.sin(lamp);
-  const { light, shade } = brushTone;
 
   for (let py = top; py < top + h; py++) {
     for (let px = left; px < left + w; px++) {
@@ -351,11 +354,10 @@ function paintPile(left = 0, top = 0, w = pile.w, h = pile.h) {
         d[o + 3] = 0;
         continue;
       }
-      const facing = 0.5 + 0.5 * ((pile.x[i] * lx + pile.y[i] * ly) / pushed); // 0 away .. 1 towards the lamp
-      d[o] = shade[0] + (light[0] - shade[0]) * facing;
-      d[o + 1] = shade[1] + (light[1] - shade[1]) * facing;
-      d[o + 2] = shade[2] + (light[2] - shade[2]) * facing;
-      d[o + 3] = 255 * Math.min(1, PILE_MARK * pushed ** 0.8 * pile.grain[i] * (0.75 + 0.5 * facing));
+      const facing = (pile.x[i] * lx + pile.y[i] * ly) / pushed; // -1 away from the lamp .. 1 towards it
+      const tone = 255 * (0.5 + PILE_CONTRAST * (PILE_SHEEN + (1 - PILE_SHEEN) * facing));
+      d[o] = d[o + 1] = d[o + 2] = tone;
+      d[o + 3] = 255 * Math.min(1, PILE_MARK * pushed ** 0.8 * pile.grain[i]);
     }
   }
   brushCtx.putImageData(pile.image, 0, 0, left, top, w, h);

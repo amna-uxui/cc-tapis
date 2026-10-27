@@ -9,7 +9,7 @@
 // The first one is the rug the page opens with. tone: the brush colours for that rug, taken from
 // the drawings on the original cc-tapis rug (leave it out and they are worked out from the photo).
 const COLORS = [
-  { name: "Cacao", src: "images/carpet-02-cacao.jpg", tone: { light: BRUSH_LIGHT, shade: BRUSH_SHADE } },
+  { name: "Cacao", src: "images/carpet-02-cacao-shag.jpg", tone: { light: BRUSH_LIGHT, shade: BRUSH_SHADE } },
   { name: "Ochre", src: "images/carpet-03-ochre.jpg", tone: { light: [240, 212, 160], shade: [222, 184, 124] } },
   { name: "Sage", src: "images/carpet-04-sage.jpg", tone: { light: [226, 226, 212], shade: [196, 198, 184] } },
 ];
