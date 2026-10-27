@@ -21,14 +21,14 @@ const ZOOM_DURATION = 650;   // ms for the double-tap / snap zoom animation
 const FIT_GAP = 16;     // space around the full carpet, between the bars
 const FIT_SIDE = 24;    // space left and right of the full carpet (52 makes room for the arrows)
 const FIT_LOW = 0.5;    // where the full carpet sits in the space it has, top (0) to bottom (1): centred
-const BRUSH_WIDTH = 30;      // how wide the brushed trail is, in carpet pixels (a fingertip, with soft edges)
+const BRUSH_WIDTH = 26;      // how wide the brushed trail is, in carpet pixels (a fingertip)
 const PILE_PUSH = 1.6;       // how far one stroke pushes the pile (1 = fully pushed after a brush width)
-const PILE_FLATTEN = 0.8;    // brushed pile is combed flat: how far its tufts turn into fine lines along the stroke (0..1)
-const PILE_COMB = 6;         // how long those combed lines are, in photo pixels either side
-const PILE_TONE = 0.2;       // and it turns up to this much lighter towards the light, darker away from it
-const PILE_SHEEN = 0.05;     // a touch lighter overall, as flattened pile catches a little more light
-const PILE_STREAKS = 0.55;   // fine streaks along each stroke, like fingertips dragging the fibres (0 = none)
-const PILE_SOFT = 0.65;      // how much of the brush's width fades out softly at its edges (0..1)
+const PILE_FLATTEN = 0.45;   // brushed pile is combed a little flat: how far its tufts turn into lines along the stroke (0..1)
+const PILE_COMB = 3;         // how long those combed lines are, in photo pixels either side
+const PILE_TONE = 0.32;      // it turns up to this much lighter towards the light, darker away from it
+const PILE_SHEEN = 0.12;     // and a touch lighter overall, so every line shows, whichever way it goes
+const PILE_STREAKS = 0;      // fine streaks along each stroke, like fingertips dragging the fibres (0 = none)
+const PILE_SOFT = 0.25;      // how much of the brush's width fades out softly at its edges (0..1): a crisp line
 const BRUSH_LIGHT = [218, 170, 125]; // the colour of brushed wool catching the light (r, g, b)
 const BRUSH_SHADE = [196, 146, 104]; // a slightly deeper wool tone, mixed in for depth
 
@@ -362,6 +362,31 @@ function pushPile(from, to, dir) {
       }
     }
   }
+  markDirty(left, top, right, bottom);
+}
+
+// The area of the rug that changed since the last frame: it's repainted once per frame, not after
+// every small step of the brush (that was the lag on phones)
+let dirty = null;
+let painting = null;
+
+function markDirty(left, top, right, bottom) {
+  dirty = dirty
+    ? {
+        left: Math.min(dirty.left, left),
+        top: Math.min(dirty.top, top),
+        right: Math.max(dirty.right, right),
+        bottom: Math.max(dirty.bottom, bottom),
+      }
+    : { left, top, right, bottom };
+  if (!painting) painting = requestAnimationFrame(paintDirty);
+}
+
+function paintDirty() {
+  painting = null;
+  if (!dirty) return;
+  const { left, top, right, bottom } = dirty;
+  dirty = null;
   paintPile(left, top, right - left + 1, bottom - top + 1);
 }
 
@@ -441,6 +466,7 @@ function setBrushTone(tone) {
 function resizePile(w, h) {
   const old = pile;
   pile = makePile(w, h);
+  dirty = null; // a repaint waiting for the old rug no longer fits; the whole new one is painted
   brush.width = w;
   brush.height = h;
   if (!old) return;
