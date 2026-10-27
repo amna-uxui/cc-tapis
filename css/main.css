@@ -274,10 +274,15 @@ body {
   color: var(--color-ink);
 }
 
-/* Buy: bigger letters, a narrower button */
+/* Buy: bigger letters, a narrower button, the letters in the exact middle
+   (the mono font sits its capitals about 1px low, so they're lifted by that) */
 .button--wide {
   width: 72px;
-  padding: 0;
+  padding: 0 0 1px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
   font-size: 14px;
   background: var(--color-panel); /* the same grey as the top bar */
   box-shadow: 0 1px 6px rgba(0, 0, 0, 0.18); /* stays visible over the white page when zoomed out */
@@ -286,6 +291,28 @@ body {
 .tool {
   width: 32px;
   height: 32px;
+}
+
+/* Left: information about the carpet, "[+]" in the mono type */
+.tool--info {
+  display: flex; /* 32px wide like the colour circle, so Buy stays exactly in the middle */
+  align-items: center;
+  font-size: 16px;
+  line-height: 1;
+  letter-spacing: 0;
+  white-space: nowrap;
+  color: var(--color-paper);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.35); /* readable on light rugs */
+}
+
+/* Zoomed out it sits on the white page: black instead of white */
+.is-zoomed-out .tool--info {
+  color: var(--color-ink);
+  text-shadow: none;
+}
+
+.tool--info {
+  transition: color var(--duration) var(--ease);
 }
 
 /* Right: colour of the carpet */
