@@ -139,7 +139,7 @@ body {
   right: var(--space-2);
 }
 
-/* The verb over the carpet: appears quickly, then slowly fades away, gone after 5 seconds (until the page is loaded again) */
+/* The verb over the carpet: fades in over 3 seconds, stays, gone after 5 seconds (until the page is loaded again) */
 .verb {
   position: absolute;
   top: 50%;
@@ -165,9 +165,9 @@ body {
 
 @keyframes verb {
   0% { opacity: 0; }
-  6% { opacity: 1; }   /* appears quickly (0.3s) */
-  60% { opacity: 1; }  /* stays until 3s */
-  100% { opacity: 0; visibility: hidden; } /* slow fade out, gone at 5s */
+  60% { opacity: 1; }
+  84% { opacity: 1; }
+  100% { opacity: 0; visibility: hidden; }
 }
 
 /* ---------- Grey bars (top and bottom), floating over the carpet ---------- */
