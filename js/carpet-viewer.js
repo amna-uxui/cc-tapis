@@ -786,10 +786,9 @@ if (zoomButton) {
 function sizeCarpet() {
   carpet.style.width = `${img.naturalWidth}px`;
   carpet.style.height = `${img.naturalHeight}px`;
-  // the lamp's light falls on the rug only, not on the see-through margin around it
-  const rug = solidArea(img);
-  carpet.style.setProperty("--rug-inset",
-    `${rug.y}px ${img.naturalWidth - rug.x - rug.w}px ${img.naturalHeight - rug.y - rug.h}px ${rug.x}px`);
+  // the lamp's light falls on the rug only, following its outline, not on the see-through margin around it
+  const light = carpet.querySelector(".carpet__light");
+  if (light) light.style.webkitMaskImage = light.style.maskImage = `url("${img.src}")`;
   resizePile(img.naturalWidth, img.naturalHeight);
   paintPile();
 }

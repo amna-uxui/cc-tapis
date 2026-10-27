@@ -85,9 +85,7 @@ body {
 }
 
 /* Positioned and scaled by js/carpet-viewer.js: the rug photo with the drawing canvas on top */
-.carpet.is-round {
-  clip-path: circle(50%);
-}
+/* (a round rug's photo is already cut out round, with a soft edge: js/carpet-shapes.js) */
 
 .carpet {
   position: absolute;
@@ -507,7 +505,9 @@ body {
    bright on that side, shadow on the far side. Soft-light blending lights the velvet itself. */
 .carpet__light {
   position: absolute;
-  inset: var(--rug-inset, 0);
+  inset: 0;
+  mask-size: 100% 100%; /* the rug photo itself is the mask (js/carpet-viewer.js): light only on the rug */
+  -webkit-mask-size: 100% 100%;
   pointer-events: none;
   mix-blend-mode: soft-light;
   background:
