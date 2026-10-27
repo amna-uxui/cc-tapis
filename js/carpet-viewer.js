@@ -612,6 +612,19 @@ stage.addEventListener(
   { passive: false }
 );
 
+// The zoom button (bottom left): close-up -> whole rug, whole rug -> close-up on its middle
+const zoomButton = document.querySelector("[data-zoom]");
+if (zoomButton) {
+  zoomButton.addEventListener("click", () => {
+    const isFull = view.scale < fitScale * 1.05;
+    if (isFull) {
+      animateTo(clampView(zoomAt(view, closeUpScale(), fit.left + fit.width / 2, fit.top + fit.height / 2)));
+    } else {
+      animateTo(centredView(fitScale));
+    }
+  });
+}
+
 // Stop Safari's own page pinch-zoom from fighting ours
 ["gesturestart", "gesturechange"].forEach((type) =>
   document.addEventListener(type, (e) => e.preventDefault())

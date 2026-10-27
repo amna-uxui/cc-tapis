@@ -11,8 +11,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 
-  <link rel="stylesheet" href="css/tokens.css?v=32">
-  <link rel="stylesheet" href="css/main.css?v=32">
+  <link rel="stylesheet" href="css/tokens.css?v=33">
+  <link rel="stylesheet" href="css/main.css?v=33">
 </head>
 <body>
 
@@ -57,9 +57,19 @@
   <!-- While the whole rug is in view, under it, above Buy: the shapes to choose from -->
   <div class="rug-shapes" data-shape-options></div>
 
-  <!-- Bottom, floating over the carpet: info (left), buy (centre), colour (right) -->
+  <!-- Bottom, floating over the carpet: zoom (left), buy (centre), colour (right) -->
   <nav class="bar bar--bottom" data-fit-bottom>
-    <button class="tool tool--info mono" aria-label="Information about the carpet">[+]</button> <!-- does nothing yet -->
+    <!-- Zoom: switch between the close-up and the whole rug. Arrows out when you can zoom out, in when you can zoom in -->
+    <button class="tool tool--zoom" aria-label="Zoom in or out" data-zoom>
+      <svg class="zoom-icon zoom-icon--out" viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="2" y="2" width="20" height="20" />
+        <path d="M10 10 6 6M6 10V6h4M14 10l4-4M14 6h4v4M10 14l-4 4M6 14v4h4M14 14l4 4M18 14v4h-4" />
+      </svg>
+      <svg class="zoom-icon zoom-icon--in" viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="2" y="2" width="20" height="20" />
+        <path d="M6 6l4 4M10 6v4H6M18 6l-4 4M14 6v4h4M6 18l4-4M6 14h4v4M18 18l-4-4M18 14h-4v4" />
+      </svg>
+    </button>
 
     <button class="button button--wide mono">Buy</button>
 
@@ -71,10 +81,10 @@
     <div class="palette__sheet" data-palette-swatches></div>
   </div>
 
-  <script src="js/carpet-viewer.js?v=32"></script>
-  <script src="js/carpet-colors.js?v=32"></script>
-  <script src="js/carpet-shapes.js?v=32"></script>
-  <script src="js/carpet-lamp.js?v=32"></script>
-  <script src="js/carpet-sound.js?v=32"></script>
+  <script src="js/carpet-viewer.js?v=33"></script>
+  <script src="js/carpet-colors.js?v=33"></script>
+  <script src="js/carpet-shapes.js?v=33"></script>
+  <script src="js/carpet-lamp.js?v=33"></script>
+  <script src="js/carpet-sound.js?v=33"></script>
 </body>
 </html>

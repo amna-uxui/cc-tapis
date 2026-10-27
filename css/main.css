@@ -293,26 +293,39 @@ body {
   height: 32px;
 }
 
-/* Left: information about the carpet, "[+]" in the mono type */
-.tool--info {
-  display: flex; /* 32px wide like the colour circle, so Buy stays exactly in the middle */
-  align-items: center;
-  font-size: 16px;
-  line-height: 1;
-  letter-spacing: 0;
-  white-space: nowrap;
+/* Left: zoom between the close-up and the whole rug (js/carpet-viewer.js) */
+.tool--zoom {
+  display: grid;
+  place-items: center;
   color: var(--color-paper);
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.35); /* readable on light rugs */
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.35)); /* readable on light rugs */
+  transition: color var(--duration) var(--ease);
+}
+
+.zoom-icon {
+  grid-area: 1 / 1;
+  width: 26px;
+  height: 26px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: square;
+}
+
+/* Close-up: arrows out (tap to see the whole rug). Zoomed out: arrows in (tap to go close) */
+.zoom-icon--in,
+.is-zoomed-out .zoom-icon--out {
+  display: none;
+}
+
+.is-zoomed-out .zoom-icon--in {
+  display: block;
 }
 
 /* Zoomed out it sits on the white page: black instead of white */
-.is-zoomed-out .tool--info {
+.is-zoomed-out .tool--zoom {
   color: var(--color-ink);
-  text-shadow: none;
-}
-
-.tool--info {
-  transition: color var(--duration) var(--ease);
+  filter: none;
 }
 
 /* Right: colour of the carpet */
