@@ -1,0 +1,56 @@
+/*
+  cc-tapis design tokens
+  Based on cc-tapis.com. Change values here and the whole site follows.
+*/
+
+:root {
+  /* Colours */
+  --color-ink: #000000;          /* text, icons */
+  --color-paper: #ffffff;        /* page background */
+  --color-panel: #e6e6e6;        /* header, menu, bottom bars */
+  --color-muted: #b9b9b9;        /* secondary text, placeholders */
+  --color-accent: #788ce6;       /* ticker bar, main accent (periwinkle) */
+  --color-pink: #fab4ff;
+  --color-yellow: #fff59b;
+  --color-mint: #a0dcbe;
+  --carpet-color: #7a4a33;       /* main colour of the carpet on screen (brown rug) */
+
+  /* Fonts
+     cc-tapis uses Neue Haas Unica, Apercu Mono and Alte Haas Grotesk (paid).
+     Inter and Space Mono are free stand-ins loaded from Google Fonts.
+     Alte Haas Grotesk is free to download; if you install it, it is used for headlines. */
+  --font-sans: "Inter", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-mono: "Space Mono", "Courier New", monospace;
+  --font-display: "Alte Haas Grotesk", "Inter", "Helvetica Neue", sans-serif;
+
+  /* Type sizes */
+  --text-xs: 10px;    /* tiny mono labels */
+  --text-sm: 12px;    /* mono menus, buttons, captions */
+  --text-md: 16px;    /* body, titles */
+  --text-lg: 24px;
+  --text-xl: 34px;    /* headlines */
+  --text-xxl: 45px;
+
+  --leading-tight: 1.05;
+  --leading-normal: 1.3;
+
+  /* Spacing */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;   /* standard side margin on mobile */
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+
+  /* Layout */
+  --ticker-height: 22px;
+  --header-height: 52px;
+  --tagline-height: 48px;    /* the "WE MAKE RUGS" ASCII block under the header */
+  --page-max-width: 480px;   /* mobile first: the site stays phone-width on big screens */
+
+  /* Motion */
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --duration: 250ms;
+}

@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Clean carpet tool</title>
+  <style>
+    body { margin: 0; padding: 16px; font: 12px "Space Mono", monospace; text-transform: uppercase; background: #fff; }
+    .row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    canvas { width: 100%; height: auto; display: block; background: #e6e6e6; }
+    label { display: block; margin-bottom: 4px; }
+    .controls { display: flex; flex-wrap: wrap; gap: 16px; margin: 16px 0; align-items: center; }
+    button { font: inherit; text-transform: uppercase; padding: 8px 16px; background: #000; color: #fff; border: 0; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <!--
+    Removes the light drawings and words from the carpet photo, keeping the wool texture and colour.
+    The original (images/carpet-01.jpg) is never changed; the result is saved as images/carpet-01-clean.jpg.
+
+    How it works:
+    1. Find the drawings: pixels clearly lighter than the carpet around them.
+    2. Fill those pixels with the carpet's colour from nearby (smooth),
+       plus wool texture copied from a clean spot close by (so it doesn't look flat).
+  -->
+  <div class="controls">
+    <label>Sensitivity <input type="range" id="threshold" min="8" max="50" value="34"> <span></span></label>
+    <label>Grow mask (px) <input type="range" id="grow" min="0" max="8" value="2"> <span></span></label>
+    <button id="run">Clean</button>
+    <button id="save">Save clean image</button>
+    <span id="status"></span>
+  </div>
+
+  <div class="row">
+    <div><label>Original</label><canvas id="original"></canvas></div>
+    <div><label>Drawings found</label><canvas id="mask"></canvas></div>
+    <div><label>Clean</label><canvas id="clean"></canvas></div>
+  </div>
+
+  <script>
+    const SOURCE = "../images/carpet-01.jpg";
+    const OUTPUT = "carpet-01-clean.jpg";
+    const LOCAL_RADIUS = 30;  // area used to judge "lighter than its surroundings"
+    const COLOR_RADIUS = 24;  // area the fill colour is taken from
+
+    const $ = (id) => document.getElementById(id);
+    const status = (t) => ($("status").textContent = t);
+
+    let W, H, src; // original pixels
+
+    // Sum table for fast averages over any rectangle
+    function integral(values) {
+      const S = new Float64Array((W + 1) * (H + 1));
+      for (let y = 0; y < H; y++) {
+        let row = 0;
+        for (let x = 0; x < W; x++) {
+          row += values[y * W + x];
+          S[(y + 1) * (W + 1) + x + 1] = S[y * (W + 1) + x + 1] + row;
+        }
+      }
+      return S;
+    }
+
+    function boxSum(S, x, y, r) {
+      const x0 = Math.max(x - r, 0), y0 = Math.max(y - r, 0);
+      const x1 = Math.min(x + r + 1, W), y1 = Math.min(y + r + 1, H);
+      return S[y1 * (W + 1) + x1] - S[y0 * (W + 1) + x1] - S[y1 * (W + 1) + x0] + S[y0 * (W + 1) + x0];
+    }
+
+    function boxArea(x, y, r) {
+      return (Math.min(x + r + 1, W) - Math.max(x - r, 0)) * (Math.min(y + r + 1, H) - Math.max(y - r, 0));
+    }
+
+    function clean() {
+      const threshold = +$("threshold").value;
+      const grow = +$("grow").value;
+      const N = W * H;
+
+      // 1. Brightness, and brightness of the surroundings
+      const L = new Float32Array(N);
+      for (let i = 0; i < N; i++) L[i] = 0.299 * src[i * 4] + 0.587 * src[i * 4 + 1] + 0.114 * src[i * 4 + 2];
+      const SL = integral(L);
+
+      let raw = new Uint8Array(N);
+      for (let y = 0; y < H; y++)
+        for (let x = 0; x < W; x++) {
+          const i = y * W + x;
+          const mean = boxSum(SL, x, y, LOCAL_RADIUS) / boxArea(x, y, LOCAL_RADIUS);
+          raw[i] = L[i] - mean > threshold ? 1 : 0;
+        }
+
+      // Drop lone specks (wool highlights), keep strokes
+      const SR = integral(raw);
+      const solid = new Uint8Array(N);
+      for (let y = 0; y < H; y++)
+        for (let x = 0; x < W; x++) solid[y * W + x] = raw[y * W + x] && boxSum(SR, x, y, 2) >= 6 ? 1 : 0;
+
+      // Grow the mask to catch the soft edges of the drawings
+      const SS = integral(solid);
+      const mask = new Uint8Array(N);
+      for (let y = 0; y < H; y++)
+        for (let x = 0; x < W; x++) mask[y * W + x] = boxSum(SS, x, y, grow) > 0 ? 1 : 0;
+
+      // 2a. Smooth carpet colour from the clean pixels around each point
+      const keep = new Float32Array(N);
+      for (let i = 0; i < N; i++) keep[i] = 1 - mask[i];
+      const SK = integral(keep);
+      const low = new Float32Array(N * 3);
+      for (let c = 0; c < 3; c++) {
+        const ch = new Float32Array(N);
+        for (let i = 0; i < N; i++) ch[i] = src[i * 4 + c] * keep[i];
+        const SC = integral(ch);
+        for (let y = 0; y < H; y++)
+          for (let x = 0; x < W; x++) {
+            let r = COLOR_RADIUS, w = boxSum(SK, x, y, r);
+            while (w < 1 && r < 400) { r *= 2; w = boxSum(SK, x, y, r); }
+            low[(y * W + x) * 3 + c] = boxSum(SC, x, y, r) / w;
+          }
+      }
+
+      // 2b. Wool texture copied from a nearby clean spot (same direction for neighbours, so it stays coherent)
+      const steps = [18, 26, 36, 48, 64, 84, 110, 140];
+      const dirs = [[-1, 0], [0, -1], [1, 0], [0, 1], [-1, -1], [1, -1], [-1, 1], [1, 1]];
+      const out = new Uint8ClampedArray(src);
+      for (let y = 0; y < H; y++)
+        for (let x = 0; x < W; x++) {
+          const i = y * W + x;
+          if (!mask[i]) continue;
+          let q = -1;
+          search: for (const k of steps)
+            for (const [dx, dy] of dirs) {
+              const qx = x + dx * k, qy = y + dy * k;
+              if (qx < 0 || qy < 0 || qx >= W || qy >= H) continue;
+              const j = qy * W + qx;
+              if (!mask[j]) { q = j; break search; }
+            }
+          for (let c = 0; c < 3; c++) {
+            const texture = q >= 0 ? src[q * 4 + c] - low[q * 3 + c] : 0;
+            out[i * 4 + c] = low[i * 3 + c] + texture;
+          }
+        }
+
+      // Draw mask and result
+      const m = $("mask").getContext("2d").createImageData(W, H);
+      for (let i = 0; i < N; i++) {
+        const v = mask[i] ? 255 : 0;
+        m.data[i * 4] = m.data[i * 4 + 1] = m.data[i * 4 + 2] = v;
+        m.data[i * 4 + 3] = 255;
+      }
+      $("mask").getContext("2d").putImageData(m, 0, 0);
+      $("clean").getContext("2d").putImageData(new ImageData(out, W, H), 0, 0);
+
+      const covered = mask.reduce((a, b) => a + b, 0) / N;
+      status(`Done: ${(covered * 100).toFixed(1)}% of the carpet cleaned`);
+    }
+
+    async function save() {
+      status("Saving…");
+      const data = $("clean").toDataURL("image/jpeg", 0.92);
+      const res = await fetch("http://localhost:8001/save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: OUTPUT, data }),
+      });
+      status(await res.text());
+    }
+
+    document.querySelectorAll("input[type=range]").forEach((input) => {
+      const show = () => (input.nextElementSibling.textContent = input.value);
+      input.addEventListener("input", show);
+      show();
+    });
+    $("run").addEventListener("click", () => { status("Cleaning…"); setTimeout(clean, 20); });
+    $("save").addEventListener("click", save);
+
+    const img = new Image();
+    img.onload = () => {
+      W = img.naturalWidth; H = img.naturalHeight;
+      for (const id of ["original", "mask", "clean"]) { $(id).width = W; $(id).height = H; }
+      const ctx = $("original").getContext("2d");
+      ctx.drawImage(img, 0, 0);
+      src = ctx.getImageData(0, 0, W, H).data;
+      status("Cleaning…");
+      setTimeout(clean, 20);
+    };
+    img.src = SOURCE;
+  </script>
+</body>
+</html>

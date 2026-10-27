@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#ffffff">
+  <title>cc-tapis | Digital carpets</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="css/tokens.css">
+  <link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+
+  <!-- Full screen: the carpet you can zoom and move around, with an arrow on each side -->
+  <main class="stage" data-viewer>
+    <img class="carpet" src="images/carpet-01-clean.jpg" alt="Plain brown cc-tapis rug, ready to draw on" draggable="false">
+
+    <button class="arrow arrow--prev mono" aria-label="Previous carpet">←</button>
+    <button class="arrow arrow--next mono" aria-label="Next carpet">→</button>
+  </main>
+
+  <!-- Top: grey bar like cc-tapis.com -->
+  <header class="bar bar--top" data-fit-top>
+    <button class="bar__side bar__side--left" aria-label="Open menu">☰</button>
+    <span class="wordmark">cc-tapis</span>
+    <a class="bar__side bar__side--right mono" href="https://cc-tapis.com/shop" target="_blank" rel="noopener">Shop</a>
+  </header>
+
+  <!-- Bottom: shapes (left), buy + learn (centre), colour (right) -->
+  <nav class="bar bar--bottom" data-fit-bottom>
+    <button class="tool tool--shape" aria-label="Shapes of the carpet"></button>
+
+    <div class="actions">
+      <button class="button mono">Buy</button>
+      <button class="button button--square mono" aria-label="Learn">L</button>
+    </div>
+
+    <button class="tool tool--color" aria-label="Colour of the carpet"></button>
+  </nav>
+
+  <script src="js/carpet-viewer.js"></script>
+</body>
+</html>
