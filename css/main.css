@@ -230,16 +230,11 @@ body {
   bottom: calc(var(--space-3) + env(safe-area-inset-bottom));
   height: 48px;
   padding: 0 var(--space-2);
-  background: var(--color-ink);
+  background: none; /* no bar: the buttons float over the carpet */
   color: var(--color-paper);
 }
 
 /* ---------- Bottom bar contents ---------- */
-
-.actions {
-  display: flex;
-  gap: var(--space-2);
-}
 
 .button {
   height: 32px;
@@ -248,9 +243,11 @@ body {
   color: var(--color-ink);
 }
 
-.button--square {
-  width: 32px;
+/* As wide as the old Buy + L pair */
+.button--wide {
+  width: 96px;
   padding: 0;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.18); /* stays visible over the white page when zoomed out */
 }
 
 .tool {
