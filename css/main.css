@@ -466,6 +466,11 @@ body {
   touch-action: none;
 }
 
+/* Following the phone's tilt: nothing to drag */
+.lamp-dial.is-tilting {
+  cursor: default;
+}
+
 /* A bigger area to grab than the ring itself */
 .lamp-dial::before {
   content: "";
