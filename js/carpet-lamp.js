@@ -53,7 +53,7 @@ function onTilt(e) {
   if (e.beta === null || e.gamma === null) return;
   if (!level) {
     level = { beta: e.beta, gamma: e.gamma };
-    if (waitingForMotion) showStatus("Tilt on");
+    if (waitingForMotion) showStatus("Tilt the rug");
     waitingForMotion = false;
   }
 
