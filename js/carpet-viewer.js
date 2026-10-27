@@ -23,7 +23,8 @@ const FIT_SIDE = 24;    // space left and right of the full carpet (52 makes roo
 const FIT_LOW = 0.5;    // where the full carpet sits in the space it has, top (0) to bottom (1): centred
 const BRUSH_WIDTH = 30;      // how wide the brushed trail is, in carpet pixels (a fingertip, with soft edges)
 const PILE_PUSH = 1.6;       // how far one stroke pushes the pile (1 = fully pushed after a brush width)
-const PILE_FLATTEN = 0.75;   // brushed pile lies flat: its tufts lose this much of their light-and-dark (0..1)
+const PILE_FLATTEN = 0.8;    // brushed pile is combed flat: how far its tufts turn into fine lines along the stroke (0..1)
+const PILE_COMB = 6;         // how long those combed lines are, in photo pixels either side
 const PILE_TONE = 0.2;       // and it turns up to this much lighter towards the light, darker away from it
 const PILE_SHEEN = 0.05;     // a touch lighter overall, as flattened pile catches a little more light
 const PILE_STREAKS = 0.55;   // fine streaks along each stroke, like fingertips dragging the fibres (0 = none)
@@ -283,37 +284,8 @@ function makePile(w, h) {
     y: new Float32Array(w * h),
     mode: new Int32Array(w * h),
     photo,
-    flat: softened(photo, w, h, 3), // the same photo with its tufts smoothed out: pile laid flat
     image: brushCtx.createImageData(w, h),
   };
-}
-
-// The photo, each pixel averaged with its neighbours within r (across, then down)
-function softened(src, w, h, r) {
-  const across = new Float32Array(w * h * 4);
-  const out = new Uint8ClampedArray(w * h * 4);
-  const n = 2 * r + 1;
-  for (let y = 0; y < h; y++) {
-    for (let c = 0; c < 3; c++) {
-      let sum = 0;
-      for (let x = -r; x <= r; x++) sum += src[(y * w + Math.min(Math.max(x, 0), w - 1)) * 4 + c];
-      for (let x = 0; x < w; x++) {
-        across[(y * w + x) * 4 + c] = sum / n;
-        sum += src[(y * w + Math.min(x + r + 1, w - 1)) * 4 + c] - src[(y * w + Math.max(x - r, 0)) * 4 + c];
-      }
-    }
-  }
-  for (let x = 0; x < w; x++) {
-    for (let c = 0; c < 3; c++) {
-      let sum = 0;
-      for (let y = -r; y <= r; y++) sum += across[(Math.min(Math.max(y, 0), h - 1) * w + x) * 4 + c];
-      for (let y = 0; y < h; y++) {
-        out[(y * w + x) * 4 + c] = sum / n;
-        sum += across[(Math.min(y + r + 1, h - 1) * w + x) * 4 + c] - across[(Math.max(y - r, 0) * w + x) * 4 + c];
-      }
-    }
-  }
-  return out;
 }
 
 // Smooth random wiggle, 0..1, for the streaks along a stroke (the same input always gives the same value)
@@ -393,11 +365,14 @@ function pushPile(from, to, dir) {
   paintPile(left, top, right - left + 1, bottom - top + 1);
 }
 
-// Show the pushed pile on the rug photo itself: brushed pile lies flat (its tufts smooth out),
-// and turns a little lighter where it leans towards the lamp, a little darker where it leans away
+// Show the pushed pile on the rug photo itself: brushed pile is combed flat, so its tufts are
+// drawn out into fine lines along the way it leans (each pixel averages the photo along that
+// line), and it turns a little lighter where it leans towards the lamp, darker where it leans away
 function paintPile(left = 0, top = 0, w = pile.w, h = pile.h) {
   const d = pile.image.data;
-  const { photo, flat } = pile;
+  const { photo } = pile;
+  const W = pile.w;
+  const H = pile.h;
   const lamp = typeof lampAngle === "number" ? (lampAngle * Math.PI) / 180 : -Math.PI * 0.75;
   const lx = Math.cos(lamp);
   const ly = Math.sin(lamp);
@@ -412,12 +387,29 @@ function paintPile(left = 0, top = 0, w = pile.w, h = pile.h) {
         d[o + 3] = 0; // untouched: the photo shows as it is
         continue;
       }
-      const facing = (pile.x[i] * lx + pile.y[i] * ly) / lean; // -1 away from the lamp .. 1 towards it
-      const smooth = PILE_FLATTEN * pushed;
+      const ux = pile.x[i] / lean;
+      const uy = pile.y[i] / lean;
+      const facing = ux * lx + uy * ly; // -1 away from the lamp .. 1 towards it
+
+      // the photo averaged along the lean: combed fibres
+      let r = 0;
+      let g = 0;
+      let b = 0;
+      for (let k = -PILE_COMB; k <= PILE_COMB; k++) {
+        const sx = Math.min(W - 1, Math.max(0, Math.round(px + ux * k)));
+        const sy = Math.min(H - 1, Math.max(0, Math.round(py + uy * k)));
+        const q = (sy * W + sx) * 4;
+        r += photo[q];
+        g += photo[q + 1];
+        b += photo[q + 2];
+      }
+      const n = 2 * PILE_COMB + 1;
+
+      const comb = PILE_FLATTEN * pushed;
       const tone = 1 + (PILE_SHEEN + PILE_TONE * facing) * pushed;
-      d[o] = (photo[o] + (flat[o] - photo[o]) * smooth) * tone;
-      d[o + 1] = (photo[o + 1] + (flat[o + 1] - photo[o + 1]) * smooth) * tone;
-      d[o + 2] = (photo[o + 2] + (flat[o + 2] - photo[o + 2]) * smooth) * tone;
+      d[o] = (photo[o] + (r / n - photo[o]) * comb) * tone;
+      d[o + 1] = (photo[o + 1] + (g / n - photo[o + 1]) * comb) * tone;
+      d[o + 2] = (photo[o + 2] + (b / n - photo[o + 2]) * comb) * tone;
       d[o + 3] = 255;
     }
   }
