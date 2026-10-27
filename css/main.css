@@ -571,3 +571,30 @@ body {
   box-shadow: 0 0 5px 1px rgba(226, 190, 128, 0.6), 0 0 12px 3px rgba(226, 190, 128, 0.28);
   transform: rotate(var(--lamp-angle, -135deg)) translateX(16px);
 }
+
+/* ---------- Save your rug (top right of the zoomed-out view, js/carpet-save.js) ---------- */
+
+.save-rug {
+  grid-column: 3;
+  grid-row: 1;
+  justify-self: end;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+}
+
+.save-rug svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: var(--color-ink);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+  transition: fill var(--duration) var(--ease);
+}
+
+/* Just saved: the bookmark fills in for a moment */
+.save-rug.is-saved svg {
+  fill: var(--color-ink);
+}
