@@ -32,6 +32,12 @@ const carpet = stage.querySelector(".carpet");
 const img = carpet.querySelector("img");
 const brush = carpet.querySelector(".carpet__brush");
 const brushCtx = brush.getContext("2d");
+
+// The drawing is also kept in the original brown tones on a hidden copy, so when the rug
+// changes colour every stroke can be re-tinted to the new colour (js/carpet-colors.js)
+const brushBase = document.createElement("canvas");
+const baseCtx = brushBase.getContext("2d");
+let brushTone = { light: BRUSH_LIGHT, shade: BRUSH_SHADE }; // the wool tones for the current rug colour
 const topBar = document.querySelector("[data-fit-top]");
 const bottomBar = document.querySelector("[data-fit-bottom]");
 
@@ -245,11 +251,12 @@ function makeBristles() {
   for (let i = 0; i < BRUSH_BRISTLES; i++) {
     const across = Math.random() * 2 - 1; // -1..1, spread evenly across the brush
     const shade = Math.random();
-    const rgb = BRUSH_LIGHT.map((c, k) => Math.round(c + (BRUSH_SHADE[k] - c) * shade));
-    const press = Math.exp(-across * across * 2.5);
+    const mix = (tone) => tone.light.map((c, k) => Math.round(c + (tone.shade[k] - c) * shade)).join(",");
+    const alpha = (0.04 + Math.random() * 0.07) * Math.exp(-across * across * 2.5);
     bristles.push({
       offset: (across * BRUSH_WIDTH) / 2,
-      color: `rgba(${rgb.join(",")}, ${(0.04 + Math.random() * 0.07) * press})`,
+      color: `rgba(${mix(brushTone)}, ${alpha})`,
+      baseColor: `rgba(${mix({ light: BRUSH_LIGHT, shade: BRUSH_SHADE })}, ${alpha})`,
       width: 0.5 + Math.random() * 0.9,
     });
   }
@@ -257,16 +264,42 @@ function makeBristles() {
 }
 
 // The sheen: a soft round glow, stamped close together along the stroke so it blends into one smooth band
-const sheen = document.createElement("canvas");
-sheen.width = sheen.height = BRUSH_WIDTH * BRUSH_DETAIL;
-{
-  const r = sheen.width / 2;
-  const ctx = sheen.getContext("2d");
+function makeSheen(light) {
+  const glowCanvas = document.createElement("canvas");
+  glowCanvas.width = glowCanvas.height = BRUSH_WIDTH * BRUSH_DETAIL;
+  const r = glowCanvas.width / 2;
+  const ctx = glowCanvas.getContext("2d");
   const glow = ctx.createRadialGradient(r, r, 0, r, r, r);
-  glow.addColorStop(0, `rgba(${BRUSH_LIGHT.join(",")}, ${BRUSH_SHEEN})`);
-  glow.addColorStop(1, `rgba(${BRUSH_LIGHT.join(",")}, 0)`);
+  glow.addColorStop(0, `rgba(${light.join(",")}, ${BRUSH_SHEEN})`);
+  glow.addColorStop(1, `rgba(${light.join(",")}, 0)`);
   ctx.fillStyle = glow;
-  ctx.fillRect(0, 0, sheen.width, sheen.height);
+  ctx.fillRect(0, 0, glowCanvas.width, glowCanvas.height);
+  return glowCanvas;
+}
+
+const baseSheen = makeSheen(BRUSH_LIGHT);
+let sheen = baseSheen;
+
+// A new rug colour: new wool tones for the brush, and the strokes already drawn re-tinted to match
+function setBrushTone(tone) {
+  brushTone = tone;
+  sheen = makeSheen(tone.light);
+
+  const w = brush.width;
+  const h = brush.height;
+  const pixels = baseCtx.getImageData(0, 0, w, h);
+  const d = pixels.data;
+  const ratio = tone.light.map((c, k) => c / BRUSH_LIGHT[k]);
+  for (let i = 0; i < d.length; i += 4) {
+    if (!d[i + 3]) continue;
+    d[i] = d[i] * ratio[0];
+    d[i + 1] = d[i + 1] * ratio[1];
+    d[i + 2] = d[i + 2] * ratio[2];
+  }
+  brushCtx.save();
+  brushCtx.setTransform(1, 0, 0, 1, 0, 0);
+  brushCtx.putImageData(pixels, 0, 0);
+  brushCtx.restore();
 }
 
 function stampSheen(stroke, to) {
@@ -279,7 +312,10 @@ function stampSheen(stroke, to) {
       x: stroke.sheenAt.x + (dx / gap) * spacing,
       y: stroke.sheenAt.y + (dy / gap) * spacing,
     };
-    brushCtx.drawImage(sheen, stroke.sheenAt.x - BRUSH_WIDTH / 2, stroke.sheenAt.y - BRUSH_WIDTH / 2, BRUSH_WIDTH, BRUSH_WIDTH);
+    const x = stroke.sheenAt.x - BRUSH_WIDTH / 2;
+    const y = stroke.sheenAt.y - BRUSH_WIDTH / 2;
+    brushCtx.drawImage(sheen, x, y, BRUSH_WIDTH, BRUSH_WIDTH);
+    baseCtx.drawImage(baseSheen, x, y, BRUSH_WIDTH, BRUSH_WIDTH);
     dx = to.x - stroke.sheenAt.x;
     dy = to.y - stroke.sheenAt.y;
     gap = Math.hypot(dx, dy);
@@ -313,12 +349,14 @@ function brushTowards(stroke, finger, ease = BRUSH_SMOOTHING) {
   stampSheen(stroke, to);
 
   stroke.bristles.forEach((b) => {
-    brushCtx.beginPath();
-    brushCtx.moveTo(from.x + oldNormal.x * b.offset, from.y + oldNormal.y * b.offset);
-    brushCtx.lineTo(to.x + newNormal.x * b.offset, to.y + newNormal.y * b.offset);
-    brushCtx.strokeStyle = b.color;
-    brushCtx.lineWidth = b.width;
-    brushCtx.stroke();
+    [[brushCtx, b.color], [baseCtx, b.baseColor]].forEach(([ctx, color]) => {
+      ctx.beginPath();
+      ctx.moveTo(from.x + oldNormal.x * b.offset, from.y + oldNormal.y * b.offset);
+      ctx.lineTo(to.x + newNormal.x * b.offset, to.y + newNormal.y * b.offset);
+      ctx.strokeStyle = color;
+      ctx.lineWidth = b.width;
+      ctx.stroke();
+    });
   });
 
   stroke.at = to;
@@ -333,6 +371,7 @@ function finishStroke(stroke, finger) {
 // Double-tap: back to the plain carpet
 function wipeDrawing() {
   brushCtx.clearRect(0, 0, img.naturalWidth, img.naturalHeight);
+  baseCtx.clearRect(0, 0, img.naturalWidth, img.naturalHeight);
 }
 
 // ---------- Touch, mouse and pen ----------
@@ -372,6 +411,7 @@ function startGesture() {
 
 stage.addEventListener("pointerdown", (e) => {
   if (e.target.closest("button")) return; // let the arrows work as buttons
+  if (window.closePalette && closePalette()) return; // first touch just closes the colour palette
   stage.setPointerCapture(e.pointerId);
   stopAnimation();
 
@@ -504,13 +544,20 @@ stage.addEventListener(
 
 // ---------- Start ----------
 
-function setup() {
+// Size the carpet and its drawing canvases to the rug photo
+function sizeCarpet() {
   carpet.style.width = `${img.naturalWidth}px`;
   carpet.style.height = `${img.naturalHeight}px`;
-  brush.width = img.naturalWidth * BRUSH_DETAIL;
-  brush.height = img.naturalHeight * BRUSH_DETAIL;
-  brushCtx.scale(BRUSH_DETAIL, BRUSH_DETAIL);
-  brushCtx.lineCap = "butt"; // round ends would overlap and leave beads along the fibres
+  [[brush, brushCtx], [brushBase, baseCtx]].forEach(([canvas, ctx]) => {
+    canvas.width = img.naturalWidth * BRUSH_DETAIL;
+    canvas.height = img.naturalHeight * BRUSH_DETAIL;
+    ctx.scale(BRUSH_DETAIL, BRUSH_DETAIL);
+    ctx.lineCap = "butt"; // round ends would overlap and leave beads along the fibres
+  });
+}
+
+function setup() {
+  sizeCarpet();
   measure();
   view = centredView(closeUpScale());
   render();
@@ -532,5 +579,60 @@ window.addEventListener("resize", () => {
   render();
 });
 
+// ---------- Changing the rug (js/carpet-colors.js) ----------
+
+const RUG_FADE = 220; // ms the carpet fades out and back in when the rug changes
+
+// Resolves once the image has loaded (works for images that already have)
+function whenLoaded(image) {
+  if (image.complete && image.naturalWidth) return Promise.resolve();
+  return new Promise((done, fail) => {
+    image.addEventListener("load", done, { once: true });
+    image.addEventListener("error", fail, { once: true });
+  });
+}
+
+// Show another rug photo. The drawing comes along: scaled to fit the new rug, centred.
+// You stay at the same zoom, looking at the same part of the carpet.
+async function changeRug(src) {
+  const next = new Image();
+  next.src = src;
+  await whenLoaded(next);
+
+  carpet.classList.add("is-changing");
+  await new Promise((done) => setTimeout(done, RUG_FADE));
+
+  const zoom = view.scale / fitScale;
+  const fx = (stage.clientWidth / 2 - view.x) / (img.naturalWidth * view.scale);
+  const fy = (stage.clientHeight / 2 - view.y) / (img.naturalHeight * view.scale);
+
+  const drawing = document.createElement("canvas");
+  drawing.width = brushBase.width;
+  drawing.height = brushBase.height;
+  drawing.getContext("2d").drawImage(brushBase, 0, 0);
+
+  img.src = src;
+  await whenLoaded(img);
+  sizeCarpet();
+
+  const fitDrawing = Math.min(brushBase.width / drawing.width, brushBase.height / drawing.height);
+  const w = drawing.width * fitDrawing;
+  const h = drawing.height * fitDrawing;
+  baseCtx.save();
+  baseCtx.setTransform(1, 0, 0, 1, 0, 0);
+  baseCtx.drawImage(drawing, (brushBase.width - w) / 2, (brushBase.height - h) / 2, w, h);
+  baseCtx.restore();
+
+  measure();
+  const scale = clampScale(fitScale * zoom);
+  view = clampView({
+    scale,
+    x: stage.clientWidth / 2 - fx * img.naturalWidth * scale,
+    y: stage.clientHeight / 2 - fy * img.naturalHeight * scale,
+  });
+  render();
+  carpet.classList.remove("is-changing");
+}
+
 if (img.complete && img.naturalWidth) setup();
-else img.addEventListener("load", setup);
+else img.addEventListener("load", setup, { once: true });

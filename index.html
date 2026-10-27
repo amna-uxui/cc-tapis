@@ -18,7 +18,7 @@
   <!-- Full screen: the carpet you can zoom and move around, with an arrow on each side -->
   <main class="stage" data-viewer>
     <div class="carpet">
-      <img src="images/carpet-02-plain.jpg" alt="Plain brown cc-tapis rug, ready to draw on" draggable="false">
+      <img src="images/carpet-02-cacao.jpg" alt="Plain velvet cc-tapis rug, ready to draw on" draggable="false">
       <canvas class="carpet__brush"></canvas>
     </div>
 
@@ -44,9 +44,15 @@
       <button class="button button--square mono" aria-label="Learn">L</button>
     </div>
 
-    <button class="tool tool--color" aria-label="Colour of the carpet"></button>
+    <button class="tool tool--color" aria-label="Colour of the carpet" aria-expanded="false"></button>
   </nav>
 
+  <!-- Colour palette: a small vertical bar that floats up above the colour circle when you tap it -->
+  <div class="palette" data-palette aria-hidden="true">
+    <div class="palette__sheet" data-palette-swatches></div>
+  </div>
+
   <script src="js/carpet-viewer.js"></script>
+  <script src="js/carpet-colors.js"></script>
 </body>
 </html>

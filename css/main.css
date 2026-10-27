@@ -97,6 +97,12 @@ body {
 
 .carpet.is-ready {
   opacity: 1;
+  transition: opacity 220ms var(--ease);
+}
+
+/* Changing the rug: fades out, swaps, fades back in (js/carpet-viewer.js) */
+.carpet.is-ready.is-changing {
+  opacity: 0;
 }
 
 .carpet img,
@@ -207,6 +213,7 @@ body {
 }
 
 .bar--bottom {
+  z-index: 3; /* above the colour palette, which slides out from behind it */
   bottom: calc(var(--space-3) + env(safe-area-inset-bottom));
   height: 48px;
   padding: 0 var(--space-2);
@@ -248,4 +255,51 @@ body {
   border-radius: 50%;
   background: var(--carpet-color);
   border: 1.5px solid var(--color-paper);
+}
+
+/* ---------- Colour palette (opened by the colour circle, js/carpet-colors.js) ---------- */
+
+/* A window right above the colour circle (lined up with the bar's right end). The colours
+   slide up into it from behind the bottom bar; the window hides them while they are below. */
+.palette {
+  position: fixed;
+  right: max(var(--space-4), (100vw - var(--page-max-width)) / 2 + var(--space-4));
+  bottom: calc(var(--space-3) + env(safe-area-inset-bottom) + 48px);
+  z-index: 2;
+  width: 48px;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.palette__sheet {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3); /* floats a little above the bar */
+  padding: var(--space-1) 0;
+  transform: translateY(calc(100% + var(--space-3)));
+  transition: transform 400ms var(--ease);
+}
+
+.palette.is-open {
+  pointer-events: auto;
+}
+
+.palette.is-open .palette__sheet {
+  transform: translateY(0);
+}
+
+/* Floating straight on the carpet: a white ring and a soft shadow keep them visible on any rug */
+.swatch {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1.5px solid var(--color-paper);
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.3);
+}
+
+/* The chosen colour gets a second ring around it */
+.swatch[aria-pressed="true"] {
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.25), 0 0 0 3.5px var(--color-paper), 0 1px 6px rgba(0, 0, 0, 0.3);
 }
