@@ -409,8 +409,9 @@ function distance() {
 function startGesture() {
   if (pointers.size === 1) {
     const p = [...pointers.values()][0];
-    gesture = { type: "draw", start: p, last: toCarpet(p) };
+    gesture = { type: "draw", start: p, last: toCarpet(p), screen: { ...p, time: performance.now() } };
   } else if (pointers.size === 2) {
+    if (typeof brushSound !== "undefined") brushSound.stop(); // a second finger: no longer drawing
     gesture = { type: "pinch", mid: midpoint(), dist: distance(), view: { ...view } };
     lastMove = { ...gesture.mid, time: performance.now() };
   }
@@ -447,6 +448,12 @@ stage.addEventListener("pointermove", (e) => {
 
     gesture.last = toCarpet(p);
     brushTowards(gesture.stroke, gesture.last);
+
+    // Brushing sound (js/carpet-sound.js), as loud as the finger is fast
+    const now = performance.now();
+    const speed = Math.hypot(p.x - gesture.screen.x, p.y - gesture.screen.y) / Math.max(now - gesture.screen.time, 1);
+    gesture.screen = { ...p, time: now };
+    if (typeof brushSound !== "undefined") brushSound.move(speed);
     return;
   }
 
@@ -514,6 +521,7 @@ function endPointer(e) {
   if (pointers.size > 0 || gesture.type === "rest") return;
 
   if (gesture.stroke) finishStroke(gesture.stroke, toCarpet(p));
+  if (typeof brushSound !== "undefined") brushSound.stop();
 
   // Double-tap: wipe the drawing
   if (!moved) {
