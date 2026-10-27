@@ -511,7 +511,7 @@ body {
   pointer-events: none;
   mix-blend-mode: soft-light;
   background:
-    radial-gradient(circle at var(--light-x, 0%) var(--light-y, 0%), rgba(255, 238, 210, 0.95) 0, rgba(255, 238, 210, 0) 70%),
+    radial-gradient(circle at var(--light-x, 0%) var(--light-y, 0%), rgba(255, 186, 110, 0.65) 0, rgba(255, 186, 110, 0) 70%), /* warm, soft lamp light */
     radial-gradient(circle at var(--light-x, 0%) var(--light-y, 0%), rgba(0, 0, 0, 0) 45%, rgba(0, 0, 0, 0.6) 130%);
   opacity: 0;
   transition: opacity 500ms var(--ease);

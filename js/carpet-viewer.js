@@ -22,12 +22,10 @@ const FIT_GAP = 16;     // space around the full carpet, between the bars
 const FIT_SIDE = 24;    // space left and right of the full carpet (52 makes room for the arrows)
 const FIT_LOW = 0.5;    // where the full carpet sits in the space it has, top (0) to bottom (1): centred
 const BRUSH_WIDTH = 24;      // how wide the brushed trail is, in carpet pixels (about a fingertip, for patterns)
-const BRUSH_SMOOTHING = 0.7; // how closely the brush follows the finger (1 = exactly; lower = smoother but lags)
-const BRUSH_TURN = 0.15;     // how quickly a stroke's direction follows the finger's turns (lower = steadier tone)
 const PILE_PUSH = 1.6;       // how far one stroke pushes the pile (1 = fully pushed after a brush width)
-const PILE_LIGHTER = 0.45;   // pile leaning towards the light: up to this much brighter (0.45 = +45%)
-const PILE_DARKER = 0.55;    // pile leaning away from it: up to this much darker
-const PILE_SHEEN = 0.25;     // pile pushed sideways to the light still shows a little lighter (0 = not at all)
+const PILE_LIGHTER = 0.45;   // brushed pile is brighter, up to this much (0.45 = +45%) when it leans towards the light
+const PILE_VARY = 0.3;       // how much the lean's direction changes that (0 = every direction looks the same):
+                             // away from the light it's still lighter, just less, so every mark shows
 const BRUSH_LIGHT = [218, 170, 125]; // the colour of brushed wool catching the light (r, g, b)
 const BRUSH_SHADE = [196, 146, 104]; // a slightly deeper wool tone, mixed in for depth
 
@@ -316,8 +314,13 @@ function pushPile(from, to, dir) {
       const i = py * pile.w + px;
       const leaning = pile.x[i] * ux + pile.y[i] * uy; // how far the pile already leans this way
 
-      // First touch in this stroke: against the pile -> this stroke erases here, else it draws
-      if (pile.mode[i] >> 1 !== strokeId) pile.mode[i] = (strokeId << 1) | (leaning < -0.02 ? 1 : 0);
+      // First touch in this stroke: brushing back along an earlier line (roughly the opposite way,
+      // not just crossing it) -> this stroke erases here, else it draws
+      if (pile.mode[i] >> 1 !== strokeId) {
+        const lean = Math.hypot(pile.x[i], pile.y[i]);
+        const against = lean > 0.02 && leaning / lean < -0.6;
+        pile.mode[i] = (strokeId << 1) | (against ? 1 : 0);
+      }
 
       if (pile.mode[i] & 1) {
         // erase: push the pile back towards home, but not past it; sideways lean fades too
@@ -328,24 +331,23 @@ function pushPile(from, to, dir) {
         pile.x[i] = (leaning + back) * ux + sideX;
         pile.y[i] = (leaning + back) * uy + sideY;
       } else {
-        // draw: push the pile along the stroke, up to fully pushed
-        let x = pile.x[i] + ux * press;
-        let y = pile.y[i] + uy * press;
-        const size = Math.hypot(x, y);
-        if (size > 1) {
-          x /= size;
-          y /= size;
-        }
-        pile.x[i] = x;
-        pile.y[i] = y;
+        // draw: the pile now lies the way this stroke goes (so going back over your own line in the
+        // same stroke doesn't undo it), and it's pushed a little further, up to fully pushed
+        const size = Math.hypot(pile.x[i], pile.y[i]);
+        let x = ux + (size ? (pile.x[i] / size) * 0.3 : 0);
+        let y = uy + (size ? (pile.y[i] / size) * 0.3 : 0);
+        const length = Math.hypot(x, y) || 1;
+        const strength = Math.min(1, size + press);
+        pile.x[i] = (x / length) * strength;
+        pile.y[i] = (y / length) * strength;
       }
     }
   }
   paintPile(left, top, right - left + 1, bottom - top + 1);
 }
 
-// Show the pushed pile by shading the rug photo's own pixels, so its texture stays: pile leaning
-// towards the lamp catches the light and goes lighter, pile leaning away goes darker
+// Show the pushed pile by brightening the rug photo's own pixels, so its texture stays: brushed
+// pile always catches a little more light, most where it leans towards the lamp
 function paintPile(left = 0, top = 0, w = pile.w, h = pile.h) {
   const d = pile.image.data;
   const photo = pile.photo;
@@ -363,8 +365,8 @@ function paintPile(left = 0, top = 0, w = pile.w, h = pile.h) {
         continue;
       }
       const facing = (pile.x[i] * lx + pile.y[i] * ly) / Math.hypot(pile.x[i], pile.y[i]); // -1 away .. 1 towards
-      const light = (PILE_SHEEN + (1 - PILE_SHEEN) * facing) * pushed;
-      const gain = 1 + (light > 0 ? light * PILE_LIGHTER : light * PILE_DARKER);
+      const light = (1 - PILE_VARY + PILE_VARY * facing) * pushed; // always > 0: every mark shows
+      const gain = 1 + light * PILE_LIGHTER;
       d[o] = photo[o] * gain;
       d[o + 1] = photo[o + 1] * gain;
       d[o + 2] = photo[o + 2] * gain;
@@ -418,33 +420,40 @@ function resizePile(w, h) {
 
 function startStroke(stroke, point) {
   strokeId++;
-  stroke.at = point;  // where the brush is (it follows the finger closely)
-  stroke.dir = null;  // the stroke's steady direction: it turns gently, so one stroke keeps one tone
+  stroke.at = point;   // where the drawn line has reached
+  stroke.bend = point; // the last finger position: the line curves towards it
 }
 
-// Move the brush towards the finger, pushing the pile on the way
-function brushTowards(stroke, finger, ease = BRUSH_SMOOTHING) {
-  const to = {
-    x: stroke.at.x + (finger.x - stroke.at.x) * ease,
-    y: stroke.at.y + (finger.y - stroke.at.y) * ease,
-  };
-  const length = Math.hypot(to.x - stroke.at.x, to.y - stroke.at.y);
-  if (length < 0.3) return;
-  const step = { x: (to.x - stroke.at.x) / length, y: (to.y - stroke.at.y) / length };
-  if (!stroke.dir) stroke.dir = step;
-  else {
-    const x = stroke.dir.x + (step.x - stroke.dir.x) * BRUSH_TURN;
-    const y = stroke.dir.y + (step.y - stroke.dir.y) * BRUSH_TURN;
-    const size = Math.hypot(x, y) || 1;
-    stroke.dir = { x: x / size, y: y / size };
+// Draw a smooth curve from a to c, bending towards b, pushing the pile in small steps along it
+function brushCurve(a, b, c) {
+  const steps = Math.max(1, Math.ceil((Math.hypot(b.x - a.x, b.y - a.y) + Math.hypot(c.x - b.x, c.y - b.y)) / 2));
+  let from = a;
+  for (let k = 1; k <= steps; k++) {
+    const t = k / steps;
+    const to = {
+      x: (1 - t) * (1 - t) * a.x + 2 * (1 - t) * t * b.x + t * t * c.x,
+      y: (1 - t) * (1 - t) * a.y + 2 * (1 - t) * t * b.y + t * t * c.y,
+    };
+    const length = Math.hypot(to.x - from.x, to.y - from.y);
+    if (length >= 0.3) {
+      pushPile(from, to, { x: (to.x - from.x) / length, y: (to.y - from.y) / length });
+      from = to;
+    }
   }
-  pushPile(stroke.at, to, stroke.dir);
-  stroke.at = to;
 }
 
-// Lifting the finger: let the brush catch up with where the finger left
+// A new finger position: curve on to halfway between the last one and this one
+// (joining the halfway points with curves gives smooth lines, never corners)
+function brushTo(stroke, finger) {
+  const half = { x: (stroke.bend.x + finger.x) / 2, y: (stroke.bend.y + finger.y) / 2 };
+  brushCurve(stroke.at, stroke.bend, half);
+  stroke.at = half;
+  stroke.bend = finger;
+}
+
+// Lifting the finger: finish the line at the last position
 function finishStroke(stroke, finger) {
-  for (let i = 0; i < 12; i++) brushTowards(stroke, finger, 0.5);
+  brushCurve(stroke.at, stroke.bend, finger);
 }
 
 // Double-tap: back to the untouched pile
@@ -519,8 +528,10 @@ stage.addEventListener("pointermove", (e) => {
       startStroke(gesture.stroke, gesture.last);
     }
 
+    // every position the phone recorded since the last move (it sends them in batches)
+    const recorded = e.getCoalescedEvents ? e.getCoalescedEvents() : [];
+    (recorded.length ? recorded : [e]).forEach((ev) => brushTo(gesture.stroke, toCarpet(localPoint(ev))));
     gesture.last = toCarpet(p);
-    brushTowards(gesture.stroke, gesture.last);
 
     // Brushing sound (js/carpet-sound.js), as loud as the finger is fast
     const now = performance.now();
