@@ -21,15 +21,17 @@ const ZOOM_DURATION = 650;   // ms for the double-tap / snap zoom animation
 const FIT_GAP = 16;     // space around the full carpet, between the bars
 const FIT_SIDE = 24;    // space left and right of the full carpet (52 makes room for the arrows)
 const FIT_LOW = 0.5;    // where the full carpet sits in the space it has, top (0) to bottom (1): centred
-const BRUSH_WIDTH = 90;      // how wide the brush is, in carpet pixels: a palm sweeping the velvet
-const PILE_PUSH = 1.0;       // how far one sweep pushes the pile (1 = fully pushed after a brush width)
+const BRUSH_WIDTH = 56;      // how wide the brush is, in carpet pixels: between a fingertip and a palm
+const PILE_PUSH = 1.4;       // how far one stroke pushes the pile (1 = fully pushed after a brush width)
 const PILE_FLATTEN = 0;      // brushed pile combed flat: how far its tufts turn into lines (0 = not at all)
 const PILE_COMB = 2;         // how long those combed lines are, in photo pixels either side
-const PILE_TONE = 0.38;      // the velvet sheen: up to this much lighter where the pile leans towards the
-                             // light, darker where it leans away; the texture stays, only the light changes
-const PILE_SHEEN = 0;        // a touch lighter overall, whichever way it goes (0 = none: pure sheen)
-const PILE_STREAKS = 0;      // fine streaks along each sweep (0 = none)
-const PILE_SOFT = 1;         // how much of the brush's width fades out softly (1 = from the middle: no edges)
+const PILE_TONE = 0.3;       // up to this much darker where the pile leans away from the light, lighter towards it;
+                             // the texture stays, only the light changes
+const PILE_RICH = 0.4;       // darker pile also turns this much richer in colour, as in real velvet
+const PILE_SHEEN = 0;        // a touch lighter overall, whichever way it goes (0 = none)
+const PILE_STREAKS = 0;      // fine streaks along each stroke (0 = none)
+const PILE_SOFT = 0.3;       // how much of the brush's width fades out softly: a firm, organic edge
+const PILE_WOBBLE = 0.35;    // how much the stroke's outline wanders, like the shapes in brushed velvet (0..1)
 const BRUSH_LIGHT = [218, 170, 125]; // the colour of brushed wool catching the light (r, g, b)
 const BRUSH_SHADE = [196, 146, 104]; // a slightly deeper wool tone, mixed in for depth
 
@@ -263,7 +265,8 @@ function glide(vx, vy) {
 
 let pile = null;    // { w, h, x, y (the arrows), mode, photo (its pixels), image }
 let strokeId = 0;   // each stroke's number, so a pixel decides once per stroke: draw or erase
-let strokeSeed = 0; // each stroke's own pattern of streaks
+let strokeSeed = 0; // each stroke's own pattern of streaks and wobbles
+let strokeTravel = 0; // how far the current stroke has gone, so its outline wobbles along its length
 
 // Screen point -> point on the carpet photo
 function toCarpet(p) {
@@ -350,8 +353,11 @@ function pushPile(from, to, dir) {
       const along = Math.max(0, Math.min(length, (px - from.x) * sx + (py - from.y) * sy));
       const gap = Math.hypot(px - (from.x + sx * along), py - (from.y + sy * along));
       if (gap >= r) continue;
-      const edge = Math.max(0, (gap / r - (1 - PILE_SOFT)) / PILE_SOFT);
       const side = (px - from.x) * -sy + (py - from.y) * sx; // which side of the path, and how far
+      // the outline wanders: each side of the stroke is a little wider or narrower along its length
+      const reach = r * (1 - PILE_WOBBLE * wiggle((strokeTravel + along) * 0.035 + (side > 0 ? 0 : 61)));
+      if (gap >= reach) continue;
+      const edge = Math.max(0, (gap / reach - (1 - PILE_SOFT)) / PILE_SOFT);
       const streak = 1 - PILE_STREAKS * wiggle(side * 0.45 + 50); // fine lines running along the stroke
       const press = (1 - edge * edge * (3 - 2 * edge)) * push * streak;
 
@@ -387,6 +393,7 @@ function pushPile(from, to, dir) {
       }
     }
   }
+  strokeTravel += length;
   markDirty(left, top, right, bottom);
 }
 
@@ -461,9 +468,20 @@ function paintPile(left = 0, top = 0, w = pile.w, h = pile.h) {
 
       const comb = PILE_FLATTEN * pushed;
       const tone = 1 + (PILE_SHEEN + PILE_TONE * facing) * pushed;
-      d[o] = (photo[o] + (r / n - photo[o]) * comb) * tone;
-      d[o + 1] = (photo[o + 1] + (g / n - photo[o + 1]) * comb) * tone;
-      d[o + 2] = (photo[o + 2] + (b / n - photo[o + 2]) * comb) * tone;
+      let cr = photo[o] + (r / n - photo[o]) * comb;
+      let cg = photo[o + 1] + (g / n - photo[o + 1]) * comb;
+      let cb = photo[o + 2] + (b / n - photo[o + 2]) * comb;
+      if (facing < 0) {
+        // darker pile is also richer: its colour pulls away from grey
+        const rich = 1 + PILE_RICH * -facing * pushed;
+        const grey = 0.3 * cr + 0.59 * cg + 0.11 * cb;
+        cr = grey + (cr - grey) * rich;
+        cg = grey + (cg - grey) * rich;
+        cb = grey + (cb - grey) * rich;
+      }
+      d[o] = cr * tone;
+      d[o + 1] = cg * tone;
+      d[o + 2] = cb * tone;
       d[o + 3] = photo[o + 3]; // only on the rug: never on the see-through margin around it
     }
   }
@@ -516,6 +534,7 @@ function resizePile(w, h) {
 function startStroke(stroke, point) {
   strokeId++;
   strokeSeed = Math.random() * 1000;
+  strokeTravel = 0;
   stroke.at = point;   // where the drawn line has reached
   stroke.bend = point; // the last finger position: the line curves towards it
 }
