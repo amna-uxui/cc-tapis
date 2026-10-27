@@ -139,6 +139,37 @@ body {
   right: var(--space-2);
 }
 
+/* The verb over the carpet: fades in over 3 seconds, stays, gone after 5 seconds (until the page is loaded again) */
+.verb {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1;
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-xxl);
+  font-weight: 300;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  white-space: nowrap;
+  /* glass letters: a see-through brown fill with a light edge and a soft shadow, so the carpet shows through */
+  color: rgba(218, 170, 125, 0.45); /* the light wool brown of a brushed stroke */
+  text-shadow:
+    0 0 1px rgba(232, 196, 160, 0.7),
+    0 1px 0 rgba(232, 196, 160, 0.25),
+    0 2px 14px rgba(40, 20, 10, 0.25);
+  pointer-events: none; /* you can start drawing right through it */
+  animation: verb 5s ease-in-out forwards;
+}
+
+@keyframes verb {
+  0% { opacity: 0; }
+  60% { opacity: 1; }
+  84% { opacity: 1; }
+  100% { opacity: 0; visibility: hidden; }
+}
+
 /* ---------- Grey bars (top and bottom), floating over the carpet ---------- */
 
 .bar {
