@@ -118,10 +118,8 @@ body {
   height: 100%;
 }
 
-/* The brushed pile shades the photo itself, so the rug's texture shows through the marks */
 .carpet__brush {
   cursor: crosshair;
-  mix-blend-mode: soft-light;
 }
 
 .arrow {

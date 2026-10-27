@@ -22,11 +22,12 @@ const FIT_GAP = 16;     // space around the full carpet, between the bars
 const FIT_SIDE = 24;    // space left and right of the full carpet (52 makes room for the arrows)
 const FIT_LOW = 0.5;    // where the full carpet sits in the space it has, top (0) to bottom (1): centred
 const BRUSH_WIDTH = 70;      // how wide the brushed trail is, in carpet pixels (about a hand's sweep)
-const BRUSH_SMOOTHING = 0.3; // how gently the brush follows the finger (lower = smoother curves, more lag)
-const PILE_PUSH = 0.9;       // how far one stroke pushes the pile (1 = fully pushed after a brush width)
-const PILE_MARK = 0.9;       // how strong a fully pushed mark looks (0..1)
-const PILE_CONTRAST = 0.45;  // how far marks go lighter / darker (0..0.5)
-const PILE_SHEEN = 0.3;      // pile pushed sideways to the light still shows a little lighter (0 = not at all)
+const BRUSH_SMOOTHING = 0.7; // how closely the brush follows the finger (1 = exactly; lower = smoother but lags)
+const BRUSH_TURN = 0.15;     // how quickly a stroke's direction follows the finger's turns (lower = steadier tone)
+const PILE_PUSH = 1.6;       // how far one stroke pushes the pile (1 = fully pushed after a brush width)
+const PILE_LIGHTER = 0.45;   // pile leaning towards the light: up to this much brighter (0.45 = +45%)
+const PILE_DARKER = 0.35;    // pile leaning away from it: up to this much darker
+const PILE_SHEEN = 0.25;     // pile pushed sideways to the light still shows a little lighter (0 = not at all)
 const BRUSH_LIGHT = [218, 170, 125]; // the colour of brushed wool catching the light (r, g, b)
 const BRUSH_SHADE = [196, 146, 104]; // a slightly deeper wool tone, mixed in for depth
 
@@ -258,7 +259,7 @@ function glide(vx, vy) {
   The lamp (js/carpet-lamp.js) makes marks brighter where the pile leans towards it.
 */
 
-let pile = null;    // { w, h, x, y (the arrows), grain, mode, image }
+let pile = null;    // { w, h, x, y (the arrows), mode, photo (its pixels), image }
 let strokeId = 0;   // each stroke's number, so a pixel decides once per stroke: draw or erase
 
 // Screen point -> point on the carpet photo
@@ -266,29 +267,34 @@ function toCarpet(p) {
   return { x: (p.x - view.x) / view.scale, y: (p.y - view.y) / view.scale };
 }
 
-// A fresh, untouched pile the size of the rug photo
+// A fresh, untouched pile the size of the rug photo, with the photo's own pixels to shade
 function makePile(w, h) {
-  const grain = new Float32Array(w * h);
-  for (let i = 0; i < grain.length; i++) grain[i] = 0.7 + Math.random() * 0.6; // velvet isn't perfectly even
+  const copy = document.createElement("canvas");
+  copy.width = w;
+  copy.height = h;
+  const copyCtx = copy.getContext("2d");
+  copyCtx.drawImage(img, 0, 0, w, h);
   return {
     w,
     h,
     x: new Float32Array(w * h),
     y: new Float32Array(w * h),
-    grain,
     mode: new Int32Array(w * h),
+    photo: copyCtx.getImageData(0, 0, w, h).data,
     image: brushCtx.createImageData(w, h),
   };
 }
 
-// Push the pile under the brush as it moves from one point to the next
-function pushPile(from, to) {
+// Push the pile under the brush as it moves from one point to the next, in the stroke's direction
+function pushPile(from, to, dir) {
   const dx = to.x - from.x;
   const dy = to.y - from.y;
   const length = Math.hypot(dx, dy);
   if (length < 0.3) return;
-  const ux = dx / length;
-  const uy = dy / length;
+  const sx = dx / length; // the path of the brush
+  const sy = dy / length;
+  const ux = dir.x; // the way the pile is pushed (the stroke's steady direction)
+  const uy = dir.y;
   const r = BRUSH_WIDTH / 2;
   const push = (PILE_PUSH * length) / r;
 
@@ -299,11 +305,13 @@ function pushPile(from, to) {
 
   for (let py = top; py <= bottom; py++) {
     for (let px = left; px <= right; px++) {
-      // how far this pixel is from the brush's path, and so how hard the brush presses on it
-      const along = Math.max(0, Math.min(length, (px - from.x) * ux + (py - from.y) * uy));
-      const gap = Math.hypot(px - (from.x + ux * along), py - (from.y + uy * along));
+      // how far this pixel is from the brush's path, and so how hard the brush presses on it:
+      // fully across the middle of the brush, fading out over its outer edge
+      const along = Math.max(0, Math.min(length, (px - from.x) * sx + (py - from.y) * sy));
+      const gap = Math.hypot(px - (from.x + sx * along), py - (from.y + sy * along));
       if (gap >= r) continue;
-      const press = (1 - (gap / r) ** 2) ** 2 * push;
+      const edge = Math.max(0, (gap / r - 0.6) / 0.4);
+      const press = (1 - edge * edge * (3 - 2 * edge)) * push;
 
       const i = py * pile.w + px;
       const leaning = pile.x[i] * ux + pile.y[i] * uy; // how far the pile already leans this way
@@ -336,11 +344,11 @@ function pushPile(from, to) {
   paintPile(left, top, right - left + 1, bottom - top + 1);
 }
 
-// Show the pushed pile by shading the rug photo itself (the canvas is blended "soft-light" over it,
-// so the pile's own texture shows through): pile leaning towards the lamp catches the light and
-// goes lighter, pile leaning away goes into shadow and darker. Mid grey = no change.
+// Show the pushed pile by shading the rug photo's own pixels, so its texture stays: pile leaning
+// towards the lamp catches the light and goes lighter, pile leaning away goes darker
 function paintPile(left = 0, top = 0, w = pile.w, h = pile.h) {
   const d = pile.image.data;
+  const photo = pile.photo;
   const lamp = typeof lampAngle === "number" ? (lampAngle * Math.PI) / 180 : -Math.PI * 0.75;
   const lx = Math.cos(lamp);
   const ly = Math.sin(lamp);
@@ -348,16 +356,19 @@ function paintPile(left = 0, top = 0, w = pile.w, h = pile.h) {
   for (let py = top; py < top + h; py++) {
     for (let px = left; px < left + w; px++) {
       const i = py * pile.w + px;
-      const pushed = Math.hypot(pile.x[i], pile.y[i]);
+      const pushed = Math.min(1, Math.hypot(pile.x[i], pile.y[i]));
       const o = i * 4;
       if (pushed < 0.004) {
-        d[o + 3] = 0;
+        d[o + 3] = 0; // untouched: the photo shows as it is
         continue;
       }
-      const facing = (pile.x[i] * lx + pile.y[i] * ly) / pushed; // -1 away from the lamp .. 1 towards it
-      const tone = 255 * (0.5 + PILE_CONTRAST * (PILE_SHEEN + (1 - PILE_SHEEN) * facing));
-      d[o] = d[o + 1] = d[o + 2] = tone;
-      d[o + 3] = 255 * Math.min(1, PILE_MARK * pushed ** 0.8 * pile.grain[i]);
+      const facing = (pile.x[i] * lx + pile.y[i] * ly) / Math.hypot(pile.x[i], pile.y[i]); // -1 away .. 1 towards
+      const light = (PILE_SHEEN + (1 - PILE_SHEEN) * facing) * pushed;
+      const gain = 1 + (light > 0 ? light * PILE_LIGHTER : light * PILE_DARKER);
+      d[o] = photo[o] * gain;
+      d[o + 1] = photo[o + 1] * gain;
+      d[o + 2] = photo[o + 2] * gain;
+      d[o + 3] = 255;
     }
   }
   brushCtx.putImageData(pile.image, 0, 0, left, top, w, h);
@@ -407,16 +418,27 @@ function resizePile(w, h) {
 
 function startStroke(stroke, point) {
   strokeId++;
-  stroke.at = point; // where the brush is (it eases after the finger, so curves stay smooth)
+  stroke.at = point;  // where the brush is (it follows the finger closely)
+  stroke.dir = null;  // the stroke's steady direction: it turns gently, so one stroke keeps one tone
 }
 
-// Move the brush a little towards the finger, pushing the pile on the way
+// Move the brush towards the finger, pushing the pile on the way
 function brushTowards(stroke, finger, ease = BRUSH_SMOOTHING) {
   const to = {
     x: stroke.at.x + (finger.x - stroke.at.x) * ease,
     y: stroke.at.y + (finger.y - stroke.at.y) * ease,
   };
-  pushPile(stroke.at, to);
+  const length = Math.hypot(to.x - stroke.at.x, to.y - stroke.at.y);
+  if (length < 0.3) return;
+  const step = { x: (to.x - stroke.at.x) / length, y: (to.y - stroke.at.y) / length };
+  if (!stroke.dir) stroke.dir = step;
+  else {
+    const x = stroke.dir.x + (step.x - stroke.dir.x) * BRUSH_TURN;
+    const y = stroke.dir.y + (step.y - stroke.dir.y) * BRUSH_TURN;
+    const size = Math.hypot(x, y) || 1;
+    stroke.dir = { x: x / size, y: y / size };
+  }
+  pushPile(stroke.at, to, stroke.dir);
   stroke.at = to;
 }
 
