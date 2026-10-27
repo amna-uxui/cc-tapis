@@ -269,6 +269,30 @@ function toCarpet(p) {
   return { x: (p.x - view.x) / view.scale, y: (p.y - view.y) / view.scale };
 }
 
+// Where the solid rug is inside a cut-out photo (the photos keep the rug's soft edge and a little
+// see-through margin around it): measured along the middle row and column
+function solidArea(image) {
+  const w = image.naturalWidth;
+  const h = image.naturalHeight;
+  const c = document.createElement("canvas");
+  c.width = w;
+  c.height = h;
+  const ctx = c.getContext("2d");
+  ctx.drawImage(image, 0, 0);
+  const row = ctx.getImageData(0, Math.floor(h / 2), w, 1).data;
+  const col = ctx.getImageData(Math.floor(w / 2), 0, 1, h).data;
+  const solid = (data, i) => data[i * 4 + 3] > 245;
+  let left = 0;
+  let right = w - 1;
+  let top = 0;
+  let bottom = h - 1;
+  while (left < w - 1 && !solid(row, left)) left++;
+  while (right > 0 && !solid(row, right)) right--;
+  while (top < h - 1 && !solid(col, top)) top++;
+  while (bottom > 0 && !solid(col, bottom)) bottom--;
+  return { x: left, y: top, w: right - left + 1, h: bottom - top + 1 };
+}
+
 // A fresh, untouched pile the size of the rug photo, with the photo's own pixels to shade
 function makePile(w, h) {
   const copy = document.createElement("canvas");
@@ -435,7 +459,7 @@ function paintPile(left = 0, top = 0, w = pile.w, h = pile.h) {
       d[o] = (photo[o] + (r / n - photo[o]) * comb) * tone;
       d[o + 1] = (photo[o + 1] + (g / n - photo[o + 1]) * comb) * tone;
       d[o + 2] = (photo[o + 2] + (b / n - photo[o + 2]) * comb) * tone;
-      d[o + 3] = 255;
+      d[o + 3] = photo[o + 3]; // only on the rug: never on the see-through margin around it
     }
   }
   brushCtx.putImageData(pile.image, 0, 0, left, top, w, h);
@@ -738,6 +762,10 @@ if (zoomButton) {
 function sizeCarpet() {
   carpet.style.width = `${img.naturalWidth}px`;
   carpet.style.height = `${img.naturalHeight}px`;
+  // the lamp's light falls on the rug only, not on the see-through margin around it
+  const rug = solidArea(img);
+  carpet.style.setProperty("--rug-inset",
+    `${rug.y}px ${img.naturalWidth - rug.x - rug.w}px ${img.naturalHeight - rug.y - rug.h}px ${rug.x}px`);
   resizePile(img.naturalWidth, img.naturalHeight);
   paintPile();
 }

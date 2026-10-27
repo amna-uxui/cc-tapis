@@ -507,7 +507,7 @@ body {
    bright on that side, shadow on the far side. Soft-light blending lights the velvet itself. */
 .carpet__light {
   position: absolute;
-  inset: 0;
+  inset: var(--rug-inset, 0);
   pointer-events: none;
   mix-blend-mode: soft-light;
   background:

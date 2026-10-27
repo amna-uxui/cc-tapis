@@ -29,25 +29,26 @@ let currentShape = SHAPES[0];
 
 const shapedPhotos = new Map(); // "colour/shape" -> image address, so each is only cut once
 
-// The biggest piece of the photo with the shape's proportions, from the middle
+// The rug in its own shape: the photo as it is, with the rug's real edge. Another shape: the
+// biggest piece of the solid rug with that shape's proportions, from the middle
 // (a circle is cut as a square; the viewer rounds its edge)
 async function shapedSrc(color, shape) {
   const photo = color.photo;
-  const photoAspect = photo.naturalWidth / photo.naturalHeight;
-  if (Math.abs(photoAspect - shape.aspect) < 0.01) return color.src;
+  if (shape.name === color.shape) return color.src;
 
-  const key = `${color.name}/${shape.aspect}`;
+  const key = `${color.name}/${shape.name}`;
   if (shapedPhotos.has(key)) return shapedPhotos.get(key);
 
-  let w = photo.naturalWidth;
-  let h = photo.naturalHeight;
-  if (photoAspect > shape.aspect) w = Math.round(h * shape.aspect);
+  const rug = solidArea(photo);
+  let w = rug.w;
+  let h = rug.h;
+  if (w / h > shape.aspect) w = Math.round(h * shape.aspect);
   else h = Math.round(w / shape.aspect);
 
   const cut = document.createElement("canvas");
   cut.width = w;
   cut.height = h;
-  cut.getContext("2d").drawImage(photo, (photo.naturalWidth - w) / 2, (photo.naturalHeight - h) / 2, w, h, 0, 0, w, h);
+  cut.getContext("2d").drawImage(photo, rug.x + (rug.w - w) / 2, rug.y + (rug.h - h) / 2, w, h, 0, 0, w, h);
   const blob = await new Promise((done) => cut.toBlob(done, "image/jpeg", 0.92));
   const src = URL.createObjectURL(blob);
   shapedPhotos.set(key, src);

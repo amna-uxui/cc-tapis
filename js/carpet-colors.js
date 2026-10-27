@@ -6,12 +6,14 @@
   Needs js/carpet-viewer.js (img, changeRug, setBrushTone) to be loaded first.
 */
 
-// The first one is the rug the page opens with. tone: the brush colours for that rug, taken from
+// The first one is the rug the page opens with. Each photo is the rug cut out with its real edge
+// (tools/cut-out-rug.py); shape: the rug's own shape in that photo (other shapes are cut from it).
+// tone: the brush colours for that rug, taken from
 // the drawings on the original cc-tapis rug (leave it out and they are worked out from the photo).
 const COLORS = [
-  { name: "Cacao", src: "images/carpet-02-cacao-shag.jpg", tone: { light: BRUSH_LIGHT, shade: BRUSH_SHADE } },
-  { name: "Ochre", src: "images/carpet-03-ochre-shag.jpg", tone: { light: [240, 212, 160], shade: [222, 184, 124] } },
-  { name: "Sage", src: "images/carpet-04-sage-shag.jpg", tone: { light: [226, 226, 212], shade: [196, 198, 184] } },
+  { name: "Cacao", src: "images/carpet-02-cacao-cut.png", shape: "Rectangle", tone: { light: BRUSH_LIGHT, shade: BRUSH_SHADE } },
+  { name: "Ochre", src: "images/carpet-03-ochre-cut.png", shape: "Square", tone: { light: [240, 212, 160], shade: [222, 184, 124] } },
+  { name: "Sage", src: "images/carpet-04-sage-cut.png", shape: "Rectangle", tone: { light: [226, 226, 212], shade: [196, 198, 184] } },
 ];
 
 const colorButton = document.querySelector(".tool--color");
@@ -66,12 +68,15 @@ function averageColor(photo) {
   ctx.drawImage(photo, 0, 0, size, size);
   const d = ctx.getImageData(0, 0, size, size).data;
   const sum = [0, 0, 0];
+  let weight = 0;
   for (let i = 0; i < d.length; i += 4) {
-    sum[0] += d[i];
-    sum[1] += d[i + 1];
-    sum[2] += d[i + 2];
+    const a = d[i + 3] / 255; // the see-through margin around the rug doesn't count
+    sum[0] += d[i] * a;
+    sum[1] += d[i + 1] * a;
+    sum[2] += d[i + 2] * a;
+    weight += a;
   }
-  return sum.map((v) => v / (d.length / 4));
+  return sum.map((v) => v / weight);
 }
 
 // Load every rug photo up front, so switching is instant. Its circle fills in once it has loaded.
