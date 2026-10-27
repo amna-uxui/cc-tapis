@@ -21,11 +21,13 @@ const ZOOM_DURATION = 650;   // ms for the double-tap / snap zoom animation
 const FIT_GAP = 16;     // space around the full carpet, between the bars
 const FIT_SIDE = 24;    // space left and right of the full carpet (52 makes room for the arrows)
 const FIT_LOW = 0.5;    // where the full carpet sits in the space it has, top (0) to bottom (1): centred
-const BRUSH_WIDTH = 24;      // how wide the brushed trail is, in carpet pixels (about a fingertip, for patterns)
+const BRUSH_WIDTH = 30;      // how wide the brushed trail is, in carpet pixels (a fingertip, with soft edges)
 const PILE_PUSH = 1.6;       // how far one stroke pushes the pile (1 = fully pushed after a brush width)
-const PILE_LIGHTER = 0.45;   // brushed pile is brighter, up to this much (0.45 = +45%) when it leans towards the light
-const PILE_VARY = 0.3;       // how much the lean's direction changes that (0 = every direction looks the same):
-                             // away from the light it's still lighter, just less, so every mark shows
+const PILE_FLATTEN = 0.75;   // brushed pile lies flat: its tufts lose this much of their light-and-dark (0..1)
+const PILE_TONE = 0.2;       // and it turns up to this much lighter towards the light, darker away from it
+const PILE_SHEEN = 0.05;     // a touch lighter overall, as flattened pile catches a little more light
+const PILE_STREAKS = 0.55;   // fine streaks along each stroke, like fingertips dragging the fibres (0 = none)
+const PILE_SOFT = 0.65;      // how much of the brush's width fades out softly at its edges (0..1)
 const BRUSH_LIGHT = [218, 170, 125]; // the colour of brushed wool catching the light (r, g, b)
 const BRUSH_SHADE = [196, 146, 104]; // a slightly deeper wool tone, mixed in for depth
 
@@ -259,6 +261,7 @@ function glide(vx, vy) {
 
 let pile = null;    // { w, h, x, y (the arrows), mode, photo (its pixels), image }
 let strokeId = 0;   // each stroke's number, so a pixel decides once per stroke: draw or erase
+let strokeSeed = 0; // each stroke's own pattern of streaks
 
 // Screen point -> point on the carpet photo
 function toCarpet(p) {
@@ -272,15 +275,57 @@ function makePile(w, h) {
   copy.height = h;
   const copyCtx = copy.getContext("2d");
   copyCtx.drawImage(img, 0, 0, w, h);
+  const photo = copyCtx.getImageData(0, 0, w, h).data;
   return {
     w,
     h,
     x: new Float32Array(w * h),
     y: new Float32Array(w * h),
     mode: new Int32Array(w * h),
-    photo: copyCtx.getImageData(0, 0, w, h).data,
+    photo,
+    flat: softened(photo, w, h, 3), // the same photo with its tufts smoothed out: pile laid flat
     image: brushCtx.createImageData(w, h),
   };
+}
+
+// The photo, each pixel averaged with its neighbours within r (across, then down)
+function softened(src, w, h, r) {
+  const across = new Float32Array(w * h * 4);
+  const out = new Uint8ClampedArray(w * h * 4);
+  const n = 2 * r + 1;
+  for (let y = 0; y < h; y++) {
+    for (let c = 0; c < 3; c++) {
+      let sum = 0;
+      for (let x = -r; x <= r; x++) sum += src[(y * w + Math.min(Math.max(x, 0), w - 1)) * 4 + c];
+      for (let x = 0; x < w; x++) {
+        across[(y * w + x) * 4 + c] = sum / n;
+        sum += src[(y * w + Math.min(x + r + 1, w - 1)) * 4 + c] - src[(y * w + Math.max(x - r, 0)) * 4 + c];
+      }
+    }
+  }
+  for (let x = 0; x < w; x++) {
+    for (let c = 0; c < 3; c++) {
+      let sum = 0;
+      for (let y = -r; y <= r; y++) sum += across[(Math.min(Math.max(y, 0), h - 1) * w + x) * 4 + c];
+      for (let y = 0; y < h; y++) {
+        out[(y * w + x) * 4 + c] = sum / n;
+        sum += across[(Math.min(y + r + 1, h - 1) * w + x) * 4 + c] - across[(Math.max(y - r, 0) * w + x) * 4 + c];
+      }
+    }
+  }
+  return out;
+}
+
+// Smooth random wiggle, 0..1, for the streaks along a stroke (the same input always gives the same value)
+function wiggle(t) {
+  const i = Math.floor(t);
+  const f = t - i;
+  const hash = (k) => {
+    const v = Math.sin(k * 127.1 + strokeSeed * 311.7) * 43758.5453;
+    return v - Math.floor(v);
+  };
+  const s = f * f * (3 - 2 * f);
+  return hash(i) + (hash(i + 1) - hash(i)) * s;
 }
 
 // Push the pile under the brush as it moves from one point to the next, in the stroke's direction
@@ -308,8 +353,10 @@ function pushPile(from, to, dir) {
       const along = Math.max(0, Math.min(length, (px - from.x) * sx + (py - from.y) * sy));
       const gap = Math.hypot(px - (from.x + sx * along), py - (from.y + sy * along));
       if (gap >= r) continue;
-      const edge = Math.max(0, (gap / r - 0.6) / 0.4);
-      const press = (1 - edge * edge * (3 - 2 * edge)) * push;
+      const edge = Math.max(0, (gap / r - (1 - PILE_SOFT)) / PILE_SOFT);
+      const side = (px - from.x) * -sy + (py - from.y) * sx; // which side of the path, and how far
+      const streak = 1 - PILE_STREAKS * wiggle(side * 0.45 + 50); // fine lines running along the stroke
+      const press = (1 - edge * edge * (3 - 2 * edge)) * push * streak;
 
       const i = py * pile.w + px;
       const leaning = pile.x[i] * ux + pile.y[i] * uy; // how far the pile already leans this way
@@ -346,11 +393,11 @@ function pushPile(from, to, dir) {
   paintPile(left, top, right - left + 1, bottom - top + 1);
 }
 
-// Show the pushed pile by brightening the rug photo's own pixels, so its texture stays: brushed
-// pile always catches a little more light, most where it leans towards the lamp
+// Show the pushed pile on the rug photo itself: brushed pile lies flat (its tufts smooth out),
+// and turns a little lighter where it leans towards the lamp, a little darker where it leans away
 function paintPile(left = 0, top = 0, w = pile.w, h = pile.h) {
   const d = pile.image.data;
-  const photo = pile.photo;
+  const { photo, flat } = pile;
   const lamp = typeof lampAngle === "number" ? (lampAngle * Math.PI) / 180 : -Math.PI * 0.75;
   const lx = Math.cos(lamp);
   const ly = Math.sin(lamp);
@@ -358,18 +405,19 @@ function paintPile(left = 0, top = 0, w = pile.w, h = pile.h) {
   for (let py = top; py < top + h; py++) {
     for (let px = left; px < left + w; px++) {
       const i = py * pile.w + px;
-      const pushed = Math.min(1, Math.hypot(pile.x[i], pile.y[i]));
+      const lean = Math.hypot(pile.x[i], pile.y[i]);
+      const pushed = Math.min(1, lean);
       const o = i * 4;
       if (pushed < 0.004) {
         d[o + 3] = 0; // untouched: the photo shows as it is
         continue;
       }
-      const facing = (pile.x[i] * lx + pile.y[i] * ly) / Math.hypot(pile.x[i], pile.y[i]); // -1 away .. 1 towards
-      const light = (1 - PILE_VARY + PILE_VARY * facing) * pushed; // always > 0: every mark shows
-      const gain = 1 + light * PILE_LIGHTER;
-      d[o] = photo[o] * gain;
-      d[o + 1] = photo[o + 1] * gain;
-      d[o + 2] = photo[o + 2] * gain;
+      const facing = (pile.x[i] * lx + pile.y[i] * ly) / lean; // -1 away from the lamp .. 1 towards it
+      const smooth = PILE_FLATTEN * pushed;
+      const tone = 1 + (PILE_SHEEN + PILE_TONE * facing) * pushed;
+      d[o] = (photo[o] + (flat[o] - photo[o]) * smooth) * tone;
+      d[o + 1] = (photo[o + 1] + (flat[o + 1] - photo[o + 1]) * smooth) * tone;
+      d[o + 2] = (photo[o + 2] + (flat[o + 2] - photo[o + 2]) * smooth) * tone;
       d[o + 3] = 255;
     }
   }
@@ -420,6 +468,7 @@ function resizePile(w, h) {
 
 function startStroke(stroke, point) {
   strokeId++;
+  strokeSeed = Math.random() * 1000;
   stroke.at = point;   // where the drawn line has reached
   stroke.bend = point; // the last finger position: the line curves towards it
 }
