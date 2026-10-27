@@ -65,6 +65,7 @@ body {
   letter-spacing: -0.03em;
   line-height: 1;
   text-transform: lowercase;
+  transform: translateY(-1px); /* lines its letters up with Shop by eye (the "p" hangs below) */
 }
 
 /* ---------- Stage: the carpet, full screen ---------- */
@@ -213,11 +214,31 @@ body {
 
 .bar__side--left {
   justify-self: start;
-  font-size: 24px;
-  line-height: 1;
   width: 32px;
   height: 32px;
-  text-align: left;
+  display: flex;
+  align-items: center;
+}
+
+/* The menu icon: three lines, drawn so they sit exactly on the bar's middle
+   (the ☰ character sat a few pixels low) */
+.menu-icon {
+  position: relative;
+  width: 18px;
+  height: 14px;
+  border-top: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+}
+
+.menu-icon::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 2px;
+  margin-top: -1px;
+  background: currentColor;
 }
 
 .bar__side--right {
