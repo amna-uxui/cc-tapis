@@ -2,9 +2,10 @@
   Carpet viewer: zoom and move around the carpet.
 
   - Starts zoomed in, with the carpet covering the whole screen.
-  - Drag with one finger (or the mouse) to move around. Flicks keep gliding.
-  - Pinch with two fingers (or trackpad pinch / ctrl + scroll) to zoom.
-  - Double-tap to jump between the full carpet and a close-up.
+  - Draw with one finger (or the mouse): it brushes the pile, leaving lighter fibres like on velvet.
+  - Move and pinch with two fingers to move around and zoom. Flicks keep gliding.
+  - On a computer: scroll to move, trackpad pinch / ctrl + scroll to zoom.
+  - Double-tap to wipe the drawing, back to the plain carpet.
   - You can zoom out until the whole carpet fits, but never lose it off screen.
 */
 
@@ -18,9 +19,19 @@ const SNAP_TO_FULL = 1.35;   // let go below this zoom (x the full carpet) and i
 const ZOOM_DURATION = 650;   // ms for the double-tap / snap zoom animation
 const FIT_GAP = 16;     // space around the full carpet, between the bars
 const FIT_SIDE = 52;    // space left and right of the full carpet, for the arrows
+const BRUSH_WIDTH = 40;      // how wide the brushed trail is, in carpet pixels
+const BRUSH_BRISTLES = 60;   // fine fibres side by side across the brush
+const BRUSH_SHEEN = 0.028;   // strength of the soft light under the fibres (the velvet sheen)
+const BRUSH_SMOOTHING = 0.3; // how gently the brush follows the finger (lower = smoother curves, more lag)
+const BRUSH_DETAIL = 3;      // canvas pixels per carpet pixel, so the fibres stay sharp when zoomed in
+const BRUSH_LIGHT = [218, 170, 125]; // the colour of brushed wool catching the light (r, g, b)
+const BRUSH_SHADE = [196, 146, 104]; // a slightly deeper wool tone, mixed in for depth
 
 const stage = document.querySelector("[data-viewer]");
-const img = stage.querySelector("img");
+const carpet = stage.querySelector(".carpet");
+const img = carpet.querySelector("img");
+const brush = carpet.querySelector(".carpet__brush");
+const brushCtx = brush.getContext("2d");
 const topBar = document.querySelector("[data-fit-top]");
 const bottomBar = document.querySelector("[data-fit-bottom]");
 
@@ -35,7 +46,7 @@ let fit = { left: 0, top: 0, width: 0, height: 0 }; // the area the full carpet 
 const arrows = stage.querySelectorAll(".arrow");
 
 function render() {
-  img.style.transform = `translate3d(${view.x}px, ${view.y}px, 0) scale(${view.scale})`;
+  carpet.style.transform = `translate3d(${view.x}px, ${view.y}px, 0) scale(${view.scale})`;
   updateArrows();
 }
 
@@ -134,7 +145,7 @@ function centredView(scale) {
   });
 }
 
-// How close we start (and where double-tap zooms in to)
+// How close we start
 function closeUpScale() {
   return Math.max(fitScale * START_ZOOM, coverScale);
 }
@@ -219,6 +230,111 @@ function glide(vx, vy) {
   animation = requestAnimationFrame(step);
 }
 
+// ---------- Brushing the pile ----------
+
+// Screen point -> point on the carpet photo
+function toCarpet(p) {
+  return { x: (p.x - view.x) / view.scale, y: (p.y - view.y) / view.scale };
+}
+
+// A brush is a row of fine bristles. Each one keeps its place across the brush for the whole
+// stroke, so it leaves one long, unbroken fibre: together they look like combed, smooth pile.
+// Bristles near the middle press hardest, so the trail fades out softly at its edges.
+function makeBristles() {
+  const bristles = [];
+  for (let i = 0; i < BRUSH_BRISTLES; i++) {
+    const across = Math.random() * 2 - 1; // -1..1, spread evenly across the brush
+    const shade = Math.random();
+    const rgb = BRUSH_LIGHT.map((c, k) => Math.round(c + (BRUSH_SHADE[k] - c) * shade));
+    const press = Math.exp(-across * across * 2.5);
+    bristles.push({
+      offset: (across * BRUSH_WIDTH) / 2,
+      color: `rgba(${rgb.join(",")}, ${(0.04 + Math.random() * 0.07) * press})`,
+      width: 0.5 + Math.random() * 0.9,
+    });
+  }
+  return bristles;
+}
+
+// The sheen: a soft round glow, stamped close together along the stroke so it blends into one smooth band
+const sheen = document.createElement("canvas");
+sheen.width = sheen.height = BRUSH_WIDTH * BRUSH_DETAIL;
+{
+  const r = sheen.width / 2;
+  const ctx = sheen.getContext("2d");
+  const glow = ctx.createRadialGradient(r, r, 0, r, r, r);
+  glow.addColorStop(0, `rgba(${BRUSH_LIGHT.join(",")}, ${BRUSH_SHEEN})`);
+  glow.addColorStop(1, `rgba(${BRUSH_LIGHT.join(",")}, 0)`);
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, 0, sheen.width, sheen.height);
+}
+
+function stampSheen(stroke, to) {
+  const spacing = 2;
+  let dx = to.x - stroke.sheenAt.x;
+  let dy = to.y - stroke.sheenAt.y;
+  let gap = Math.hypot(dx, dy);
+  while (gap >= spacing) {
+    stroke.sheenAt = {
+      x: stroke.sheenAt.x + (dx / gap) * spacing,
+      y: stroke.sheenAt.y + (dy / gap) * spacing,
+    };
+    brushCtx.drawImage(sheen, stroke.sheenAt.x - BRUSH_WIDTH / 2, stroke.sheenAt.y - BRUSH_WIDTH / 2, BRUSH_WIDTH, BRUSH_WIDTH);
+    dx = to.x - stroke.sheenAt.x;
+    dy = to.y - stroke.sheenAt.y;
+    gap = Math.hypot(dx, dy);
+  }
+}
+
+function startStroke(stroke, point) {
+  stroke.bristles = makeBristles();
+  stroke.at = point;     // where the brush is (it eases after the finger)
+  stroke.normal = null;  // the brush's sideways direction, turning smoothly
+  stroke.sheenAt = point;
+}
+
+// Move the brush a little towards the finger and lay down every bristle's fibre
+function brushTowards(stroke, finger, ease = BRUSH_SMOOTHING) {
+  const from = stroke.at;
+  const to = {
+    x: from.x + (finger.x - from.x) * ease,
+    y: from.y + (finger.y - from.y) * ease,
+  };
+  const length = Math.hypot(to.x - from.x, to.y - from.y);
+  if (length < 1) return;
+
+  // Sideways direction, turned gently so curves stay round
+  const n = { x: -(to.y - from.y) / length, y: (to.x - from.x) / length };
+  const oldNormal = stroke.normal || n;
+  let newNormal = { x: oldNormal.x + (n.x - oldNormal.x) * 0.35, y: oldNormal.y + (n.y - oldNormal.y) * 0.35 };
+  const size = Math.hypot(newNormal.x, newNormal.y) || 1;
+  newNormal = { x: newNormal.x / size, y: newNormal.y / size };
+
+  stampSheen(stroke, to);
+
+  stroke.bristles.forEach((b) => {
+    brushCtx.beginPath();
+    brushCtx.moveTo(from.x + oldNormal.x * b.offset, from.y + oldNormal.y * b.offset);
+    brushCtx.lineTo(to.x + newNormal.x * b.offset, to.y + newNormal.y * b.offset);
+    brushCtx.strokeStyle = b.color;
+    brushCtx.lineWidth = b.width;
+    brushCtx.stroke();
+  });
+
+  stroke.at = to;
+  stroke.normal = newNormal;
+}
+
+// Lifting the finger: let the brush catch up with where the finger left
+function finishStroke(stroke, finger) {
+  for (let i = 0; i < 12; i++) brushTowards(stroke, finger, 0.5);
+}
+
+// Double-tap: back to the plain carpet
+function wipeDrawing() {
+  brushCtx.clearRect(0, 0, img.naturalWidth, img.naturalHeight);
+}
+
 // ---------- Touch, mouse and pen ----------
 
 const pointers = new Map(); // finger id -> { x, y }
@@ -247,9 +363,10 @@ function distance() {
 function startGesture() {
   if (pointers.size === 1) {
     const p = [...pointers.values()][0];
-    gesture = { type: "pan", start: p, view: { ...view } };
+    gesture = { type: "draw", start: p, last: toCarpet(p) };
   } else if (pointers.size === 2) {
     gesture = { type: "pinch", mid: midpoint(), dist: distance(), view: { ...view } };
+    lastMove = { ...gesture.mid, time: performance.now() };
   }
 }
 
@@ -272,25 +389,33 @@ stage.addEventListener("pointermove", (e) => {
   const p = localPoint(e);
   pointers.set(e.pointerId, p);
 
-  if (gesture.type === "pan" && pointers.size === 1) {
-    const dx = p.x - gesture.start.x;
-    const dy = p.y - gesture.start.y;
-    if (Math.hypot(dx, dy) > 4) moved = true;
+  if (gesture.type === "draw" && pointers.size === 1) {
+    // A tap is not a stroke: only start brushing once the finger really moves
+    if (!moved) {
+      if (Math.hypot(p.x - gesture.start.x, p.y - gesture.start.y) <= 4) return;
+      moved = true;
+      gesture.stroke = {};
+      startStroke(gesture.stroke, gesture.last);
+    }
 
-    view = clampView({ ...gesture.view, x: gesture.view.x + dx, y: gesture.view.y + dy });
-
-    // Track speed for the flick
-    const now = performance.now();
-    const dt = Math.max(now - lastMove.time, 1);
-    velocity = {
-      x: ((p.x - lastMove.x) / dt) * 16,
-      y: ((p.y - lastMove.y) / dt) * 16,
-    };
-    lastMove = { ...p, time: now };
+    gesture.last = toCarpet(p);
+    brushTowards(gesture.stroke, gesture.last);
+    return;
   }
 
   if (gesture.type === "pinch" && pointers.size === 2) {
     moved = true;
+
+    // Track speed of the two fingers for the flick
+    const now = performance.now();
+    const m = midpoint();
+    const dt = Math.max(now - lastMove.time, 1);
+    velocity = {
+      x: ((m.x - lastMove.x) / dt) * 16,
+      y: ((m.y - lastMove.y) / dt) * 16,
+    };
+    lastMove = { ...m, time: now };
+
     const mid = midpoint();
     const pinch = Math.pow(distance() / gesture.dist, ZOOM_SPEED);
     const scale = stretchScale(gesture.view.scale * pinch);
@@ -315,48 +440,40 @@ function endPointer(e) {
   const p = localPoint(e);
   pointers.delete(e.pointerId);
 
-  if (pointers.size > 0) {
-    // One finger lifted from a pinch: carry on panning with the other
-    stopAnimation();
-    view = clampView({ ...view, scale: clampScale(view.scale) });
-    render();
-    startGesture();
-    return;
-  }
-
   const now = performance.now();
 
-  // After a pinch: near the full carpet, glide to it; past the limits, spring back
+  // The first finger lifts from a pinch: near the full carpet, glide to it;
+  // past the limits, spring back; after a quick two-finger swipe, keep gliding.
+  // Then wait for every finger to lift (a finger left behind does not start drawing).
   if (gesture.type === "pinch") {
     const scale = (target || view).scale;
     if (scale < fitScale * SNAP_TO_FULL) {
       animateTo(centredView(fitScale));
     } else if (scale > fitScale * MAX_ZOOM) {
       animateTo(clampView(zoomAt(view, fitScale * MAX_ZOOM, gesture.mid.x, gesture.mid.y)));
+    } else if (now - lastMove.time < 80) {
+      if (target) view = target;
+      glide(velocity.x, velocity.y);
     }
+    gesture = { type: "rest" };
     return;
   }
 
-  // Double-tap: full carpet <-> close-up
+  if (pointers.size > 0 || gesture.type === "rest") return;
+
+  if (gesture.stroke) finishStroke(gesture.stroke, toCarpet(p));
+
+  // Double-tap: wipe the drawing
   if (!moved) {
     const quick = now - lastTap.time < 300;
     const near = Math.hypot(p.x - lastTap.x, p.y - lastTap.y) < 30;
     if (quick && near) {
-      const zoomedIn = view.scale > fitScale * 1.05;
-      animateTo(
-        zoomedIn
-          ? centredView(fitScale)
-          : clampView(zoomAt(view, closeUpScale(), p.x, p.y))
-      );
+      wipeDrawing();
       lastTap = { time: 0, x: 0, y: 0 };
       return;
     }
     lastTap = { time: now, ...p };
-    return;
   }
-
-  // Flick: keep gliding, unless the finger stopped before lifting
-  if (now - lastMove.time < 80) glide(velocity.x, velocity.y);
 }
 
 stage.addEventListener("pointerup", endPointer);
@@ -388,12 +505,16 @@ stage.addEventListener(
 // ---------- Start ----------
 
 function setup() {
-  img.style.width = `${img.naturalWidth}px`;
-  img.style.height = `${img.naturalHeight}px`;
+  carpet.style.width = `${img.naturalWidth}px`;
+  carpet.style.height = `${img.naturalHeight}px`;
+  brush.width = img.naturalWidth * BRUSH_DETAIL;
+  brush.height = img.naturalHeight * BRUSH_DETAIL;
+  brushCtx.scale(BRUSH_DETAIL, BRUSH_DETAIL);
+  brushCtx.lineCap = "butt"; // round ends would overlap and leave beads along the fibres
   measure();
   view = centredView(closeUpScale());
   render();
-  img.classList.add("is-ready");
+  carpet.classList.add("is-ready");
 }
 
 window.addEventListener("resize", () => {

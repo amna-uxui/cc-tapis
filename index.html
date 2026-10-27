@@ -17,7 +17,10 @@
 
   <!-- Full screen: the carpet you can zoom and move around, with an arrow on each side -->
   <main class="stage" data-viewer>
-    <img class="carpet" src="images/carpet-01-clean.jpg" alt="Plain brown cc-tapis rug, ready to draw on" draggable="false">
+    <div class="carpet">
+      <img src="images/carpet-02-plain.jpg" alt="Plain brown cc-tapis rug, ready to draw on" draggable="false">
+      <canvas class="carpet__brush"></canvas>
+    </div>
 
     <button class="arrow arrow--prev mono" aria-label="Previous carpet">←</button>
     <button class="arrow arrow--next mono" aria-label="Next carpet">→</button>

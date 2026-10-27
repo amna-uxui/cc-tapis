@@ -83,7 +83,7 @@ body {
   cursor: grabbing;
 }
 
-/* Positioned and scaled by js/carpet-viewer.js */
+/* Positioned and scaled by js/carpet-viewer.js: the rug photo with the drawing canvas on top */
 .carpet {
   position: absolute;
   top: 0;
@@ -97,6 +97,18 @@ body {
 
 .carpet.is-ready {
   opacity: 1;
+}
+
+.carpet img,
+.carpet__brush {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.carpet__brush {
+  cursor: crosshair;
 }
 
 .arrow {
