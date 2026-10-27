@@ -25,10 +25,10 @@ const BRUSH_WIDTH = 56;      // how wide the brush is, in carpet pixels: between
 const PILE_PUSH = 1.4;       // how far one stroke pushes the pile (1 = fully pushed after a brush width)
 const PILE_FLATTEN = 0;      // brushed pile combed flat: how far its tufts turn into lines (0 = not at all)
 const PILE_COMB = 2;         // how long those combed lines are, in photo pixels either side
-const PILE_TONE = 0.3;       // up to this much darker where the pile leans away from the light, lighter towards it;
+const PILE_DEEP = 0.26;      // brushed pile always turns this much darker, whichever way it goes, so every stroke shows
+const PILE_TONE = 0.14;      // and the direction adds a little: a bit lighter towards the light, darker away from it;
                              // the texture stays, only the light changes
-const PILE_RICH = 0.4;       // darker pile also turns this much richer in colour, as in real velvet
-const PILE_SHEEN = 0;        // a touch lighter overall, whichever way it goes (0 = none)
+const PILE_RICH = 0.45;      // darker pile also turns this much richer in colour, as in real velvet
 const PILE_STREAKS = 0;      // fine streaks along each stroke (0 = none)
 const PILE_SOFT = 0.3;       // how much of the brush's width fades out softly: a firm, organic edge
 const PILE_WOBBLE = 0.35;    // how much the stroke's outline wanders, like the shapes in brushed velvet (0..1)
@@ -467,13 +467,13 @@ function paintPile(left = 0, top = 0, w = pile.w, h = pile.h) {
       }
 
       const comb = PILE_FLATTEN * pushed;
-      const tone = 1 + (PILE_SHEEN + PILE_TONE * facing) * pushed;
+      const tone = 1 + (PILE_TONE * facing - PILE_DEEP) * pushed; // always below 1: brushed pile is deeper
       let cr = photo[o] + (r / n - photo[o]) * comb;
       let cg = photo[o + 1] + (g / n - photo[o + 1]) * comb;
       let cb = photo[o + 2] + (b / n - photo[o + 2]) * comb;
-      if (facing < 0) {
-        // darker pile is also richer: its colour pulls away from grey
-        const rich = 1 + PILE_RICH * -facing * pushed;
+      {
+        // deeper pile is also richer: its colour pulls away from grey
+        const rich = 1 + PILE_RICH * (1 - tone) / (PILE_DEEP + PILE_TONE);
         const grey = 0.3 * cr + 0.59 * cg + 0.11 * cb;
         cr = grey + (cr - grey) * rich;
         cg = grey + (cg - grey) * rich;
