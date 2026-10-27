@@ -1,0 +1,23 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Editors
+.vscode/
+.idea/
+*.swp
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Logs and build output
+*.log
+dist/
+build/
+node_modules/
+__pycache__/
+.venv/
