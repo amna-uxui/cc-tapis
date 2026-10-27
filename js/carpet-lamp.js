@@ -145,7 +145,7 @@ function angleTo(e) {
 
 // ---------- Lighting moods ----------
 
-// Tap the lamp to switch the light in the room; its name shows under the lamp for a moment
+// Tap the lamp to switch the light in the room; its icon inside the lamp's ring changes with it
 // (the looks are in css/main.css: .mood-daylight, .mood-night; Evening is the plain look)
 const MOODS = ["Evening", "Daylight", "Night"];
 let mood = 0;
@@ -154,7 +154,7 @@ function nextMood() {
   document.body.classList.remove(`mood-${MOODS[mood].toLowerCase()}`);
   mood = (mood + 1) % MOODS.length;
   document.body.classList.add(`mood-${MOODS[mood].toLowerCase()}`);
-  showStatus(MOODS[mood]);
+  lampDial.setAttribute("aria-label", `Lamp, ${MOODS[mood]} light: tap to change`);
 }
 
 // ---------- The dial: tap to switch the mood, drag to move the lamp ----------

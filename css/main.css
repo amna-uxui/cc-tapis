@@ -626,3 +626,30 @@ body {
 .save-rug.is-saved svg {
   fill: var(--color-ink);
 }
+
+/* The light in the room, as an icon inside the lamp's ring: sunset (Evening), sun (Daylight), moon (Night) */
+.mood-icon {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 16px;
+  height: 16px;
+  margin: -8px 0 0 -8px;
+  fill: none;
+  stroke: var(--color-ink);
+  stroke-width: 1.3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  display: none;
+}
+
+.mood-icon--evening,
+.mood-daylight .mood-icon--daylight,
+.mood-night .mood-icon--night {
+  display: block;
+}
+
+.mood-daylight .mood-icon--evening,
+.mood-night .mood-icon--evening {
+  display: none;
+}
