@@ -504,12 +504,14 @@ const RELIGHT_EVERY = 150;
 let relighting = null;
 let lastRelight = 0;
 function relightPile() {
-  if (!pile || relighting) return;
+  if (!pile || !pile.marked || relighting) return; // no marks: nothing to relight
   const wait = Math.max(0, lastRelight + RELIGHT_EVERY - performance.now());
   relighting = setTimeout(() => {
     relighting = null;
     lastRelight = performance.now();
-    paintPile();
+    if (!pile.marked) return;
+    const { left, top, right, bottom } = pile.marked; // only where there are marks
+    markDirty(left, top, right, bottom);
   }, wait);
 }
 

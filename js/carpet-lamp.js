@@ -15,8 +15,9 @@
 const LAMP_START = -135;   // degrees: where the lamp starts (0 = right, -90 = top, -135 = top left)
 const LAMP_REACH = 0.75;   // how far out the light sits, from the rug's middle (0.5 = on its edge)
 const SPOT_REACH = 0.22;   // the night spotlight: on the rug, this far from its middle towards the lamp
-const TILT_MIN = 4;        // degrees of tilt before the lamp moves (so holding still keeps it still)
-const TILT_FOLLOW = 0.15;  // how quickly the lamp follows the tilt (lower = smoother, lazier)
+const TILT_START = 0.08;   // how clearly the phone must tip before the lamp moves (0.08 = about 5 degrees)
+const TILT_CALM = 0.12;    // how much each motion reading counts (lower = calmer, ignores trembling hands)
+const TILT_FOLLOW = 0.1;   // how quickly the lamp glides round to where the tilt points (lower = smoother)
 const ORBIT_SPEED = 12;    // degrees per second the lamp circles on its own (until tilt takes over)
 const ORBIT_RESUME = 3000; // ms after you let go of a dragged lamp before it circles again
 
@@ -42,7 +43,9 @@ function setLamp(degrees) {
 // ---------- Tilting the phone ----------
 
 let tilting = false;  // motion is on
-let level = null;     // how the phone was held when motion started: that counts as "no tilt"
+let level = null;     // which way was "down" when motion started: that counts as "no tilt"
+let tilt = { x: 0, y: 0 }; // how the phone is tipped from there, calmed down (see onTilt)
+let steering = false;      // the tilt is clear enough to steer the lamp
 let aim = lampAngle;  // where the tilt points the lamp; the lamp eases towards it
 let easing = null;
 
@@ -54,20 +57,39 @@ function showStatus(text) {
   statusTimer = setTimeout(() => (lampStatus.textContent = ""), 2500);
 }
 
+// Which way is "downhill" across the screen, from the phone's angles: x to the right, y down the
+// screen (worked out from gravity, so it behaves the same however upright you hold the phone)
+function downhill(beta, gamma) {
+  const b = (beta * Math.PI) / 180;
+  const g = (gamma * Math.PI) / 180;
+  return { x: Math.sin(g) * Math.cos(b), y: Math.sin(b) };
+}
+
 function onTilt(e) {
   if (e.beta === null || e.gamma === null) return;
+  const now = downhill(e.beta, e.gamma);
   if (!level) {
-    level = { beta: e.beta, gamma: e.gamma };
+    level = now;
+    tilt = { x: 0, y: 0 };
+    steering = false;
     if (waitingForMotion) showStatus("Tilt the rug");
     waitingForMotion = false;
   }
 
-  const x = e.gamma - level.gamma; // tilted right (+) or left (-)
-  const y = e.beta - level.beta;   // top tipped away (-) or towards you (+)
-  if (Math.hypot(x, y) < TILT_MIN) return;
+  // calm the readings down: follow the phone's movement, not every tremble of the hand
+  tilt = {
+    x: tilt.x + (now.x - level.x - tilt.x) * TILT_CALM,
+    y: tilt.y + (now.y - level.y - tilt.y) * TILT_CALM,
+  };
+
+  // only steer once the phone is clearly tipped, and keep steering until it's clearly level again
+  const amount = Math.hypot(tilt.x, tilt.y);
+  if (amount > TILT_START) steering = true;
+  else if (amount < TILT_START / 2) steering = false;
+  if (!steering) return;
 
   // The lamp goes the way the phone tips: tip the right side down, the lamp moves right
-  aim = (Math.atan2(y, x) * 180) / Math.PI;
+  aim = (Math.atan2(tilt.y, tilt.x) * 180) / Math.PI;
   if (!easing) easing = requestAnimationFrame(easeLamp);
 }
 

@@ -511,9 +511,13 @@ body {
   pointer-events: none;
   mix-blend-mode: soft-light;
   /* Evening (the first mood): warm, soft lamp light, the far side falling into shadow */
+  /* (many stops: a long, gradual fade, so no ring shows where the light ends) */
   background:
-    radial-gradient(circle at var(--light-x, 0%) var(--light-y, 0%), rgba(255, 186, 110, 0.65) 0, rgba(255, 186, 110, 0) 70%),
-    radial-gradient(circle at var(--light-x, 0%) var(--light-y, 0%), rgba(0, 0, 0, 0) 45%, rgba(0, 0, 0, 0.6) 130%);
+    radial-gradient(circle at var(--light-x, 0%) var(--light-y, 0%),
+      rgba(255, 186, 110, 0.65) 0, rgba(255, 186, 110, 0.5) 15%, rgba(255, 186, 110, 0.3) 32%,
+      rgba(255, 186, 110, 0.14) 48%, rgba(255, 186, 110, 0.04) 62%, rgba(255, 186, 110, 0) 75%),
+    radial-gradient(circle at var(--light-x, 0%) var(--light-y, 0%),
+      rgba(0, 0, 0, 0) 40%, rgba(0, 0, 0, 0.12) 60%, rgba(0, 0, 0, 0.3) 85%, rgba(0, 0, 0, 0.5) 110%, rgba(0, 0, 0, 0.6) 130%);
   opacity: 0;
   transition: opacity 500ms var(--ease);
 }
@@ -530,8 +534,13 @@ body {
 /* Night: a dark room with one warm spotlight where the lamp is */
 .mood-night .carpet__light {
   background:
-    radial-gradient(circle at var(--spot-x, 40%) var(--spot-y, 40%), rgba(255, 214, 160, 0.95) 0, rgba(255, 214, 160, 0) 40%),
-    radial-gradient(circle at var(--spot-x, 40%) var(--spot-y, 40%), rgba(0, 0, 0, 0) 20%, rgba(0, 0, 0, 0.85) 75%);
+    radial-gradient(circle at var(--spot-x, 40%) var(--spot-y, 40%),
+      rgba(255, 214, 160, 0.9) 0, rgba(255, 214, 160, 0.75) 8%, rgba(255, 214, 160, 0.52) 17%,
+      rgba(255, 214, 160, 0.3) 27%, rgba(255, 214, 160, 0.14) 37%, rgba(255, 214, 160, 0.05) 47%,
+      rgba(255, 214, 160, 0) 58%),
+    radial-gradient(circle at var(--spot-x, 40%) var(--spot-y, 40%),
+      rgba(0, 0, 0, 0) 10%, rgba(0, 0, 0, 0.12) 22%, rgba(0, 0, 0, 0.32) 35%,
+      rgba(0, 0, 0, 0.55) 50%, rgba(0, 0, 0, 0.72) 66%, rgba(0, 0, 0, 0.82) 85%);
 }
 
 /* ... and the room itself is dark: the whole rug dims, the spotlight brings it back */
