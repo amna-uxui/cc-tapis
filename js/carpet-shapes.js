@@ -1,6 +1,5 @@
 /*
-  Carpet shapes: while zoomed out, three small shapes sit to the right of the collection name
-  and size. Each shape is cut from the current colour's rug photo, so every colour comes in
+  Carpet shapes: while zoomed out, three small shapes sit under the rug, above Buy. Each shape is cut from the current colour's rug photo, so every colour comes in
   every shape. Picking one shows the rug in its new shape, with its size.
 
   Needs js/carpet-viewer.js (changeRug, setBrushTone, rugInfo) and js/carpet-colors.js
@@ -12,14 +11,14 @@ const COLLECTION = "Hypercode";
 const DESIGNER = "Roberto Sironi";
 
 // The first one is the shape the page opens with. aspect: width / height.
-// size: placeholder dimensions, shown under the collection name.
+// size and price in euros, shown under the collection name (placeholders, except the rectangle's price).
 const SHAPES = [
-  { name: "Rectangle", aspect: 804 / 1096, size: "200 × 270 cm" },
-  { name: "Square", aspect: 1, size: "250 × 250 cm" },
-  { name: "Circle", aspect: 1, round: true, size: "Ø 250 cm" },
+  { name: "Rectangle", aspect: 804 / 1096, size: "200 × 270 cm", price: 8999 },
+  { name: "Square", aspect: 1, size: "250 × 250 cm", price: 8999 },
+  { name: "Circle", aspect: 1, round: true, size: "Ø 250 cm", price: 8999 },
 ];
 
-const shapeRow = rugInfo.querySelector("[data-shape-options]");
+const shapeRow = document.querySelector("[data-shape-options]");
 const infoName = rugInfo.querySelector("[data-rug-name]");
 const infoDesigner = rugInfo.querySelector("[data-rug-designer]");
 const infoSize = rugInfo.querySelector("[data-rug-size]");
@@ -82,14 +81,19 @@ function shapeIcon(shape) {
   return icon;
 }
 
-// Mark the chosen shape and show its name and size
+// Mark the chosen shape and show its name, size and price
 function markShape() {
   shapeRow.querySelectorAll(".shape-option").forEach((option) => {
     option.setAttribute("aria-pressed", option.dataset.name === currentShape.name);
   });
   infoName.textContent = `${COLLECTION} ${currentShape.name}`;
   infoDesigner.textContent = `by ${DESIGNER}`;
-  infoSize.textContent = currentShape.size;
+  // Italian style, "€ 8.999"; the € in the plain font (in the mono font it looks crooked)
+  const euro = document.createElement("span");
+  euro.className = "rug-info__currency";
+  euro.textContent = "€";
+  const amount = String(currentShape.price).replace(/\B(?=(\d{3})+$)/g, "."); // 8999 -> 8.999
+  infoSize.replaceChildren(`${currentShape.size} | `, euro, ` ${amount}`);
 }
 
 // ---------- The shapes ----------

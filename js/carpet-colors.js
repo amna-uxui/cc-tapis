@@ -105,7 +105,7 @@ async function chooseColor(color) {
 // The current rug colour: on the colour circle, and filling the shapes (js/carpet-shapes.js)
 function showSwatch(hex) {
   colorButton.style.background = hex;
-  rugInfo.style.setProperty("--rug-color", hex);
+  document.body.style.setProperty("--rug-color", hex);
 }
 
 function markChosen() {

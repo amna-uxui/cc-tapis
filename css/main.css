@@ -158,15 +158,25 @@ body {
   right: var(--space-2);
 }
 
+/* Karbon (Klim Type Foundry), trial version (fonts/TestKarbon-Light.otf): check its licence before
+   the site is made public; without the file, the next font is used */
+@font-face {
+  font-family: "Karbon";
+  src: url("../fonts/TestKarbon-Light.otf") format("opentype"), local("Test Karbon Light"), local("TestKarbon-Light");
+  font-weight: 300;
+  font-display: swap;
+}
+
 /* The verb over the carpet: fades in over 3 seconds, stays, gone after 5 seconds (until the page is loaded again) */
+/* Sits on the middle of the rug: --rug-x / --rug-y are set by js/carpet-viewer.js as the rug moves */
 .verb {
   position: absolute;
-  top: 50%;
-  left: 50%;
+  top: var(--rug-y, 50%);
+  left: var(--rug-x, 50%);
   transform: translate(-50%, -50%);
   z-index: 1;
   margin: 0;
-  font-family: var(--font-display);
+  font-family: "Karbon", var(--font-display);
   font-size: var(--text-xl);
   font-weight: 300;
   letter-spacing: -0.02em;
@@ -264,10 +274,11 @@ body {
   color: var(--color-ink);
 }
 
-/* As wide as the old Buy + L pair */
+/* Buy: bigger letters, a narrower button */
 .button--wide {
-  width: 96px;
+  width: 72px;
   padding: 0;
+  font-size: 14px;
   background: var(--color-panel); /* the same grey as the top bar */
   box-shadow: 0 1px 6px rgba(0, 0, 0, 0.18); /* stays visible over the white page when zoomed out */
 }
@@ -342,10 +353,10 @@ body {
   transform: translateX(-50%);
   width: calc(100% - var(--space-4) * 2);
   max-width: calc(var(--page-max-width) - var(--space-4) * 2);
-  min-height: 66px; /* fixed, so the full carpet always fits below it (js/carpet-viewer.js measures it) */
+  min-height: 62px; /* fixed, so the full carpet always fits below it (js/carpet-viewer.js measures it) */
   display: grid;
   grid-template-columns: 1fr auto 1fr;
-  align-items: center;
+  align-items: start;
   opacity: 0;
   pointer-events: none;
   transition: opacity var(--duration) var(--ease);
@@ -378,26 +389,43 @@ body {
   line-height: 1.4;
 }
 
+.rug-info__currency {
+  font-family: var(--font-sans);
+}
+
 .rug-info .rug-info__size {
   margin-top: var(--space-2); /* a little space between the name and the size */
   color: #6b6b6b;
 }
 
-.rug-info__shapes {
-  grid-column: 3;
-  justify-self: end;
+/* Under the rug, just above Buy (shown only while zoomed out, like the name) */
+.rug-shapes {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--space-3) + env(safe-area-inset-bottom) + 48px + var(--space-2));
+  z-index: 1;
+  transform: translateX(-50%);
   display: flex;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--duration) var(--ease);
+}
+
+.is-zoomed-out .rug-shapes {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 /* The three shapes, filled with the current rug colour (--rug-color, set by js/carpet-colors.js).
    The chosen one sits in a light grey rounded frame, like cc-tapis's colour picker. */
-.rug-info__shapes {
-  gap: 2px;
+.rug-shapes {
+  gap: var(--space-2);
 }
 
 .shape-option {
-  width: 28px;
-  height: 28px;
+  width: 34px;
+  height: 34px;
   display: grid;
   place-items: center;
   border: 1.5px solid transparent;
@@ -417,18 +445,18 @@ body {
 }
 
 .shape-icon--rectangle {
-  width: 13px;
-  height: 18px;
+  width: 17px;
+  height: 23px;
 }
 
 .shape-icon--square {
-  width: 16px;
-  height: 16px;
+  width: 21px;
+  height: 21px;
 }
 
 .shape-icon--circle {
-  width: 18px;
-  height: 18px;
+  width: 23px;
+  height: 23px;
   border-radius: 50%;
 }
 
@@ -497,6 +525,8 @@ body {
   height: 10px;
   margin: -5px 0 0 -5px;
   border-radius: 50%;
-  background: var(--color-ink);
+  /* a glowing bulb in the brand's accent colour: the lamp, and something to play with */
+  background: radial-gradient(circle, #e6eaff 0, #a3b1f0 50%, var(--color-accent) 100%);
+  box-shadow: 0 0 6px 2px rgba(120, 140, 230, 0.7), 0 0 16px 4px rgba(120, 140, 230, 0.35);
   transform: rotate(var(--lamp-angle, -135deg)) translateX(16px);
 }

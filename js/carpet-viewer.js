@@ -19,7 +19,8 @@ const ZOOM_STRETCH = 0.35;   // how far you can pinch past the limits before it 
 const ZOOM_SNAP = 0.1;       // pinch at least this much (10%) to switch between full carpet and close-up
 const ZOOM_DURATION = 650;   // ms for the double-tap / snap zoom animation
 const FIT_GAP = 16;     // space around the full carpet, between the bars
-const FIT_SIDE = 52;    // space left and right of the full carpet, for the arrows
+const FIT_SIDE = 24;    // space left and right of the full carpet (52 makes room for the arrows)
+const FIT_LOW = 0.5;    // where the full carpet sits in the space it has, top (0) to bottom (1): centred
 const BRUSH_WIDTH = 40;      // how wide the brushed trail is, in carpet pixels
 const BRUSH_SMOOTHING = 0.3; // how gently the brush follows the finger (lower = smoother curves, more lag)
 const PILE_PUSH = 0.9;       // how far one stroke pushes the pile (1 = fully pushed after a brush width)
@@ -37,6 +38,7 @@ let brushTone = { light: BRUSH_LIGHT, shade: BRUSH_SHADE }; // the wool tones fo
 const topBar = document.querySelector("[data-fit-top]");
 const rugInfo = document.querySelector("[data-rug-info]"); // collection name and size, under the top bar
 const bottomBar = document.querySelector("[data-fit-bottom]");
+const shapesRow = document.querySelector("[data-shape-options]"); // the shapes, under the full rug
 
 // Where the carpet is: top-left corner (x, y) and size multiplier (scale)
 let view = { x: 0, y: 0, scale: 1 };
@@ -47,11 +49,16 @@ let fit = { left: 0, top: 0, width: 0, height: 0 }; // the area the full carpet 
 // ---------- Drawing ----------
 
 const arrows = stage.querySelectorAll(".arrow");
+const verb = stage.querySelector(".verb"); // "To Draw", kept on the middle of the rug
 
 const OUT_ZOOM = 1.2; // zoomed out to less than this (x the full carpet): arrows, name, size and shapes show
 
 function render() {
   carpet.style.transform = `translate3d(${view.x}px, ${view.y}px, 0) scale(${view.scale})`;
+  if (verb) {
+    verb.style.setProperty("--rug-x", `${view.x + (img.naturalWidth * view.scale) / 2}px`);
+    verb.style.setProperty("--rug-y", `${view.y + (img.naturalHeight * view.scale) / 2}px`);
+  }
   updateArrows();
   document.body.classList.toggle("is-zoomed-out", view.scale < fitScale * OUT_ZOOM);
 }
@@ -76,10 +83,10 @@ function updateArrows() {
 
 // ---------- Measuring ----------
 
-// The full carpet fits between the name and size (under the top bar) and the bottom bar
+// The full carpet fits between the name and size (under the top bar) and the shapes (above Buy)
 function measure() {
   const top = rugInfo.getBoundingClientRect().bottom + FIT_GAP;
-  const bottom = bottomBar.getBoundingClientRect().top - FIT_GAP;
+  const bottom = (shapesRow || bottomBar).getBoundingClientRect().top - FIT_GAP;
 
   fit = {
     left: FIT_SIDE,
@@ -114,11 +121,11 @@ function stretchScale(scale) {
   return scale;
 }
 
-// Smaller than the fit area: centre it.
+// Smaller than the fit area: centre it across, and place it top to bottom by FIT_LOW (centred).
 // Bigger than the whole screen: its edges never come inside the screen (no white showing).
 // In between: the limits slide smoothly from one to the other.
-function clampAxis(pos, size, areaStart, areaSize, screenSize) {
-  if (size <= areaSize) return areaStart + (areaSize - size) / 2;
+function clampAxis(pos, size, areaStart, areaSize, screenSize, place = 0.5) {
+  if (size <= areaSize) return areaStart + (areaSize - size) * place;
 
   const t = Math.min((size - areaSize) / Math.max(screenSize - areaSize, 1), 1);
   const max = areaStart * (1 - t);
@@ -130,7 +137,7 @@ function clampView(v) {
   return {
     scale: v.scale,
     x: clampAxis(v.x, img.naturalWidth * v.scale, fit.left, fit.width, stage.clientWidth),
-    y: clampAxis(v.y, img.naturalHeight * v.scale, fit.top, fit.height, stage.clientHeight),
+    y: clampAxis(v.y, img.naturalHeight * v.scale, fit.top, fit.height, stage.clientHeight, FIT_LOW),
   };
 }
 

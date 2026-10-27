@@ -11,8 +11,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 
-  <link rel="stylesheet" href="css/tokens.css?v=5">
-  <link rel="stylesheet" href="css/main.css?v=5">
+  <link rel="stylesheet" href="css/tokens.css?v=23">
+  <link rel="stylesheet" href="css/main.css?v=23">
 </head>
 <body>
 
@@ -24,10 +24,12 @@
       <div class="carpet__light" aria-hidden="true"></div> <!-- the lamp's light (js/carpet-lamp.js) -->
     </div>
 
+    <!-- Arrows, taken out for now (their styles are still in css/main.css):
     <button class="arrow arrow--prev mono" aria-label="Previous carpet">←</button>
     <button class="arrow arrow--next mono" aria-label="Next carpet">→</button>
+    -->
     <!-- The verb: tells you what you can do with this carpet, shown for a few seconds when the page opens -->
-    <p class="verb" aria-live="polite">To Draw</p>
+    <p class="verb" aria-live="polite">To draw</p>
   </main>
 
   <!-- Top: grey bar like cc-tapis.com -->
@@ -37,8 +39,8 @@
     <a class="bar__side bar__side--right mono" href="https://cc-tapis.com/shop" target="_blank" rel="noopener">Shop</a>
   </header>
 
-  <!-- While the whole rug is in view, under the top bar: collection name and size (centre),
-       and the shapes to choose from (right) -->
+  <!-- While the whole rug is in view, under the top bar: the lamp (left); collection name, size
+       and price (centre) -->
   <div class="rug-info" data-rug-info>
     <!-- The lamp: turn it to light the rug from any side -->
     <div class="lamp-dial" role="slider" tabindex="0" aria-label="Lamp direction" aria-valuemin="0" aria-valuemax="359" data-lamp>
@@ -50,8 +52,10 @@
       <p class="rug-info__designer" data-rug-designer></p>
       <p class="rug-info__size mono" data-rug-size></p>
     </div>
-    <div class="rug-info__shapes" data-shape-options></div>
   </div>
+
+  <!-- While the whole rug is in view, under it, above Buy: the shapes to choose from -->
+  <div class="rug-shapes" data-shape-options></div>
 
   <!-- Bottom, floating over the carpet: buy (centre), colour (right) -->
   <nav class="bar bar--bottom" data-fit-bottom>
@@ -67,10 +71,10 @@
     <div class="palette__sheet" data-palette-swatches></div>
   </div>
 
-  <script src="js/carpet-viewer.js?v=5"></script>
-  <script src="js/carpet-colors.js?v=5"></script>
-  <script src="js/carpet-shapes.js?v=5"></script>
-  <script src="js/carpet-lamp.js?v=5"></script>
-  <script src="js/carpet-sound.js?v=5"></script>
+  <script src="js/carpet-viewer.js?v=23"></script>
+  <script src="js/carpet-colors.js?v=23"></script>
+  <script src="js/carpet-shapes.js?v=23"></script>
+  <script src="js/carpet-lamp.js?v=23"></script>
+  <script src="js/carpet-sound.js?v=23"></script>
 </body>
 </html>
