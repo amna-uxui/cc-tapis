@@ -21,12 +21,12 @@ const ZOOM_DURATION = 650;   // ms for the double-tap / snap zoom animation
 const FIT_GAP = 16;     // space around the full carpet, between the bars
 const FIT_SIDE = 24;    // space left and right of the full carpet (52 makes room for the arrows)
 const FIT_LOW = 0.5;    // where the full carpet sits in the space it has, top (0) to bottom (1): centred
-const BRUSH_WIDTH = 70;      // how wide the brushed trail is, in carpet pixels (about a hand's sweep)
+const BRUSH_WIDTH = 24;      // how wide the brushed trail is, in carpet pixels (about a fingertip, for patterns)
 const BRUSH_SMOOTHING = 0.7; // how closely the brush follows the finger (1 = exactly; lower = smoother but lags)
 const BRUSH_TURN = 0.15;     // how quickly a stroke's direction follows the finger's turns (lower = steadier tone)
 const PILE_PUSH = 1.6;       // how far one stroke pushes the pile (1 = fully pushed after a brush width)
 const PILE_LIGHTER = 0.45;   // pile leaning towards the light: up to this much brighter (0.45 = +45%)
-const PILE_DARKER = 0.35;    // pile leaning away from it: up to this much darker
+const PILE_DARKER = 0.55;    // pile leaning away from it: up to this much darker
 const PILE_SHEEN = 0.25;     // pile pushed sideways to the light still shows a little lighter (0 = not at all)
 const BRUSH_LIGHT = [218, 170, 125]; // the colour of brushed wool catching the light (r, g, b)
 const BRUSH_SHADE = [196, 146, 104]; // a slightly deeper wool tone, mixed in for depth
