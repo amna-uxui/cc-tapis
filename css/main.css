@@ -410,3 +410,56 @@ body {
   height: 18px;
   border-radius: 50%;
 }
+
+/* ---------- The lamp (zoomed out only, js/carpet-lamp.js) ---------- */
+
+/* Light on the rug from where the lamp is (--light-x / --light-y, a point just outside the rug):
+   bright on that side, shadow on the far side. Soft-light blending lights the velvet itself. */
+.carpet__light {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  mix-blend-mode: soft-light;
+  background:
+    radial-gradient(circle at var(--light-x, 0%) var(--light-y, 0%), rgba(255, 238, 210, 0.95) 0, rgba(255, 238, 210, 0) 70%),
+    radial-gradient(circle at var(--light-x, 0%) var(--light-y, 0%), rgba(0, 0, 0, 0) 45%, rgba(0, 0, 0, 0.6) 130%);
+  opacity: 0;
+  transition: opacity 500ms var(--ease);
+}
+
+.is-zoomed-out .carpet__light {
+  opacity: 1;
+}
+
+/* The dial, left of the name: a ring with the lamp on it. Drag the lamp round to move the light. */
+.lamp-dial {
+  grid-column: 1;
+  grid-row: 1;
+  justify-self: start;
+  position: relative;
+  width: 34px;
+  height: 34px;
+  border: 1.5px solid var(--color-muted);
+  border-radius: 50%;
+  cursor: grab;
+  touch-action: none;
+}
+
+/* A bigger area to grab than the ring itself */
+.lamp-dial::before {
+  content: "";
+  position: absolute;
+  inset: -10px;
+}
+
+.lamp-dial__lamp {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 10px;
+  height: 10px;
+  margin: -5px 0 0 -5px;
+  border-radius: 50%;
+  background: var(--color-ink);
+  transform: rotate(var(--lamp-angle, -135deg)) translateX(16px);
+}

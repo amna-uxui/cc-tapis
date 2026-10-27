@@ -20,6 +20,7 @@
     <div class="carpet">
       <img src="images/carpet-02-cacao.jpg" alt="Plain velvet cc-tapis rug, ready to draw on" draggable="false">
       <canvas class="carpet__brush"></canvas>
+      <div class="carpet__light" aria-hidden="true"></div> <!-- the lamp's light (js/carpet-lamp.js) -->
     </div>
 
     <button class="arrow arrow--prev mono" aria-label="Previous carpet">←</button>
@@ -38,6 +39,10 @@
   <!-- While the whole rug is in view, under the top bar: collection name and size (centre),
        and the shapes to choose from (right) -->
   <div class="rug-info" data-rug-info>
+    <!-- The lamp: turn it to light the rug from any side -->
+    <div class="lamp-dial" role="slider" tabindex="0" aria-label="Lamp direction" aria-valuemin="0" aria-valuemax="359" data-lamp>
+      <span class="lamp-dial__lamp"></span>
+    </div>
     <div class="rug-info__text" aria-live="polite">
       <p class="rug-info__name" data-rug-name></p>
       <p class="rug-info__designer" data-rug-designer></p>
@@ -63,5 +68,6 @@
   <script src="js/carpet-viewer.js"></script>
   <script src="js/carpet-colors.js"></script>
   <script src="js/carpet-shapes.js"></script>
+  <script src="js/carpet-lamp.js"></script>
 </body>
 </html>
