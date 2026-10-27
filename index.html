@@ -11,8 +11,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 
-  <link rel="stylesheet" href="css/tokens.css?v=38">
-  <link rel="stylesheet" href="css/main.css?v=38">
+  <link rel="stylesheet" href="css/tokens.css?v=39">
+  <link rel="stylesheet" href="css/main.css?v=39">
 </head>
 <body>
 
@@ -45,6 +45,17 @@
     <!-- The lamp: turn it to light the rug from any side -->
     <div class="lamp-dial" role="slider" tabindex="0" aria-label="Lamp direction" aria-valuemin="0" aria-valuemax="359" data-lamp>
       <span class="lamp-dial__lamp"></span>
+      <!-- the light in the room: tap the lamp to switch (js/carpet-lamp.js) -->
+      <svg class="mood-icon mood-icon--evening" viewBox="0 0 16 16" aria-hidden="true">
+        <path d="M3.5 11a4.5 4.5 0 0 1 9 0M1.5 11h13M8 3.5v1.5M3.2 5.6l1 1M12.8 5.6l-1 1" />
+      </svg>
+      <svg class="mood-icon mood-icon--daylight" viewBox="0 0 16 16" aria-hidden="true">
+        <circle cx="8" cy="8" r="3" />
+        <path d="M8 1.5v1.8M8 12.7v1.8M1.5 8h1.8M12.7 8h1.8M3.4 3.4l1.3 1.3M11.3 11.3l1.3 1.3M3.4 12.6l1.3-1.3M11.3 4.7l1.3-1.3" />
+      </svg>
+      <svg class="mood-icon mood-icon--night" viewBox="0 0 16 16" aria-hidden="true">
+        <path d="M12.5 10.2A5.2 5.2 0 0 1 5.8 3.5a5.2 5.2 0 1 0 6.7 6.7z" />
+      </svg>
       <span class="lamp-dial__status mono" aria-live="polite" data-lamp-status></span>
     </div>
     <div class="rug-info__text" aria-live="polite">
@@ -52,6 +63,10 @@
       <p class="rug-info__designer" data-rug-designer></p>
       <p class="rug-info__size mono" data-rug-size></p>
     </div>
+    <!-- Save your rug as an image (js/carpet-save.js) -->
+    <button class="save-rug" aria-label="Save your rug" data-save>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12v18l-6-4.5L6 21z" /></svg>
+    </button>
   </div>
 
   <!-- While the whole rug is in view, under it, above Buy: the shapes to choose from -->
@@ -81,10 +96,11 @@
     <div class="palette__sheet" data-palette-swatches></div>
   </div>
 
-  <script src="js/carpet-viewer.js?v=38"></script>
-  <script src="js/carpet-colors.js?v=38"></script>
-  <script src="js/carpet-shapes.js?v=38"></script>
-  <script src="js/carpet-lamp.js?v=38"></script>
-  <script src="js/carpet-sound.js?v=38"></script>
+  <script src="js/carpet-viewer.js?v=39"></script>
+  <script src="js/carpet-colors.js?v=39"></script>
+  <script src="js/carpet-shapes.js?v=39"></script>
+  <script src="js/carpet-lamp.js?v=39"></script>
+  <script src="js/carpet-sound.js?v=39"></script>
+  <script src="js/carpet-save.js?v=39"></script>
 </body>
 </html>

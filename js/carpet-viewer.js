@@ -32,6 +32,7 @@ const PILE_RICH = 0.45;      // darker pile also turns this much richer in colou
 const PILE_STREAKS = 0;      // fine streaks along each stroke (0 = none)
 const PILE_SOFT = 0.3;       // how much of the brush's width fades out softly: a firm, organic edge
 const PILE_WOBBLE = 0.35;    // how much the stroke's outline wanders, like the shapes in brushed velvet (0..1)
+const PILE_RECOVER = 25;     // seconds for brushed pile to spring halfway back (marks fade; about 2 min to vanish)
 const BRUSH_LIGHT = [218, 170, 125]; // the colour of brushed wool catching the light (r, g, b)
 const BRUSH_SHADE = [196, 146, 104]; // a slightly deeper wool tone, mixed in for depth
 
@@ -395,6 +396,15 @@ function pushPile(from, to, dir) {
   }
   strokeTravel += length;
   markDirty(left, top, right, bottom);
+  // remember where there are marks, so the recovering pile only has to look there
+  pile.marked = pile.marked
+    ? {
+        left: Math.min(pile.marked.left, left),
+        top: Math.min(pile.marked.top, top),
+        right: Math.max(pile.marked.right, right),
+        bottom: Math.max(pile.marked.bottom, bottom),
+      }
+    : { left, top, right, bottom };
 }
 
 // The area of the rug that changed since the last frame: it's repainted once per frame, not after
@@ -514,6 +524,7 @@ function resizePile(w, h) {
   const old = pile;
   pile = makePile(w, h);
   dirty = null; // a repaint waiting for the old rug no longer fits; the whole new one is painted
+  if (old && old.marked) pile.marked = { left: 0, top: 0, right: w - 1, bottom: h - 1 }; // marks came along
   brush.width = w;
   brush.height = h;
   if (!old) return;
@@ -575,8 +586,45 @@ function finishStroke(stroke, finger) {
 function wipeDrawing() {
   pile.x.fill(0);
   pile.y.fill(0);
+  pile.marked = null;
   paintPile();
 }
+
+// ---------- The pile springs back ----------
+
+// A few times a second, every brushed bit of pile rises a little back towards untouched,
+// like velvet recovering after a hand has passed: marks slowly fade away
+const RECOVER_EVERY = 250; // ms between steps
+let lastRecover = performance.now();
+
+function recoverPile() {
+  const now = performance.now();
+  const seconds = (now - lastRecover) / 1000;
+  lastRecover = now;
+  if (!pile || !pile.marked) return;
+
+  const keep = Math.pow(0.5, seconds / PILE_RECOVER);
+  const { left, top, right, bottom } = pile.marked;
+  let anyLeft = false;
+  for (let py = top; py <= bottom; py++) {
+    for (let px = left; px <= right; px++) {
+      const i = py * pile.w + px;
+      if (pile.x[i] === 0 && pile.y[i] === 0) continue;
+      pile.x[i] *= keep;
+      pile.y[i] *= keep;
+      if (Math.abs(pile.x[i]) + Math.abs(pile.y[i]) < 0.004) {
+        pile.x[i] = 0; // fully back: untouched again
+        pile.y[i] = 0;
+      } else {
+        anyLeft = true;
+      }
+    }
+  }
+  markDirty(left, top, right, bottom);
+  if (!anyLeft) pile.marked = null;
+}
+
+setInterval(recoverPile, RECOVER_EVERY);
 
 // ---------- Touch, mouse and pen ----------
 

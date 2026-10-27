@@ -510,11 +510,39 @@ body {
   -webkit-mask-size: 100% 100%;
   pointer-events: none;
   mix-blend-mode: soft-light;
+  /* Evening (the first mood): warm, soft lamp light, the far side falling into shadow */
   background:
-    radial-gradient(circle at var(--light-x, 0%) var(--light-y, 0%), rgba(255, 186, 110, 0.65) 0, rgba(255, 186, 110, 0) 70%), /* warm, soft lamp light */
+    radial-gradient(circle at var(--light-x, 0%) var(--light-y, 0%), rgba(255, 186, 110, 0.65) 0, rgba(255, 186, 110, 0) 70%),
     radial-gradient(circle at var(--light-x, 0%) var(--light-y, 0%), rgba(0, 0, 0, 0) 45%, rgba(0, 0, 0, 0.6) 130%);
   opacity: 0;
   transition: opacity 500ms var(--ease);
+}
+
+/* Lighting moods: tap the lamp to switch (js/carpet-lamp.js) */
+
+/* Daylight: a bright room, soft cool light from the lamp's side, hardly any shadow */
+.mood-daylight .carpet__light {
+  background:
+    radial-gradient(circle at var(--light-x, 0%) var(--light-y, 0%), rgba(236, 242, 255, 0.75) 0, rgba(236, 242, 255, 0.25) 90%),
+    radial-gradient(circle at var(--light-x, 0%) var(--light-y, 0%), rgba(0, 0, 0, 0) 70%, rgba(0, 0, 0, 0.2) 140%);
+}
+
+/* Night: a dark room with one warm spotlight where the lamp is */
+.mood-night .carpet__light {
+  background:
+    radial-gradient(circle at var(--spot-x, 40%) var(--spot-y, 40%), rgba(255, 214, 160, 0.95) 0, rgba(255, 214, 160, 0) 40%),
+    radial-gradient(circle at var(--spot-x, 40%) var(--spot-y, 40%), rgba(0, 0, 0, 0) 20%, rgba(0, 0, 0, 0.85) 75%);
+}
+
+/* ... and the room itself is dark: the whole rug dims, the spotlight brings it back */
+.is-zoomed-out.mood-night .carpet img,
+.is-zoomed-out.mood-night .carpet__brush {
+  filter: brightness(0.72);
+}
+
+.carpet img,
+.carpet__brush {
+  transition: filter 500ms var(--ease);
 }
 
 .is-zoomed-out .carpet__light {
@@ -570,4 +598,58 @@ body {
   background: radial-gradient(circle, #fbf1dc 0, #ecd2a2 55%, #d9b277 100%);
   box-shadow: 0 0 5px 1px rgba(226, 190, 128, 0.6), 0 0 12px 3px rgba(226, 190, 128, 0.28);
   transform: rotate(var(--lamp-angle, -135deg)) translateX(16px);
+}
+
+/* ---------- Save your rug (top right of the zoomed-out view, js/carpet-save.js) ---------- */
+
+.save-rug {
+  grid-column: 3;
+  grid-row: 1;
+  justify-self: end;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+}
+
+.save-rug svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: var(--color-ink);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+  transition: fill var(--duration) var(--ease);
+}
+
+/* Just saved: the bookmark fills in for a moment */
+.save-rug.is-saved svg {
+  fill: var(--color-ink);
+}
+
+/* The light in the room, as an icon inside the lamp's ring: sunset (Evening), sun (Daylight), moon (Night) */
+.mood-icon {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 16px;
+  height: 16px;
+  margin: -8px 0 0 -8px;
+  fill: none;
+  stroke: var(--color-ink);
+  stroke-width: 1.3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  display: none;
+}
+
+.mood-icon--evening,
+.mood-daylight .mood-icon--daylight,
+.mood-night .mood-icon--night {
+  display: block;
+}
+
+.mood-daylight .mood-icon--evening,
+.mood-night .mood-icon--evening {
+  display: none;
 }
