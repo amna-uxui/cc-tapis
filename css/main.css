@@ -405,6 +405,7 @@ body {
   bottom: calc(var(--space-3) + env(safe-area-inset-bottom) + 48px + var(--space-2));
   z-index: 1;
   transform: translateX(-50%);
+  height: 34px; /* fixed, so the full carpet fits above it even before the shapes are added (js/carpet-viewer.js measures it) */
   display: flex;
   justify-content: center;
   opacity: 0;
@@ -525,8 +526,8 @@ body {
   height: 10px;
   margin: -5px 0 0 -5px;
   border-radius: 50%;
-  /* a glowing bulb in the brand's accent colour: the lamp, and something to play with */
-  background: radial-gradient(circle, #e6eaff 0, #a3b1f0 50%, var(--color-accent) 100%);
-  box-shadow: 0 0 6px 2px rgba(120, 140, 230, 0.7), 0 0 16px 4px rgba(120, 140, 230, 0.35);
+  /* a softly glowing, warm lamp light: something to play with */
+  background: radial-gradient(circle, #fbf1dc 0, #ecd2a2 55%, #d9b277 100%);
+  box-shadow: 0 0 5px 1px rgba(226, 190, 128, 0.6), 0 0 12px 3px rgba(226, 190, 128, 0.28);
   transform: rotate(var(--lamp-angle, -135deg)) translateX(16px);
 }

@@ -51,7 +51,7 @@ let fit = { left: 0, top: 0, width: 0, height: 0 }; // the area the full carpet 
 const arrows = stage.querySelectorAll(".arrow");
 const verb = stage.querySelector(".verb"); // "To Draw", kept on the middle of the rug
 
-const OUT_ZOOM = 1.2; // zoomed out to less than this (x the full carpet): arrows, name, size and shapes show
+const OUT_ZOOM = 1.02; // zoomed out to (almost exactly) the full carpet: arrows, name, size and shapes show
 
 function render() {
   carpet.style.transform = `translate3d(${view.x}px, ${view.y}px, 0) scale(${view.scale})`;
