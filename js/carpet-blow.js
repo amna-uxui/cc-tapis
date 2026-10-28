@@ -62,34 +62,30 @@ let breath = 0;       // the breath that blows, smoothed
 
 const hearing = { level: -100, floor: -100 }; // for the debug meter
 
-// iPhone only lets sound start inside the tap itself, so the sound is switched on right away,
-// before asking for the microphone. Safari only runs sound that ends up at the speaker, so the
-// microphone also goes there, turned all the way down: silent, but it keeps the sound running.
-// If something goes wrong, the step it went wrong at shows (with ?debug) and a tap tries again.
-async function startListening() {
+// Two ways to start listening, tried in turn (iPhones differ in which one they accept):
+// 1. inside the tap: the sound first (iPhone only lets sound start in the tap itself), then the
+//    microphone, with the phone's noise and echo cleaning off (they would take the breath out);
+// 2. a moment later: the plainest microphone request first, then the sound (while the microphone
+//    records, iPhone lets the sound start without a tap).
+// Safari only runs sound that ends up at the speaker, so the microphone also goes there, turned
+// all the way down: silent, but it keeps the sound running.
+const RAW_SOUND = { audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } };
+
+async function openMicrophone(soundFirst) {
   let ctx = null;
-  let step = "start";
+  let stream = null;
+  let step = soundFirst ? "sound" : "microphone";
   try {
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error(window.isSecureContext ? "no microphone here" : "needs https");
-    step = "sound";
-    ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const waking = ctx.resume(); // inside the tap
-    micState = "asking";
-    showBlowStatus("Allow the microphone");
-
-    step = "microphone";
-    let stream;
-    try {
-      // the phone's own noise and echo cleaning would take the breath out: ask for the raw sound
-      stream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
-      });
-    } catch (error) {
-      if (error.name === "NotAllowedError") throw error;
-      step = "microphone, plain";
-      stream = await navigator.mediaDevices.getUserMedia({ audio: true }); // the simplest ask
+    if (soundFirst) {
+      ctx = new (window.AudioContext || window.webkitAudioContext)();
+      ctx.resume();
+      step = "microphone";
+      stream = await navigator.mediaDevices.getUserMedia(RAW_SOUND);
+    } else {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      step = "sound";
+      ctx = new (window.AudioContext || window.webkitAudioContext)();
     }
-
     step = "connect";
     const analyser = ctx.createAnalyser();
     analyser.fftSize = 1024;
@@ -99,25 +95,54 @@ async function startListening() {
     analyser.connect(mute);
     mute.connect(ctx.destination);
     step = "resume";
-    await waking.catch(() => {});
     if (ctx.state !== "running") await ctx.resume();
-
-    audio = { ctx, stream, analyser, samples: new Float32Array(analyser.fftSize), heard: 0 };
-    floor = null;
-    listening = true;
-    noMic = false;
-    micState = "on";
-    blowButton.classList.add("is-listening");
-    blowButton.setAttribute("aria-pressed", "true");
-    showBlowStatus("Blow on the bottom of the phone");
-    wake();
+    return { ctx, stream, analyser, samples: new Float32Array(analyser.fftSize), heard: 0 };
   } catch (error) {
+    if (stream) stream.getTracks().forEach((track) => track.stop());
     if (ctx) ctx.close();
-    noMic = true;
-    micState = `${error.name && error.name !== "Error" ? error.name : error.message} at ${step}${error.message && error.name !== "Error" ? ": " + error.message : ""}`;
-    showBlowStatus("No microphone: tap to try again, or hold to blow");
-    wake();
+    error.step = step;
+    throw error;
   }
+}
+
+async function startListening() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    failListening(window.isSecureContext ? "no microphone here" : "needs https");
+    return;
+  }
+  micState = "asking";
+  showBlowStatus("Allow the microphone");
+  const tries = [];
+  for (const soundFirst of [true, false]) {
+    try {
+      audio = await openMicrophone(soundFirst);
+      break;
+    } catch (error) {
+      tries.push(`${error.name} at ${error.step}${error.message ? ": " + error.message : ""}`);
+      if (error.name === "NotAllowedError") break; // a clear "no": asking again won't help
+      await new Promise((done) => setTimeout(done, 300));
+    }
+  }
+  if (!audio) {
+    failListening(tries.join(" / then "), tries[tries.length - 1].split(" ")[0]);
+    return;
+  }
+  floor = null;
+  listening = true;
+  noMic = false;
+  micState = tries.length ? `on (second way, first: ${tries[0]})` : "on";
+  blowButton.classList.add("is-listening");
+  blowButton.setAttribute("aria-pressed", "true");
+  showBlowStatus("Blow on the bottom of the phone");
+  wake();
+}
+
+// No microphone: say why (in short above the button, in full with ?debug); holding blows instead
+function failListening(why, short = why) {
+  noMic = true;
+  micState = why;
+  showBlowStatus(short === "NotAllowedError" ? "Microphone not allowed: hold to blow" : `No microphone (${short}): tap to try again`);
+  wake();
 }
 
 function stopListening() {
