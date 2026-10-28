@@ -5,7 +5,10 @@
 
   Recording: "Scrubing carpet with brush" by berdusmith, freesound.org (sound 335398).
 
-  js/carpet-viewer.js calls brushSound.move(speed) while drawing and brushSound.stop() after.
+  js/carpet-viewer.js calls brushSound.move(speed) while drawing and brushSound.stop() after;
+  js/carpet-shapes.js calls brushSound.prepare() when Hypercode comes on, so the recording is
+  loaded before the first stroke (no tap is needed first: the touch that starts the first
+  stroke lets the sound play).
 */
 
 const SOUND_FILE = "sounds/brush.m4a";
@@ -61,6 +64,11 @@ const brushSound = (() => {
     return true;
   }
 
+  // Ready the sound and load the recording (it starts paused until a touch lets it play)
+  function prepare() {
+    if (!audio) setUp();
+  }
+
   // iPhone only lets sound start inside a tap or a finger lifting, not while a finger moves,
   // so every touch makes sure the sound is set up and running.
   // iPhone also mutes web sound when the silent switch is on, unless a normal <audio> player is
@@ -100,5 +108,5 @@ const brushSound = (() => {
     gain.gain.setTargetAtTime(0, audio.currentTime, SOUND_FADE * 1.5);
   }
 
-  return { move, stop };
+  return { prepare, move, stop };
 })();

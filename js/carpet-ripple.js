@@ -584,6 +584,7 @@ function buildRippleRow() {
 async function enterRipple(whole) {
   buildRippleRow();
   await changeRug(RIPPLE_CANVAS, { zoomOut: whole, fade: false });
+  if (typeof rippleSound !== "undefined") rippleSound.prepare(); // its sound, ready before the first stroke
   await Promise.all([rugShape.loaded, rugPile.loaded]);
   if (!own) {
     setUpOwn();

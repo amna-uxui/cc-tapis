@@ -229,6 +229,7 @@ function nextShape() {
 // Hypercode comes on (js/carpet-collections.js): its shapes in the row, its rug as you left it.
 // whole: show the whole rug.
 async function enterHypercode(whole) {
+  if (typeof brushSound !== "undefined") brushSound.prepare(); // its sound, ready before the first stroke
   buildShapes();
   if (current.swatch) showSwatch(current.swatch);
   await renderRug(whole, false);

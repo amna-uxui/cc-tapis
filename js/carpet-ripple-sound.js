@@ -7,11 +7,14 @@
   The swishes are seven short strokes cut from one recording (sounds/strokes.m4a, back to back),
   each time a different one, at a very slightly different pitch, so it never sounds the same.
 
-  js/carpet-ripple.js calls rippleSound.begin() as a stroke starts, rippleSound.move(fast) as it
-  goes on (fast: 0 slow .. 1 fast) and rippleSound.end() when the finger lifts.
+  js/carpet-ripple.js calls rippleSound.prepare() when Ripple Square comes on (the recording is
+  loaded then, so it's ready before the first stroke), rippleSound.begin() as a stroke starts,
+  rippleSound.move(fast) as it goes on (fast: 0 slow .. 1 fast) and rippleSound.end() when the
+  finger lifts.
 
-  iPhone only lets sound start inside a tap or a finger lifting, so every touch makes sure the
-  sound is set up and running (as js/carpet-sound.js does).
+  No tap is needed first: browsers only let sound play after a touch, and the touch that starts
+  the first stroke is one (every touch makes sure the sound is running; the silent switch on an
+  iPhone is taken care of by js/carpet-sound.js, which also listens to every touch).
 */
 
 const STROKES_FILE = "sounds/strokes.m4a";
@@ -38,6 +41,11 @@ const rippleSound = (() => {
       .then((buffer) => (recording = buffer))
       .catch(() => {});
     return true;
+  }
+
+  // Ready the sound and load the recording (it starts paused until a touch lets it play)
+  function prepare() {
+    if (!audio) setUp();
   }
 
   // Only on Ripple Square: every touch there makes sure the sound is set up and running
@@ -82,5 +90,5 @@ const rippleSound = (() => {
     drawing = false;
   }
 
-  return { begin, move, end };
+  return { prepare, begin, move, end };
 })();
