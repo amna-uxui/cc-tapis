@@ -37,6 +37,7 @@ const BRUSH_LIGHT = [218, 170, 125]; // the colour of brushed wool catching the 
 const BRUSH_SHADE = [196, 146, 104]; // a slightly deeper wool tone, mixed in for depth
 
 const stage = document.querySelector("[data-viewer]");
+const BRUSHING = stage.dataset.brush !== "off"; // data-brush="off": one finger doesn't draw (blow.html)
 const carpet = stage.querySelector(".carpet");
 const img = carpet.querySelector("img");
 const brush = carpet.querySelector(".carpet__brush");
@@ -685,6 +686,7 @@ stage.addEventListener("pointermove", (e) => {
   pointers.set(e.pointerId, p);
 
   if (gesture.type === "draw" && pointers.size === 1) {
+    if (!BRUSHING) return;
     // A tap is not a stroke: only start brushing once the finger really moves
     if (!moved) {
       if (Math.hypot(p.x - gesture.start.x, p.y - gesture.start.y) <= 4) return;

@@ -4,6 +4,9 @@
 #
 #   python3 tools/cut-out-rug.py photo.webp images/carpet-02-cacao-cut.png
 #
+# Rugs with cream or white wool: add --solid so the inside of the rug stays solid (only a band
+# SOLID_EDGE pixels wide along its outline fades), else the cream turns see-through too.
+#
 # Needs only the Mac's own tools (sips converts the photo to BMP first).
 import os
 import struct
@@ -15,6 +18,7 @@ import zlib
 MARGIN = 14      # pixels kept around the rug, for its fuzzy edge and shadow
 WHITE = 254      # the background's brightness in these photos
 FADE = 34        # how much darker than the background a pixel must be to be fully solid
+SOLID_EDGE = 12  # with --solid: how wide the soft band along the rug's outline is
 
 
 def read_bmp(path):
@@ -48,7 +52,7 @@ def write_png(path, w, h, rows):
     open(path, "wb").write(png)
 
 
-def main(src, out):
+def main(src, out, solid=False):
     with tempfile.TemporaryDirectory() as tmp:
         bmp = os.path.join(tmp, "photo.bmp")
         subprocess.run(["sips", "-s", "format", "bmp", src, "--out", bmp], check=True, capture_output=True)
@@ -61,12 +65,23 @@ def main(src, out):
     left, right = max(0, xs[0] - MARGIN), min(w - 1, xs[-1] + MARGIN)
     top, bottom = max(0, ys[0] - MARGIN), min(h - 1, ys[-1] + MARGIN)
 
+    # with --solid: the rug's outline, row by row, from where its edge first turns dark
+    inside = {}
+    if solid:
+        for y in range(ys[0], ys[-1] + 1):
+            row = [x for x in range(left, right + 1) if dark(px[y][x])]
+            if row:
+                inside[y] = (row[0] + SOLID_EDGE, row[-1] - SOLID_EDGE)
+
     rows = []
     for y in range(top, bottom + 1):
         line = []
         for x in range(left, right + 1):
             r, g, b = px[y][x]
             a = min(1.0, max(0.0, (WHITE - (r + g + b) / 3 - 1) / FADE))
+            near = [inside.get(y + k) for k in (-SOLID_EDGE, 0, SOLID_EDGE)]
+            if all(n and n[0] <= x <= n[1] for n in near):
+                a = 1.0  # well inside the rug: solid, whatever its colour
             if a <= 0:
                 line += [255, 255, 255, 0]
                 continue
@@ -79,4 +94,5 @@ def main(src, out):
 
 
 if __name__ == "__main__":
-    main(sys.argv[1], sys.argv[2])
+    args = [a for a in sys.argv[1:] if a != "--solid"]
+    main(args[0], args[1], solid="--solid" in sys.argv)
