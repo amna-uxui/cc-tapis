@@ -8,7 +8,7 @@ Mobile-first prototype in the look and feel of cc-tapis (Milano). One screen, no
 
 Live: https://amna-uxui.github.io/cc-tapis/
 
-- **Hypercode** by Roberto Sironi: to touch, brush the velvet pile with your finger. Under the rug, two tabs (Shape | Colour) switch one row between its shapes and its colours, each a small picture of the real rug with its name.
+- **Hypercode** by Roberto Sironi: to touch, brush the velvet pile with your finger. Under the rug, two tabs (Shape | Colour) switch one row between its shapes and its colours, each a small picture of the real rug (the colours with their names).
 - **GrandMa Patterns** by Rop van Mierlo (`#grandma-patterns`): to blow, tap the wind button (top left, where Hypercode has its lamp; a ring round it breathes while it listens) and blow on the bottom of the phone. Add `?debug` to see what the microphone hears.
 - **Ripple Square** by Patricia Urquiola (`#ripple-square`): to paint, make your own rug: start from a blank 200 × 200 cm canvas, with the real rug's outline as a very faint hairline and one ripple along its top edge, and draw more with a brush made like the real rug's bands: tall, whole ovals side by side on their ground, the ground showing as narrow V's between them, until the next band covers one half of them, in its four colourways; the faster you draw, the broader the ovals. Picking another colourway turns the whole rug into it. The strokes look like carpet, not paint: thick pile with barely visible carved grooves, the real rug's wool texture (made from its photo by `tools/ripple-pile.py`), pile rows, fibrous edges and a soft shadow on the floor.
 

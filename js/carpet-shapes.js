@@ -1,8 +1,9 @@
 /*
   Carpet shapes: while zoomed out, the row under the rug, above Buy (js/carpet-strip.js), shows
   either the shapes or the colours, picked by two tabs above it (Shape | Colour; the one picked in
-  a small black pill). Each is a small picture of the real rug with its name under it: the rug in
-  each shape in its colour, or in its shape in each colour (switching tabs, the row fades over).
+  a small black pill). Each is a small picture of the real rug: the rug in each shape in its
+  colour, or in its shape in each colour, with the colour's name under it (switching tabs, the row
+  fades over).
   Each shape is cut from the current colour's rug photo, so every colour comes in every shape.
   Tapping a shape shows the rug in that shape, with its size; a colour, in that colour.
 
@@ -147,7 +148,8 @@ async function chooseShape(shape) {
   reshaping = false;
 }
 
-// A choice in the row: a small picture of the real rug (the colour in the shape), its name under it
+// A choice in the row: a small picture of the real rug (the colour in the shape), and its name
+// under it if it has one (the shapes don't need one: you see them)
 function shapeThumb(color, shape, name) {
   const item = document.createElement("span");
   item.className = "shape-thumb";
@@ -155,10 +157,13 @@ function shapeThumb(color, shape, name) {
   picture.className = `shape-thumb__rug shape-thumb__rug--${shape.name.toLowerCase()}`;
   picture.alt = "";
   color.loaded.then(() => shapedSrc(color, shape)).then((src) => (picture.src = src));
-  const label = document.createElement("span");
-  label.className = "shape-thumb__name mono";
-  label.textContent = name;
-  item.append(picture, label);
+  item.append(picture);
+  if (name) {
+    const label = document.createElement("span");
+    label.className = "shape-thumb__name mono";
+    label.textContent = name;
+    item.append(label);
+  }
   return item;
 }
 
@@ -176,7 +181,6 @@ function markShape() {
 
 // ---------- The shapes ----------
 
-const SHAPE_NAMES = { Rectangle: "Rectangle", Square: "Square", Circle: "Round" }; // as on cc-tapis.com
 const TAB_FADE = 160; // ms the row takes to fade out before the other tab's choices fade in
 
 const rugTabs = document.querySelector("[data-rug-tabs]");
@@ -187,7 +191,7 @@ function buildShapes() {
   rugTabs.querySelectorAll("[data-tab]").forEach((tab) => tab.setAttribute("aria-selected", tab.dataset.tab === rugTab));
   if (rugTab === "shape") {
     shapeStrip = makeStrip(shapeRow, SHAPES, {
-      draw: (shape) => shapeThumb(current, shape, SHAPE_NAMES[shape.name]),
+      draw: (shape) => shapeThumb(current, shape),
       choose: chooseShape,
       start: SHAPES.indexOf(currentShape),
     });

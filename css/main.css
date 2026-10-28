@@ -471,7 +471,8 @@ body {
 [data-collection="hypercode"] .rug-shapes.strip {
   height: 50px;
   gap: var(--space-3);
-  align-items: flex-end;
+  align-items: flex-start; /* the pictures in the same place on both tabs (the colours' names under them) */
+  padding-top: var(--space-2);
   transition: opacity var(--duration) var(--ease);
 }
 
