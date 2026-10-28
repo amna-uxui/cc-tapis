@@ -72,7 +72,10 @@ function rugNow() {
   let name = rugInfo.querySelector("[data-rug-name]").textContent;
   let picture = img.src; // Hypercode's photos are cut out already
   let cutOut = picture;
-  if (collection === "hypercode") name += ` ${current.name}`;
+  if (collection === "hypercode") {
+    name += ` ${current.name}`;
+    picture = cutOut = withMarks();
+  }
   if (collection === "grandma-patterns") cutOut = currentRug.thumb; // its photo is on white: the small cut-out
   if (collection === "ripple-square") {
     name += " (your design)";
@@ -92,6 +95,21 @@ function rugNow() {
     cutOut, // for the bag and the thank-you (no white round it)
     ground: collection === "ripple-square" ? `rgb(${COLOURWAYS[chosenWay].ground})` : null,
   };
+}
+
+// Hypercode: the rug with what your finger drew in its pile (the brush marks over the photo,
+// only on the rug itself), so that's what rolls up and goes in the bag
+function withMarks() {
+  const width = Math.min(1200, img.naturalWidth);
+  const height = Math.round((width * img.naturalHeight) / img.naturalWidth);
+  const snap = document.createElement("canvas");
+  snap.width = width;
+  snap.height = height;
+  const ctx = snap.getContext("2d");
+  ctx.drawImage(img, 0, 0, width, height);
+  ctx.globalCompositeOperation = "source-atop";
+  ctx.drawImage(brush, 0, 0, width, height);
+  return snap.toDataURL("image/png");
 }
 
 function showBag() {
@@ -430,10 +448,21 @@ async function buy() {
   void bag.offsetWidth;
   bag.classList.add("is-landing");
 
-  rolledAway = state;
+  // the one that unrolls is a fresh, clean rug: what you drew went in the bag
+  rolledAway = (await cleanRug()) || state;
+  rollGl.stage.style.visibility = "hidden";
   await wait(ROLL_BACK_AFTER);
   await unroll();
   buying = false;
+}
+
+// After a buy: the drawing wiped (the pile untouched, Ripple Square started over), and the roll
+// readied with the clean rug
+async function cleanRug() {
+  if (fingerPaint) fingerPaint.wipe();
+  else if (pile) wipeDrawing();
+  await wait(50);
+  return readyRoll(rugNow(), img.getBoundingClientRect());
 }
 
 // The rug unrolls back into place, to play on or buy another
