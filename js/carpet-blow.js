@@ -161,6 +161,7 @@ async function startListening() {
   floor = null;
   listening = true;
   noMic = false;
+  if (typeof windSound !== "undefined") windSound.start(audio.ctx); // the wind plays through the microphone's sound
   micState = tries.length ? `on (way ${tries.length + 1}; first: ${tries[0]})` : "on";
   blowButton.classList.add("is-listening");
   blowButton.setAttribute("aria-pressed", "true");
@@ -661,6 +662,7 @@ function showHearing() {
     `above  +${(hearing.level - hearing.floor).toFixed(0)} dB (blows from +${BLOW_GATE})\n` +
     `pitch  ${hearing.pitch.toFixed(2)} (voice above ${VOICE_PITCH})   hiss ${hearing.hiss.toFixed(2)} (breath above ${BREATH_HISS})\n` +
     `heard  ${audio && audio.blowing > 0 ? "breath" : audio && audio.heard - audio.voiceAt < VOICE_REST ? "voice" : "-"}\n` +
+    `wind sound  ${typeof windSound !== "undefined" ? windSound.state() : "-"}\n` +
     `mic    ${bar(micBreath)}\n` +
     `breath ${bar(breath)}`;
 }

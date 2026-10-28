@@ -6,8 +6,13 @@
   quicker; a soft one keeps it low and muffled. When the breath stops it trails off with the pile.
 
   js/carpet-blow.js calls windSound.start() on a tap or key press (browsers only allow sound after
-  one), windSound.follow(strength, seconds) every frame, and reads windSound.level() so the
-  microphone doesn't take the rug's own wind for a breath.
+  one), windSound.start(micSound) once the microphone listens, windSound.follow(strength, seconds)
+  every frame, and reads windSound.level() so the microphone doesn't take the rug's own wind for a
+  breath.
+
+  iPhone: switching the microphone on interrupts any sound the page had set up before, and leaves
+  it silent. So once the microphone listens, the wind plays through the microphone's own sound
+  (which is surely running), and a paused sound is nudged back on every frame.
 */
 
 const WIND_FILE = "sounds/blow.m4a";
@@ -26,17 +31,24 @@ const windSound = (() => {
   let master = null;   // the overall volume, following the breath
   let tone = null;     // how muffled or open
   let recording = null;
+  let file = null;     // the recording as fetched, kept to unpack again for another sound
   let level = 0;       // the volume now, 0..1
   let untilNext = 0;   // seconds until the next piece
+  let pieces = 0;      // how many pieces have played (for ?debug)
+  let ownSound = false; // ctx is the wind's own (not the microphone's)
 
-  function start() {
-    if (ctx) {
-      if (ctx.state !== "running") ctx.resume();
-      return;
-    }
+  // Play through `onto` (the microphone's sound), or the wind's own sound made here
+  function start(onto) {
     const AudioContext = window.AudioContext || window.webkitAudioContext;
     if (!AudioContext) return;
-    ctx = new AudioContext();
+    if (ctx && ctx.state !== "closed" && (!onto || onto === ctx)) {
+      if (ctx.state !== "running") ctx.resume().catch(() => {});
+      return;
+    }
+    if (ctx && ctx.state !== "closed" && ownSound) ctx.close(); // the wind's own sound isn't needed now
+    ownSound = !onto;
+    ctx = onto || new AudioContext();
+    if (ctx.state !== "running") ctx.resume().catch(() => {});
     tone = ctx.createBiquadFilter();
     tone.type = "lowpass";
     tone.frequency.value = WIND_DULL;
@@ -44,10 +56,13 @@ const windSound = (() => {
     master.gain.value = 0;
     tone.connect(master);
     master.connect(ctx.destination);
-    fetch(WIND_FILE)
-      .then((response) => response.arrayBuffer())
-      .then((data) => new Promise((done, fail) => ctx.decodeAudioData(data, done, fail)))
-      .then((buffer) => (recording = buffer))
+    recording = null;
+    const using = ctx;
+    (file ? Promise.resolve(file) : fetch(WIND_FILE).then((response) => response.arrayBuffer()).then((data) => (file = data)))
+      .then((data) => new Promise((done, fail) => using.decodeAudioData(data.slice(0), done, fail)))
+      .then((buffer) => {
+        if (using === ctx) recording = buffer;
+      })
       .catch(() => {});
   }
 
@@ -72,11 +87,13 @@ const windSound = (() => {
     source.connect(swell);
     out.connect(tone);
     source.start(now, at, WIND_PIECE + 0.05);
+    pieces++;
   }
 
   // Every frame: the wind's strength now (0..1), and the seconds since the last frame
   function follow(strength, seconds) {
     if (!ctx || !recording) return;
+    if (ctx.state !== "running" && strength > 0.02) ctx.resume().catch(() => {}); // paused by the phone: on again
     const ease = strength > level ? WIND_RISE : WIND_FALL;
     level += (strength - level) * Math.min(1, seconds / ease);
     if (level < 0.005) level = 0;
@@ -97,5 +114,11 @@ const windSound = (() => {
     if (master) master.gain.setTargetAtTime(0, ctx.currentTime, 0.05);
   }
 
-  return { start, follow, hush, level: () => level };
+  // For ?debug: is the sound running, loaded, and how much has played
+  function state() {
+    if (!ctx) return "not started (tap the wind button)";
+    return `${ctx.state}, ${recording ? "loaded" : "loading"}, ${pieces} pieces, volume ${level.toFixed(2)}`;
+  }
+
+  return { start, follow, hush, state, level: () => level };
 })();
