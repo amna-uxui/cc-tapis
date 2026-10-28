@@ -4,7 +4,7 @@
   like a small product card. On a phone it opens the share sheet (Save Image puts it in Photos);
   elsewhere the image downloads.
 
-  Needs js/carpet-viewer.js (img, brush, rugInfo) to be loaded first.
+  Needs js/carpet-viewer.js (img, brush, carpet, rugInfo) to be loaded first.
 */
 
 const SAVE_PAD = 60;  // white space around the rug in the image, in rug-photo pixels
@@ -25,6 +25,9 @@ function rugCard() {
   ctx.fillRect(0, 0, card.width, card.height);
   ctx.drawImage(img, SAVE_PAD, SAVE_PAD, w, h);
   ctx.drawImage(brush, SAVE_PAD, SAVE_PAD, w, h);
+  // Ripple Square: the ripples you drew (js/carpet-ripple.js)
+  const ripples = carpet.querySelector(".carpet__paint");
+  if (ripples && getComputedStyle(ripples).display !== "none") ctx.drawImage(ripples, SAVE_PAD, SAVE_PAD, w, h);
 
   ctx.fillStyle = "#000000";
   ctx.textAlign = "center";

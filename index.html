@@ -26,7 +26,7 @@
     <div class="carpet">
       <img src="images/carpet-02-cacao-cut.png" alt="Plain velvet cc-tapis rug, ready to draw on" draggable="false">
       <canvas class="carpet__brush"></canvas>
-      <canvas class="carpet__paint" aria-hidden="true"></canvas> <!-- Ripple Square: the colours you paint (js/carpet-ripple.js) -->
+      <canvas class="carpet__paint" aria-hidden="true"></canvas> <!-- Ripple Square: the ripples you draw (js/carpet-ripple.js) -->
       <canvas class="carpet__wind" aria-hidden="true"></canvas> <!-- GrandMa Patterns: the pile moving in the wind (js/carpet-blow.js) -->
       <div class="carpet__light" aria-hidden="true"></div> <!-- Hypercode: the lamp's light (js/carpet-lamp.js) -->
     </div>
@@ -74,14 +74,6 @@
     <button class="save-rug" aria-label="Save your rug" data-save>
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12v18l-6-4.5L6 21z" /></svg>
     </button>
-  </div>
-
-  <!-- Ripple Square, while we choose: try version A, B, C or D (js/carpet-ripple.js) -->
-  <div class="try-versions mono" role="group" aria-label="Version to try">
-    <button data-try="A" aria-pressed="true">A</button>
-    <button data-try="B" aria-pressed="false">B</button>
-    <button data-try="C" aria-pressed="false">C</button>
-    <button data-try="D" aria-pressed="false">D</button>
   </div>
 
   <!-- While the whole rug is in view, under it, above Buy: the endless strip (js/carpet-strip.js),
