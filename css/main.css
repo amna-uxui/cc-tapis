@@ -943,19 +943,20 @@ body {
   opacity: 0;
 }
 
-/* Each collection's own parts: Hypercode has the lamp and the colours; GrandMa Patterns the wind */
-[data-collection="grandma-patterns"] .lamp-dial,
-[data-collection="grandma-patterns"] .tool--color,
-[data-collection="grandma-patterns"] .palette,
-[data-collection="grandma-patterns"] .carpet__light,
-[data-collection="hypercode"] .tool--blow,
-[data-collection="hypercode"] .carpet__wind {
+/* Each collection's own parts: only Hypercode has the lamp and the colours; only GrandMa Patterns
+   the wind */
+[data-collection]:not([data-collection="hypercode"]) .lamp-dial,
+[data-collection]:not([data-collection="hypercode"]) .tool--color,
+[data-collection]:not([data-collection="hypercode"]) .palette,
+[data-collection]:not([data-collection="hypercode"]) .carpet__light,
+[data-collection]:not([data-collection="grandma-patterns"]) .tool--blow,
+[data-collection]:not([data-collection="grandma-patterns"]) .carpet__wind {
   display: none;
 }
 
 /* the lamp's night mood dims only Hypercode's rug */
-[data-collection="grandma-patterns"] .carpet img,
-[data-collection="grandma-patterns"] .carpet__wind {
+[data-collection]:not([data-collection="hypercode"]) .carpet img,
+[data-collection]:not([data-collection="hypercode"]) .carpet__wind {
   filter: none;
 }
 
@@ -966,4 +967,91 @@ body {
   text-shadow:
     0 0 1px rgba(255, 255, 255, 0.6),
     0 2px 14px rgba(0, 0, 0, 0.3);
+}
+
+/* ---------- Ripple Square (js/carpet-ripple.js) ---------- */
+
+/* The colours you paint, over the photo */
+.carpet__paint {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+[data-collection]:not([data-collection="ripple-square"]) .carpet__paint,
+[data-collection]:not([data-collection="ripple-square"]) .try-versions {
+  display: none;
+}
+
+[data-collection="ripple-square"] .verb {
+  color: rgba(255, 255, 255, 0.85);
+  text-shadow:
+    0 0 1px rgba(255, 255, 255, 0.6),
+    0 2px 14px rgba(0, 0, 0, 0.3);
+  font-size: 30px;
+  white-space: normal;
+  width: 80%;
+  text-align: center;
+}
+
+/* A colourway in the row: a rounded square, its ground on the left and its leaf on the right */
+.paint-swatch {
+  display: block;
+  width: 30px;
+  height: 30px;
+  border-radius: 5px;
+  background: linear-gradient(90deg, var(--a) 50%, var(--b) 50%);
+}
+
+/* Version B's colours: one round dot each */
+.paint-dot {
+  display: block;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--a);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+}
+
+.strip__item:has(.paint-dot) {
+  border-radius: 50%;
+}
+
+/* The A · B · C switcher, top right, under the bar (only while we choose a version) */
+.try-versions {
+  position: fixed;
+  top: calc(var(--space-3) + env(safe-area-inset-top) + var(--header-height) + var(--space-2));
+  right: max(var(--space-4), (100vw - var(--page-max-width)) / 2 + var(--space-4));
+  z-index: 3;
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  background: var(--color-panel);
+  border-radius: 999px;
+}
+
+.try-versions button {
+  width: 30px;
+  height: 26px;
+  border-radius: 999px;
+  font-size: var(--text-sm);
+  color: var(--color-ink);
+}
+
+.try-versions button[aria-pressed="true"] {
+  background: var(--color-ink);
+  color: var(--color-paper);
+}
+
+/* zoomed out, the save bookmark sits there: the switcher moves down out of its way */
+.is-zoomed-out .try-versions {
+  top: calc(var(--space-3) + env(safe-area-inset-top) + var(--header-height) + 74px);
+}
+
+/* No button on the right (colour or wind) on Ripple Square: an empty space there keeps Buy centred */
+[data-collection="ripple-square"] .bar--bottom::after {
+  content: "";
+  width: 32px;
 }

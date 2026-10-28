@@ -21,3 +21,6 @@ build/
 node_modules/
 __pycache__/
 .venv/
+
+# New photos dropped in for cutting out (not part of the site)
+images/new/

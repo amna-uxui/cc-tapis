@@ -50,6 +50,9 @@ const BRUSH_SHADE = [196, 146, 104]; // a slightly deeper wool tone, mixed in fo
 
 const stage = document.querySelector("[data-viewer]");
 let brushing = true; // whether one finger draws on the rug (js/carpet-collections.js: not on GrandMa Patterns)
+// Another way for one finger to paint on the rug (js/carpet-ripple.js), instead of brushing the pile:
+// { start(point), to(point), end(), wipe() }, points on the rug photo
+let fingerPaint = null;
 const carpet = stage.querySelector(".carpet");
 const img = carpet.querySelector("img");
 const brush = carpet.querySelector(".carpet__brush");
@@ -761,7 +764,7 @@ stage.addEventListener("pointermove", (e) => {
   if (gesture.type === "draw" && pointers.size === 1) {
     // With the whole rug in view, a finger on the white page around it swipes between collections
     // (on a rug you draw on, the finger on the rug draws; on one you don't, the rug swipes too)
-    if (gesture.swipe || (!moved && isWhole() && (!brushing || !onCarpet(gesture.start.x, gesture.start.y)))) {
+    if (gesture.swipe || (!moved && isWhole() && (!(brushing || fingerPaint) || !onCarpet(gesture.start.x, gesture.start.y)))) {
       const dx = p.x - gesture.start.x;
       if (!gesture.swipe) {
         if (Math.hypot(dx, p.y - gesture.start.y) <= 6) return;
@@ -778,13 +781,26 @@ stage.addEventListener("pointermove", (e) => {
       render();
       return;
     }
-    if (!brushing) return;
+    if (!brushing && !fingerPaint) return;
     // A tap is not a stroke: only start brushing once the finger really moves
     if (!moved) {
       if (Math.hypot(p.x - gesture.start.x, p.y - gesture.start.y) <= 4) return;
       moved = true;
-      gesture.stroke = {};
-      startStroke(gesture.stroke, gesture.last);
+      if (fingerPaint) {
+        gesture.painting = true;
+        fingerPaint.start(gesture.last);
+      } else {
+        gesture.stroke = {};
+        startStroke(gesture.stroke, gesture.last);
+      }
+    }
+
+    // Painting another way (js/carpet-ripple.js): every position the phone recorded goes to it
+    if (gesture.painting) {
+      const recorded = e.getCoalescedEvents ? e.getCoalescedEvents() : [];
+      (recorded.length ? recorded : [e]).forEach((ev) => fingerPaint.to(toCarpet(localPoint(ev))));
+      gesture.last = toCarpet(p);
+      return;
     }
 
     // every position the phone recorded since the last move (it sends them in batches)
@@ -870,6 +886,7 @@ function endPointer(e) {
   }
 
   if (gesture.stroke) finishStroke(gesture.stroke, toCarpet(p));
+  if (gesture.painting && fingerPaint) fingerPaint.end();
   if (typeof brushSound !== "undefined") brushSound.stop();
 
   // Double-tap: wipe the drawing. A single tap on the rug (no second one follows): the next rug
@@ -879,6 +896,7 @@ function endPointer(e) {
     clearTimeout(singleTap);
     if (quick && near) {
       wipeDrawing();
+      if (fingerPaint) fingerPaint.wipe();
       lastTap = { time: 0, x: 0, y: 0 };
       return;
     }

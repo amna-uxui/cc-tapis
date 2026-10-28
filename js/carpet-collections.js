@@ -1,5 +1,6 @@
 /*
-  The collections on the one page: Hypercode (to touch) and GrandMa Patterns (to blow). Going from
+  The collections on the one page: Hypercode (to touch), GrandMa Patterns (to blow) and Ripple
+  Square (to paint). Going from
   one to the next, only the rug moves: it slides off to the side (its bottom trailing a little
   behind, like fabric pulled across a floor) and the next collection's rug slides in from the other
   side and settles; its name above and its row below just fade over. The top bar and the buttons at the
@@ -29,6 +30,8 @@ const settle = (t) => 1 - Math.pow(1 - t, 4);               // arriving: glides 
 const COLLECTION_PARTS = {
   hypercode: { brush: true, enter: (whole) => enterHypercode(whole), leave: () => {}, tap: () => isWhole() && nextShape() },
   "grandma-patterns": { brush: false, enter: (whole) => enterGrandma(whole), leave: () => leaveGrandma(), tap: () => nextRug() },
+  // Ripple Square: the finger paints colours (js/carpet-ripple.js), not the pile
+  "ripple-square": { brush: false, enter: (whole) => enterRipple(whole), leave: () => leaveRipple(), tap: () => tapRipple() },
 };
 
 const verbText = document.querySelector("[data-verb]");
