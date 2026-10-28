@@ -31,6 +31,7 @@ Then open http://localhost:8000 (use the browser's phone view). The microphone o
 - `js/carpet-ripple.js`: Ripple Square's canvas and leaf brush
 - `js/carpet-ripple-sound.js`: Ripple Square's sound: a soft swish of wool as you draw (seven strokes cut from one recording, sounds/strokes.m4a)
 - `js/carpet-info.js`: about this rug: `[+]` (bottom right, zoomed out) slides a simple page up from the bottom, in the grey of the top bar with the whole rug cut out (images/sheet/, tools/cut-out-rug.py --on e6e6e6), and its description, product details and customisation (from cc-tapis.com)
+- `js/carpet-cart.js`: buying: Buy rolls the rug up into the bag (Shop gives way to it), a pink note as on cc-tapis.com, the bag with your rugs (on Ripple Square, your own design), check out and thank you
 - `js/carpet-collections.js`: going from one collection to the next (only the rug slides)
 - `js/carpet-menu.js`: the collections menu
 - `js/carpet-strip.js`: the row under the rug

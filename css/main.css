@@ -147,7 +147,8 @@ body {
 
 .is-zoomed-out .arrow.is-end,
 .is-zoomed-out.is-switching .arrow,
-.is-reading .arrow {
+.is-reading .arrow,
+.is-buying .arrow {
   opacity: 0;
   pointer-events: none;
 }
@@ -1298,4 +1299,334 @@ body {
 
 .info-details dd {
   margin: 0;
+}
+
+/* ---------- Buying (js/carpet-cart.js) ---------- */
+
+/* Shop gives way to the bag: a thin-line bag, the number of rugs small inside it */
+.cart-bag {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+}
+
+.cart-bag[hidden],
+[data-shop][hidden] {
+  display: none;
+}
+
+.cart-bag svg {
+  grid-area: 1 / 1;
+  width: 26px;
+  height: 26px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.4;
+  stroke-linejoin: round;
+}
+
+.cart-bag__count {
+  grid-area: 1 / 1;
+  margin-top: 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1;
+}
+
+/* a rug lands in it: a soft little bounce */
+.cart-bag.is-landing {
+  animation: bag-land 520ms var(--ease);
+}
+
+@keyframes bag-land {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(1.22) translateY(1px);
+  }
+  65% {
+    transform: scale(0.94);
+  }
+}
+
+/* While the rug rolls up and away (and the note is up), nothing else reacts */
+.cart-shield {
+  position: fixed;
+  inset: 0;
+  z-index: 4;
+  display: none;
+}
+
+.is-buying .cart-shield {
+  display: block;
+}
+
+/* The rug being rolled up: its picture over the page, and the roll travelling up from its
+   bottom edge, the rug wound round it (lit along its top, shaded under it) */
+.roll-rug,
+.roll-rug__roll {
+  position: fixed;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.roll-rug {
+  background-size: 100% 100%;
+}
+
+.roll-rug__roll {
+  border-radius: 999px;
+  background-repeat: repeat-y;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+}
+
+.roll-rug__shade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.3) 0%,
+    rgba(255, 255, 255, 0.05) 25%,
+    rgba(0, 0, 0, 0) 45%,
+    rgba(0, 0, 0, 0.25) 78%,
+    rgba(0, 0, 0, 0.5) 100%
+  );
+}
+
+/* ---------- The pink notes, as on cc-tapis.com: pink, mono capitals, °~*~° rules ---------- */
+
+.cart-note,
+.cart-sheet,
+.cart-thanks {
+  --cart-pink: var(--color-pink);
+  background: var(--cart-pink);
+  color: var(--color-ink);
+  font-size: 13px;
+  letter-spacing: 0.04em;
+}
+
+/* the note: drops in under the top bar */
+.cart-note {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: calc(var(--space-3) + env(safe-area-inset-top) + var(--header-height) + var(--space-2));
+  z-index: 6;
+  width: calc(100% - var(--space-4) * 2);
+  max-width: calc(var(--page-max-width) - var(--space-4) * 2);
+  margin: 0 auto;
+  padding: var(--space-3) var(--space-3) var(--space-2);
+  text-align: center;
+  opacity: 0;
+  transform: translateY(-14px);
+  pointer-events: none;
+  transition: opacity 500ms cubic-bezier(0.65, 0, 0.35, 1), transform 500ms cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+.cart-note.is-open {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+/* a rule: °~*~° to each side (of Close, on the top one), cut off at the edge */
+.cart-rule {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  white-space: nowrap;
+}
+
+.cart-rule__line {
+  flex: 1;
+  overflow: hidden;
+  font-size: 11px;
+  letter-spacing: 0;
+}
+
+.cart-rule__close {
+  flex: none;
+  font-size: 13px;
+}
+
+.cart-note__text {
+  margin: var(--space-5) 0 var(--space-3);
+}
+
+.cart-buttons {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-5);
+}
+
+.cart-button {
+  padding: 10px 12px;
+  border: 1px solid var(--color-ink);
+  border-radius: 3px;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+
+.cart-button--dark {
+  background: var(--color-ink);
+  color: var(--cart-pink, var(--color-pink));
+}
+
+/* ---------- The bag's sheet ---------- */
+
+.cart-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  background: rgba(0, 0, 0, 0.12);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 800ms cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+.is-in-cart .cart-backdrop {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* like the page about a rug: floating with the bars' margins, sliding up smoothly */
+.cart-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: calc(var(--space-3) + env(safe-area-inset-bottom));
+  z-index: 6;
+  width: calc(100% - var(--space-4) * 2);
+  max-width: calc(var(--page-max-width) - var(--space-4) * 2);
+  max-height: calc(100% - var(--space-3) * 2 - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  margin: 0 auto;
+  padding: var(--space-3) var(--space-3) 0;
+  display: flex;
+  flex-direction: column;
+  transform: translateY(calc(100% + var(--space-6)));
+  transition: transform 800ms cubic-bezier(0.65, 0, 0.35, 1);
+  will-change: transform;
+}
+
+.cart-sheet.is-open {
+  transform: translateY(0);
+}
+
+.cart-sheet__scroll {
+  overflow-y: auto;
+  scrollbar-width: none;
+  padding-top: var(--space-4);
+}
+
+.cart-sheet__scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.cart-empty {
+  margin: var(--space-5) 0 var(--space-6);
+  text-align: center;
+}
+
+/* a rug in the bag: its picture on a white tile, its words, [–] to take it out */
+.cart-item {
+  display: grid;
+  grid-template-columns: 64px 1fr auto;
+  gap: var(--space-3);
+  align-items: start;
+  padding: var(--space-3) 0;
+  border-bottom: 1px dashed var(--color-ink);
+}
+
+.cart-item__picture {
+  width: 64px;
+  height: 64px;
+  padding: 4px;
+  display: grid;
+  place-items: center;
+  background: var(--color-paper);
+}
+
+.cart-item__picture img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.cart-item__words p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.cart-item__remove {
+  font-size: 13px;
+  letter-spacing: 0;
+}
+
+.cart-total {
+  display: flex;
+  justify-content: space-between;
+  padding: var(--space-4) 0 var(--space-5);
+}
+
+/* ---------- Thank you: the end ---------- */
+
+.cart-thanks {
+  position: fixed;
+  inset: 0;
+  z-index: 8;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  padding: var(--space-6) var(--space-4);
+  text-align: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 700ms cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+.cart-thanks.is-open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.cart-thanks p {
+  margin: 0;
+}
+
+.cart-thanks__rule {
+  width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  font-size: 11px;
+  letter-spacing: 0;
+}
+
+.cart-thanks__big {
+  font-size: 28px;
+  letter-spacing: 0.02em;
+}
+
+.cart-thanks__rugs {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin: var(--space-3) 0;
+}
+
+.cart-thanks__rugs img {
+  width: 84px;
+  height: 84px;
+  padding: 6px;
+  object-fit: contain;
+  background: var(--color-paper);
 }

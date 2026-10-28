@@ -48,7 +48,12 @@
   <header class="bar bar--top" data-fit-top>
     <button class="bar__side bar__side--left" aria-label="Open menu"><span class="menu-icon"></span></button>
     <span class="wordmark">cc-tapis</span>
-    <a class="bar__side bar__side--right mono" href="https://cc-tapis.com/shop" target="_blank" rel="noopener">Shop</a>
+    <a class="bar__side bar__side--right mono" href="https://cc-tapis.com/shop" target="_blank" rel="noopener" data-shop>Shop</a>
+    <!-- Once a rug is bought, Shop gives way to the bag, with how many rugs are in it (js/carpet-cart.js) -->
+    <button class="bar__side bar__side--right cart-bag" aria-label="Your bag" hidden data-bag>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8h16l-1.2 13H5.2z" /><path d="M8.5 8V6.5a3.5 3.5 0 0 1 7 0V8" /></svg>
+      <span class="cart-bag__count" data-bag-count>0</span>
+    </button>
   </header>
 
   <!-- While the whole rug is in view, under the top bar: the lamp (left, Hypercode only); the
@@ -117,7 +122,7 @@
       </svg>
     </button>
 
-    <button class="button button--wide mono">Buy</button>
+    <button class="button button--wide mono" data-buy>Buy</button>
 
     <!-- About this rug: opens the sheet below (js/carpet-info.js); only while the whole rug is in view -->
     <button class="tool info-button" aria-label="About this rug" aria-expanded="false" data-info>
@@ -127,6 +132,27 @@
 
   <!-- About this rug: a sheet sliding up from below, in the grey of the top bar, with the whole
        rug, a few words about it, and its description, details and customisation (js/carpet-info.js) -->
+  <!-- Buying (js/carpet-cart.js): while the rug rolls up and away, nothing else reacts -->
+  <div class="cart-shield" data-cart-shield></div>
+  <!-- ... then, as on cc-tapis.com, a pink note: we are rolling up your rug -->
+  <section class="cart-note mono" aria-live="polite" aria-hidden="true" data-cart-note>
+    <div class="cart-rule"><span class="cart-rule__line" aria-hidden="true"></span><button class="cart-rule__close mono" data-cart-note-close>Close</button><span class="cart-rule__line" aria-hidden="true"></span></div>
+    <p class="cart-note__text">We are rolling up your rug</p>
+    <div class="cart-buttons">
+      <button class="cart-button mono" data-cart-open>Go to cart</button>
+      <button class="cart-button cart-button--dark mono" data-cart-checkout>Proceed to check out</button>
+    </div>
+    <div class="cart-rule"><span class="cart-rule__line" aria-hidden="true"></span></div>
+  </section>
+  <!-- The bag: the rugs in it, each with [–] to take it out, the total, and check out -->
+  <div class="cart-backdrop" data-cart-backdrop></div>
+  <section class="cart-sheet mono" aria-label="Your bag" aria-hidden="true" data-cart-sheet>
+    <div class="cart-rule"><span class="cart-rule__line" aria-hidden="true"></span><button class="cart-rule__close mono" data-cart-close>Close</button><span class="cart-rule__line" aria-hidden="true"></span></div>
+    <div class="cart-sheet__scroll" data-cart-list></div>
+  </section>
+  <!-- Checked out: the end of the journey -->
+  <section class="cart-thanks mono" aria-hidden="true" data-cart-thanks></section>
+
   <div class="info-backdrop" data-info-backdrop></div>
   <section class="info-sheet" aria-label="About this rug" aria-hidden="true" data-info-sheet>
     <div class="info-sheet__top">
@@ -154,6 +180,7 @@
       "js/carpet-ripple-sound.js",
       "js/carpet-ripple.js",
       "js/carpet-info.js",
+      "js/carpet-cart.js",
       "js/carpet-collections.js",
     ].forEach(function (src) { document.write('<script src="' + src + '?' + fresh + '"><\/script>'); });
   </script>
