@@ -62,20 +62,35 @@ let breath = 0;       // the breath that blows, smoothed
 
 const hearing = { level: -100, floor: -100 }; // for the debug meter
 
-// The sound is set up once the microphone is allowed (while it records, iPhone lets the sound
-// start without another tap). Safari only runs sound that ends up at the speaker, so the
+// iPhone only lets sound start inside the tap itself, so the sound is switched on right away,
+// before asking for the microphone. Safari only runs sound that ends up at the speaker, so the
 // microphone also goes there, turned all the way down: silent, but it keeps the sound running.
+// If something goes wrong, the step it went wrong at shows (with ?debug) and a tap tries again.
 async function startListening() {
   let ctx = null;
+  let step = "start";
   try {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error(window.isSecureContext ? "no microphone here" : "needs https");
+    step = "sound";
+    ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const waking = ctx.resume(); // inside the tap
     micState = "asking";
     showBlowStatus("Allow the microphone");
-    // the phone's own noise and echo cleaning would take the breath out: ask for the raw sound
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
-    });
-    ctx = new (window.AudioContext || window.webkitAudioContext)();
+
+    step = "microphone";
+    let stream;
+    try {
+      // the phone's own noise and echo cleaning would take the breath out: ask for the raw sound
+      stream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+      });
+    } catch (error) {
+      if (error.name === "NotAllowedError") throw error;
+      step = "microphone, plain";
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true }); // the simplest ask
+    }
+
+    step = "connect";
     const analyser = ctx.createAnalyser();
     analyser.fftSize = 1024;
     const mute = ctx.createGain();
@@ -83,7 +98,10 @@ async function startListening() {
     ctx.createMediaStreamSource(stream).connect(analyser);
     analyser.connect(mute);
     mute.connect(ctx.destination);
+    step = "resume";
+    await waking.catch(() => {});
     if (ctx.state !== "running") await ctx.resume();
+
     audio = { ctx, stream, analyser, samples: new Float32Array(analyser.fftSize), heard: 0 };
     floor = null;
     listening = true;
@@ -96,8 +114,8 @@ async function startListening() {
   } catch (error) {
     if (ctx) ctx.close();
     noMic = true;
-    micState = error.name && error.name !== "Error" ? error.name : error.message;
-    showBlowStatus("No microphone: hold to blow");
+    micState = `${error.name && error.name !== "Error" ? error.name : error.message} at ${step}${error.message && error.name !== "Error" ? ": " + error.message : ""}`;
+    showBlowStatus("No microphone: tap to try again, or hold to blow");
     wake();
   }
 }
@@ -404,7 +422,7 @@ function showBlowStatus(text) {
 // A tap: listen, or stop listening (nothing blows until you do)
 blowButton.addEventListener("click", () => {
   if (listening) stopListening();
-  else if (!noMic && micState !== "asking") startListening();
+  else if (micState !== "asking") startListening(); // also tries again after it went wrong
 });
 
 // Without a microphone, holding the button blows instead
