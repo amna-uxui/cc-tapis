@@ -84,9 +84,22 @@ let leaning = null;
 function render() {
   carpet.style.transform = `translate3d(${view.x + swipeShift}px, ${view.y}px, 0) scale(${view.scale}) skewX(${swipeLean}deg)`;
   if (swipeShift !== lastShift && !leaning) leaning = requestAnimationFrame(dragFabric);
-  if (verb) verb.style.setProperty("--rug-x", `${view.x + (img.naturalWidth * view.scale) / 2}px`);
-  stage.style.setProperty("--rug-y", `${view.y + (img.naturalHeight * view.scale) / 2}px`); // the verb, the arrows
+  stage.style.setProperty("--rug-y", `${view.y + (img.naturalHeight * view.scale) / 2}px`); // the arrows
+  if (verb) placeVerb();
   document.body.classList.toggle("is-zoomed-out", view.scale < fitScale * OUT_ZOOM);
+}
+
+// The verb in the middle of the rug as you see it: of the part of it on the screen between the
+// top bar and the buttons at the bottom (zoomed out, simply the rug's middle)
+function placeVerb() {
+  const above = topBar.getBoundingClientRect().bottom;
+  const below = bottomBar.getBoundingClientRect().top;
+  const left = Math.max(0, view.x);
+  const right = Math.min(stage.clientWidth, view.x + img.naturalWidth * view.scale);
+  const top = Math.max(above, view.y);
+  const bottom = Math.min(below, view.y + img.naturalHeight * view.scale);
+  verb.style.setProperty("--rug-x", `${(left + right) / 2}px`);
+  verb.style.setProperty("--rug-y", `${(top + bottom) / 2}px`);
 }
 
 // Is this screen point on the rug (and not on the white page around it)?

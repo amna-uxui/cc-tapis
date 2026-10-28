@@ -183,7 +183,7 @@ body {
   font-display: swap;
 }
 
-/* The verb over the carpet: fades in over 3 seconds, stays, gone after 5 seconds (until the page is loaded again) */
+/* The verb over the carpet: in quickly, on for about a second and a half, gone after 2.5 seconds (until the page is loaded again) */
 /* Sits on the middle of the rug: --rug-x / --rug-y are set by js/carpet-viewer.js as the rug moves */
 .verb {
   position: absolute;
@@ -205,14 +205,14 @@ body {
     0 2px 18px rgba(30, 15, 5, 0.45),
     0 0 40px rgba(30, 15, 5, 0.25);
   pointer-events: none; /* you can start drawing right through it */
-  animation: verb 6s ease-in-out forwards;
+  animation: verb 2.5s ease-in-out forwards;
 }
 
 /* in within a second, there for about four, then gone */
 @keyframes verb {
   0% { opacity: 0; }
-  14% { opacity: 1; }
-  82% { opacity: 1; }
+  12% { opacity: 1; }
+  76% { opacity: 1; }
   100% { opacity: 0; visibility: hidden; }
 }
 
