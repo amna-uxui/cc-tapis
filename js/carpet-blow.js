@@ -19,8 +19,8 @@
 // ---------- Hearing a breath ----------
 // Blowing on a microphone is loud: much louder than the quiet room. (Phones clean up the low rumble
 // of wind themselves, so we just listen for loudness; for now, a loud voice blows a little too.)
-const BLOW_GATE = 10;       // dB the sound must rise above the quiet room before it counts as a breath
-const BLOW_RANGE = 25;      // dB more for the strongest breath
+const BLOW_GATE = 7;        // dB the sound must rise above the quiet room before it counts as a breath
+const BLOW_RANGE = 16;      // dB more for the strongest breath
 const ROOM_LEARN = 1;       // seconds after tapping spent listening to the quiet room (nothing blows then)
 const BREATH_RISE = 0.35;   // how quickly the wind follows a breath that gets stronger (1 = instantly)
 const BREATH_FALL = 0.06;   // and one that fades (lower = the gust trails off more softly)
@@ -28,26 +28,27 @@ const BREATH_FALL = 0.06;   // and one that fades (lower = the gust trails off m
 // ---------- The wind on the rug ----------
 const GRID = 96;            // the wind is worked out on a grid this many cells across the rug
 const GUST_SPEED = 900;     // screen pixels per second a gust travels up the screen (the same at any zoom)
-const GUST_FADE = 0.9;      // seconds for a gust to lose half its strength as it travels
+const GUST_FADE = 1.4;      // seconds for a gust to lose half its strength as it travels
 const GUST_SWAY = 0.6;      // how much the gust curls left and right as it goes (in grid cells)
 const GUST_SPREAD = 0.18;   // how much it spreads sideways, so its front is soft, not a ruler line
 const WIND_DOWN = 0.12;     // seconds for the pile to bend all the way when the wind reaches it
-const WIND_UP = 0.7;        // seconds for it to rise halfway back once the wind has passed
+const WIND_UP = 1.2;        // seconds for it to rise halfway back once the wind has passed
 
 // ---------- How the pile looks in the wind (in photo pixels and shares) ----------
 // Real shag in the wind: the fibres bend one way, away from the wind, and each tuft is tugged a
 // little further and springs back on its own, slowly; the bent fibres stretch into strands.
 // (Not a trembling of the whole picture back and forth: that looks like water.)
-const LEAN_PX = 8;          // how far the pile bends away from the wind, at full strength
-const SWAY_PX = 5;          // how much further each tuft is tugged as the wind pulls at it
+const LEAN_PX = 22;         // how far the pile bends away from the wind, at full strength
+const SWAY_PX = 12;         // how much further each tuft is tugged as the wind pulls at it
 const SWAY_SPEED = 7;       // how quickly a tuft is tugged and springs back (7 = about once a second)
-const SIDE_PX = 1.5;        // the little a tuft leans sideways as it's tugged
+const SIDE_PX = 4;          // the little a tuft leans sideways as it's tugged
 const TUFT_PX = 20;         // about the width of one tuft in the photo (each one moves on its own)
-const TUFT_TALL = 1.6;      // tufts are taller than wide, along the wind
-const WIND_DEEP = 0.22;     // flattened pile shows its deeper roots: this much darker at full strength
-const WIND_RICH = 0.35;     // and this much richer in colour
-const WIND_SHEEN = 0.16;    // the front of a gust catches the light: this much lighter
-const WIND_SHIMMER = 0.05;  // a tuft catches a little more light as it's tugged further
+const TUFT_TALL = 1.6;       // tufts are taller than wide, along the wind
+const ZOOM_REACH = 0.6;     // below this zoom (the close-up is about 0.6), the bend grows so it still shows (up to 3×)
+const WIND_DEEP = 0.34;     // flattened pile shows its deeper roots: this much darker at full strength
+const WIND_RICH = 0.5;      // and this much richer in colour
+const WIND_SHEEN = 0.28;    // the front of a gust catches the light: this much lighter
+const WIND_SHIMMER = 0.1;   // a tuft catches a little more light as it's tugged further
 
 const windCanvas = carpet.querySelector(".carpet__wind");
 const blowButton = document.querySelector("[data-blow]");
@@ -301,6 +302,7 @@ uniform sampler2D uWind;
 uniform vec2 uPx;      // one photo pixel, in texture units
 uniform vec2 uCell;    // one wind cell, in texture units
 uniform float uTime;
+uniform float uReach;  // zoomed out, the bend reaches further in photo pixels, so it shows as much
 
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 
@@ -330,8 +332,8 @@ void main() {
 
   // how far the fibres here bend away from the wind (up the screen), in photo pixels: always the
   // same way, further while the wind tugs at them
-  float bend = laid * ${LEAN_PX.toFixed(1)} + gust * ${SWAY_PX.toFixed(1)} * t;
-  float side = (t - 0.5) * ${SIDE_PX.toFixed(1)} * gust;
+  float bend = (laid * ${LEAN_PX.toFixed(1)} + gust * ${SWAY_PX.toFixed(1)} * t) * uReach;
+  float side = (t - 0.5) * ${SIDE_PX.toFixed(1)} * gust * uReach;
 
   // a bent fibre runs from its root (further down) to its tip (here): the photo is drawn out
   // along it into a strand, the tip counting most
@@ -400,6 +402,7 @@ function setupGl() {
     px: gl.getUniformLocation(program, "uPx"),
     cell: gl.getUniformLocation(program, "uCell"),
     time: gl.getUniformLocation(program, "uTime"),
+    reach: gl.getUniformLocation(program, "uReach"),
   };
   gl.uniform1i(gl.getUniformLocation(program, "uPhoto"), 0);
   gl.uniform1i(gl.getUniformLocation(program, "uWind"), 1);
@@ -430,6 +433,7 @@ function drawPile() {
   gl.bindTexture(gl.TEXTURE_2D, windTexture);
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gw, gh, 0, gl.RGBA, gl.UNSIGNED_BYTE, windBytes);
   gl.uniform1f(glUniforms.time, clock);
+  gl.uniform1f(glUniforms.reach, Math.min(3, Math.max(1, ZOOM_REACH / view.scale)));
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 }
 
