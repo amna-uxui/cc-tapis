@@ -62,11 +62,11 @@ let breath = 0;       // the breath that blows, smoothed
 
 const hearing = { level: -100, floor: -100 }; // for the debug meter
 
-// Two ways to start listening, tried in turn (iPhones differ in which one they accept):
-// 1. inside the tap: the sound first (iPhone only lets sound start in the tap itself), then the
-//    microphone, with the phone's noise and echo cleaning off (they would take the breath out);
-// 2. a moment later: the plainest microphone request first, then the sound (while the microphone
-//    records, iPhone lets the sound start without a tap).
+// Two ways to start listening, tried in turn:
+// 1. the standard way: the plainest microphone request first, then the sound (while the
+//    microphone records, iPhone lets the sound start without a tap);
+// 2. if that fails: the sound first, inside the tap, then the microphone with the phone's noise
+//    and echo cleaning off.
 // Safari only runs sound that ends up at the speaker, so the microphone also goes there, turned
 // all the way down: silent, but it keeps the sound running.
 const RAW_SOUND = { audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } };
@@ -114,14 +114,13 @@ async function startListening() {
   showBlowStatus("Allow the microphone");
   if (micChannel) micChannel.postMessage("mine"); // other pages of this site: let go of it
   const tries = [];
-  for (const soundFirst of [true, false]) {
+  for (const soundFirst of [false, true]) {
     try {
       audio = await openMicrophone(soundFirst);
       break;
     } catch (error) {
       tries.push(`${error.name} at ${error.step}${error.message ? ": " + error.message : ""}`);
       if (error.name === "NotAllowedError") break; // a clear "no": asking again won't help
-      await new Promise((done) => setTimeout(done, 300));
     }
   }
   if (!audio) {
