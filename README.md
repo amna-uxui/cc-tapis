@@ -8,8 +8,8 @@ Mobile-first prototype in the look and feel of cc-tapis (Milano). One screen, no
 
 Live: https://amna-uxui.github.io/cc-tapis/
 
-- **Hypercode** by Roberto Sironi: to touch, brush the velvet pile with your finger.
-- **GrandMa Patterns** by Rop van Mierlo (`#grandma-patterns`): to blow, tap the wind button and blow on the bottom of the phone. Add `?debug` to see what the microphone hears.
+- **Hypercode** by Roberto Sironi: to touch, brush the velvet pile with your finger. Its shapes and its colours sit in two rows under the rug.
+- **GrandMa Patterns** by Rop van Mierlo (`#grandma-patterns`): to blow, tap the wind button (top left, where Hypercode has its lamp; a ring round it breathes while it listens) and blow on the bottom of the phone. Add `?debug` to see what the microphone hears.
 - **Ripple Square** by Patricia Urquiola (`#ripple-square`): to paint, make your own rug: start from a blank 200 × 200 cm canvas, with the real rug's outline as a very faint hairline and one ripple along its top edge, and draw more with a brush made like the real rug's bands: tall, whole ovals side by side on their ground, the ground showing as narrow V's between them, until the next band covers one half of them, in its four colourways; the faster you draw, the broader the ovals. Picking another colourway turns the whole rug into it. The strokes look like carpet, not paint: thick pile with barely visible carved grooves, the real rug's wool texture (made from its photo by `tools/ripple-pile.py`), pile rows, fibrous edges and a soft shadow on the floor.
 
 ## Run it
@@ -29,6 +29,7 @@ Then open http://localhost:8000 (use the browser's phone view). The microphone o
 - `js/carpet-colors.js`, `js/carpet-shapes.js`, `js/carpet-lamp.js`, `js/carpet-sound.js`: Hypercode's colours, shapes, lamp and brushing sound
 - `js/carpet-blow.js`, `js/carpet-rugs.js`, `js/carpet-wind-sound.js`: GrandMa Patterns' blowing, its rugs and the wind's sound
 - `js/carpet-ripple.js`: Ripple Square's canvas and leaf brush
+- `js/carpet-info.js`: about this rug: `[+]` (bottom right, zoomed out) opens a sheet with a close-up, a line about the rug, and its description, product details and customisation (from cc-tapis.com)
 - `js/carpet-collections.js`: going from one collection to the next (only the rug slides)
 - `js/carpet-menu.js`: the collections menu
 - `js/carpet-strip.js`: the row under the rug

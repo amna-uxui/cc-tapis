@@ -255,7 +255,7 @@ body {
 }
 
 .bar--bottom {
-  z-index: 3; /* above the colour palette, which slides out from behind it */
+  z-index: 3;
   bottom: calc(var(--space-3) + env(safe-area-inset-bottom));
   height: 48px;
   padding: 0 var(--space-2);
@@ -324,60 +324,6 @@ body {
 .is-zoomed-out .tool--zoom {
   color: var(--color-ink);
   filter: none;
-}
-
-/* Right: colour of the carpet */
-.tool--color {
-  border-radius: 50%;
-  background: var(--carpet-color);
-  border: 1.5px solid var(--color-paper);
-}
-
-/* ---------- Colours: floating menu above the colour circle ---------- */
-
-/* A window right above the colour circle (lined up with the bar's right end). The colours
-   slide up into it from behind the bottom bar; the window hides them while they are below. */
-.palette {
-  position: fixed;
-  right: max(var(--space-4), (100vw - var(--page-max-width)) / 2 + var(--space-4));
-  bottom: calc(var(--space-3) + env(safe-area-inset-bottom) + 48px);
-  z-index: 2;
-  width: 48px;
-  overflow: hidden;
-  pointer-events: none;
-}
-
-.palette__sheet {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-3);
-  margin-bottom: var(--space-3); /* floats a little above the bar */
-  padding: var(--space-1) 0;
-  transform: translateY(calc(100% + var(--space-3)));
-  transition: transform 400ms var(--ease);
-}
-
-.palette.is-open {
-  pointer-events: auto;
-}
-
-.palette.is-open .palette__sheet {
-  transform: translateY(0);
-}
-
-/* Floating straight on the carpet: a white ring and a soft shadow keep them visible on any rug */
-.swatch {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  border: 1.5px solid var(--color-paper);
-  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.3);
-}
-
-/* The chosen colour gets a second ring around it */
-.swatch[aria-pressed="true"] {
-  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.25), 0 0 0 3.5px var(--color-paper), 0 1px 6px rgba(0, 0, 0, 0.3);
 }
 
 /* ---------- Zoomed out: collection name, size and shapes (under the top bar) ---------- */
@@ -481,6 +427,45 @@ body {
 
 .strip__item[aria-pressed="true"] {
   border-color: var(--color-muted);
+}
+
+/* Hypercode: its colours in a second row, under the shapes (js/carpet-colors.js); the shapes
+   step up to make room */
+.rug-colours {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--space-3) + env(safe-area-inset-bottom) + 48px + var(--space-1));
+  z-index: 1;
+  transform: translateX(-50%);
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--duration) var(--ease);
+}
+
+.is-zoomed-out .rug-colours {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+[data-collection="hypercode"] .rug-shapes {
+  bottom: calc(var(--space-3) + env(safe-area-inset-bottom) + 48px + var(--space-1) + 34px);
+}
+
+.colour-dot {
+  display: block;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--color-muted);
+}
+
+.strip__item:has(.colour-dot) {
+  border-radius: 50%;
 }
 
 /* The shapes, filled with the current rug colour (--rug-color, set by js/carpet-colors.js) */
@@ -697,10 +682,16 @@ body {
   filter: brightness(0.72);
 }
 
-/* Right: the wind. White lines over the rug; while listening they sit in a white circle and
-   stretch out with your breath (--breath, 0..1) */
+/* The wind, where Hypercode has its lamp (left of the rug's name), in view zoomed in or out.
+   White lines over the rug; while listening they sit in a white circle and stretch out with your
+   breath (--breath, 0..1), and a ring round it breathes slowly and swells with your breath */
 .tool--blow {
-  position: relative;
+  position: fixed;
+  top: calc(var(--space-3) + env(safe-area-inset-top) + var(--header-height) + var(--space-3));
+  left: max(var(--space-4), (100vw - var(--page-max-width)) / 2 + var(--space-4));
+  z-index: 2;
+  width: 34px;
+  height: 34px;
   display: grid;
   place-items: center;
   border-radius: 50%;
@@ -744,11 +735,53 @@ body {
   filter: none;
 }
 
-/* A short line above the button: what to do, or why the microphone isn't there */
+/* Zoomed out, a thin ring like the lamp's, so it reads as a button too */
+.is-zoomed-out .tool--blow {
+  border: 1.5px solid var(--color-muted);
+}
+
+/* The ring: breathing slowly while it listens (before), swelling with your breath (after) */
+.tool--blow::before,
+.tool--blow::after {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.tool--blow.is-listening::before {
+  opacity: 0.35;
+  animation: breathe 3.2s var(--ease) infinite;
+}
+
+.tool--blow.is-listening::after {
+  opacity: calc(var(--breath, 0) * 0.9);
+  transform: scale(calc(1 + var(--breath, 0) * 0.32));
+}
+
+@keyframes breathe {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.12);
+  }
+}
+
+/* While listening on a close-up, a soft shadow keeps it visible on the rug */
+.tool--blow.is-listening {
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.18);
+}
+
+/* A short line under the button: what to do, or why the microphone isn't there */
 .blow-status {
   position: absolute;
-  bottom: calc(100% + 10px);
-  right: 0;
+  top: calc(100% + 10px);
+  left: 0;
   padding: 2px 6px;
   background: var(--color-paper);
   color: var(--color-ink);
@@ -931,7 +964,9 @@ body {
 /* Going to another collection only the rug moves: its name above and its row below fade out
    while it slides away, and fade back in with the next collection's as the next rug arrives */
 .is-zoomed-out.is-switching .rug-info,
-.is-zoomed-out.is-switching .rug-shapes {
+.is-zoomed-out.is-switching .rug-shapes,
+.is-zoomed-out.is-switching .rug-colours,
+.is-zoomed-out.is-switching .info-button {
   opacity: 0;
   transition-duration: 180ms;
 }
@@ -943,11 +978,10 @@ body {
   opacity: 0;
 }
 
-/* Each collection's own parts: only Hypercode has the lamp and the colours; only GrandMa Patterns
-   the wind */
+/* Each collection's own parts: only Hypercode has the lamp and the row of colours; only GrandMa
+   Patterns the wind */
 [data-collection]:not([data-collection="hypercode"]) .lamp-dial,
-[data-collection]:not([data-collection="hypercode"]) .tool--color,
-[data-collection]:not([data-collection="hypercode"]) .palette,
+[data-collection]:not([data-collection="hypercode"]) .rug-colours,
 [data-collection]:not([data-collection="hypercode"]) .carpet__light,
 [data-collection]:not([data-collection="grandma-patterns"]) .tool--blow,
 [data-collection]:not([data-collection="grandma-patterns"]) .carpet__wind {
@@ -999,10 +1033,213 @@ body {
   background: linear-gradient(90deg, var(--a) 50%, var(--b) 50%);
 }
 
+/* ---------- About this rug (js/carpet-info.js) ---------- */
 
-
-/* No button on the right (colour or wind) on Ripple Square: an empty space there keeps Buy centred */
-[data-collection="ripple-square"] .bar--bottom::after {
-  content: "";
+/* [+], bottom right: only while the whole rug is in view (its place stays, so Buy stays centred) */
+.info-button {
   width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  font-size: 14px;
+  letter-spacing: 0;
+  color: var(--color-ink);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--duration) var(--ease);
+}
+
+.is-zoomed-out .info-button {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* While the sheet is open, the rug above it only closes it (nothing else on the page reacts) */
+.info-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  display: none;
+}
+
+.is-reading .info-backdrop {
+  display: block;
+}
+
+/* The sheet: a page of paper as tall as the screen, slid down so it shows three quarters of it at
+   first (js/carpet-info.js moves it) */
+.info-sheet {
+  position: fixed;
+  left: 50%;
+  top: 0;
+  z-index: 6;
+  width: 100%;
+  max-width: var(--page-max-width);
+  height: calc(100% - 8px);
+  margin-left: calc(min(100%, var(--page-max-width)) / -2);
+  display: none;
+  flex-direction: column;
+  background: var(--color-paper);
+  box-shadow: 0 -2px 18px rgba(0, 0, 0, 0.14);
+  transform: translateY(100vh);
+  transition: transform 420ms var(--ease);
+}
+
+.info-sheet.is-open {
+  display: flex;
+}
+
+.info-sheet.is-dragging {
+  transition: none;
+}
+
+/* Its top: a handle to pull it, and [–] to close it; stays put while what's under it scrolls */
+.info-sheet__top {
+  position: relative;
+  flex: none;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 var(--space-4);
+  border-bottom: 1px solid var(--color-panel);
+  cursor: pointer;
+}
+
+.info-sheet__handle {
+  position: absolute;
+  left: 50%;
+  top: 8px;
+  width: 36px;
+  height: 4px;
+  margin-left: -18px;
+  border-radius: 2px;
+  background: var(--color-panel);
+}
+
+.info-sheet__close {
+  font-size: 14px;
+  letter-spacing: 0;
+}
+
+.info-sheet__scroll {
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: 0 var(--space-4) calc(var(--space-7) + env(safe-area-inset-bottom));
+}
+
+/* The close-up, edge to edge like the opening picture of a magazine page */
+.info-closeup {
+  margin: 0 calc(var(--space-4) * -1);
+  aspect-ratio: 3 / 2;
+  background: var(--color-panel);
+  overflow: hidden;
+}
+
+.info-closeup canvas,
+.info-closeup img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.info-head {
+  margin-top: var(--space-5);
+}
+
+.info-head p {
+  margin: 0;
+}
+
+.info-head__name {
+  font-size: 13px;
+  text-transform: uppercase;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.info-head__designer {
+  font-size: var(--text-sm);
+  line-height: 1.4;
+}
+
+.info-head .info-head__size {
+  margin-top: var(--space-2);
+  color: #6b6b6b;
+}
+
+/* The line about it: big, like an editorial standfirst */
+.info-line {
+  margin: var(--space-5) 0 var(--space-6);
+  font-size: var(--text-lg);
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+/* The parts folded away: [+] Description, [+] Product details, [+] Customisation. An open one's
+   title stays at the top while you scroll through it. */
+.info-part {
+  border-top: 1px solid var(--color-ink);
+}
+
+.info-part:last-child {
+  border-bottom: 1px solid var(--color-ink);
+}
+
+.info-part__title {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  width: 100%;
+  padding: var(--space-3) 0;
+  text-align: left;
+  font-size: 13px;
+  letter-spacing: 0;
+  background: var(--color-paper);
+}
+
+.info-part__wrap {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 320ms var(--ease);
+}
+
+.info-part__title[aria-expanded="true"] + .info-part__wrap {
+  grid-template-rows: 1fr;
+}
+
+.info-part__body {
+  overflow: hidden;
+}
+
+.info-text {
+  margin: 0 0 var(--space-3);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.info-text:last-child {
+  margin-bottom: var(--space-4);
+}
+
+/* Product details: label and value side by side */
+.info-details {
+  display: grid;
+  grid-template-columns: 9.5em 1fr;
+  gap: var(--space-2) var(--space-3);
+  margin: 0 0 var(--space-4);
+  font-size: 14px;
+}
+
+.info-details dt {
+  color: #6b6b6b;
+  font-size: 11px;
+  padding-top: 2px;
+}
+
+.info-details dd {
+  margin: 0;
 }

@@ -1,9 +1,10 @@
 /*
-  Carpet colours: tap the colour circle and the colours float up above it, one above the other.
-  Each colour is a real photo of that rug; picking one swaps the rug (your drawing comes along,
-  re-tinted to the new colour).
+  Carpet colours: while the whole Hypercode rug is in view, its colours sit in a second row, under
+  the shapes. Each colour is a real photo of that rug; picking one swaps the rug (your drawing
+  comes along, re-tinted to the new colour).
 
-  Needs js/carpet-viewer.js (img, changeRug, setBrushTone) to be loaded first.
+  Needs js/carpet-viewer.js (img, changeRug, setBrushTone) and js/carpet-strip.js (makeStrip) to
+  be loaded first.
 */
 
 // The first one is the rug the page opens with. Each photo is the rug cut out with its real edge
@@ -16,9 +17,7 @@ const COLORS = [
   { name: "Sage", src: "images/carpet-04-sage-cut.png", shape: "Rectangle", tone: { light: [226, 226, 212], shade: [196, 198, 184] } },
 ];
 
-const colorButton = document.querySelector(".tool--color");
-const palette = document.querySelector("[data-palette]");
-const swatchRow = palette.querySelector("[data-palette-swatches]");
+const colourRow = document.querySelector("[data-colour-options]");
 
 let current = COLORS[0];
 
@@ -88,7 +87,7 @@ function loadColor(color) {
     const rgb = averageColor(photo);
     color.swatch = rgbToHex(rgb);
     color.tone = color.tone || toneFor(rgb);
-    swatchRow.querySelector(`[data-name="${color.name}"]`).style.background = color.swatch;
+    colourRow.querySelector(`[data-name="${color.name}"]`).style.background = color.swatch;
     if (color === current) showSwatch(color.swatch);
   });
 }
@@ -107,61 +106,31 @@ async function chooseColor(color) {
   changing = false;
 }
 
-// The current rug colour: on the colour circle, and filling the shapes (js/carpet-shapes.js)
+// The current rug colour, filling the shapes (js/carpet-shapes.js)
 function showSwatch(hex) {
-  colorButton.style.background = hex;
   document.body.style.setProperty("--rug-color", hex);
 }
 
 function markChosen() {
   if (current.swatch) showSwatch(current.swatch);
-  swatchRow.querySelectorAll(".swatch").forEach((s) => {
-    s.setAttribute("aria-pressed", s.dataset.name === current.name);
-  });
 }
 
-// ---------- The palette ----------
+// ---------- The row ----------
 
-function buildSwatches() {
-  COLORS.forEach((color) => {
-    const swatch = document.createElement("button");
-    swatch.className = "swatch";
-    swatch.dataset.name = color.name;
-    swatch.setAttribute("aria-label", color.name);
-    swatch.addEventListener("click", () => chooseColor(color));
-    swatchRow.append(swatch);
-  });
-  markChosen();
+// A colour in the row: a round dot of the rug's colour (filled in once its photo has loaded)
+function colourDot(color) {
+  const dot = document.createElement("span");
+  dot.className = "colour-dot";
+  dot.dataset.name = color.name;
+  if (color.swatch) dot.style.background = color.swatch;
+  return dot;
 }
 
-// The floating colour menu
-function openPalette(menu, button) {
-  closePalette();
-  menu.classList.add("is-open");
-  menu.setAttribute("aria-hidden", "false");
-  button.setAttribute("aria-expanded", "true");
+function buildColourRow() {
+  makeStrip(colourRow, COLORS, { draw: colourDot, choose: chooseColor, start: COLORS.indexOf(current) });
 }
-
-// Closes whichever menu is open. Returns true if one was (so the touch that closed it doesn't also draw)
-function closePalette() {
-  const open = document.querySelector(".palette.is-open");
-  if (!open) return false;
-  open.classList.remove("is-open");
-  open.setAttribute("aria-hidden", "true");
-  document.querySelectorAll("[aria-expanded]").forEach((b) => b.setAttribute("aria-expanded", "false"));
-  return true;
-}
-
-// Tapping a menu's button opens it, or closes it if it was already open
-function togglePalette(menu, button) {
-  const wasOpen = menu.classList.contains("is-open");
-  closePalette();
-  if (!wasOpen) openPalette(menu, button);
-}
-
-colorButton.addEventListener("click", () => togglePalette(palette, colorButton));
 
 // ---------- Start ----------
 
-buildSwatches();
+buildColourRow();
 COLORS.forEach(loadColor);

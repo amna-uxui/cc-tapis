@@ -743,7 +743,6 @@ function startGesture() {
 
 stage.addEventListener("pointerdown", (e) => {
   if (e.target.closest("button")) return; // let the arrows work as buttons
-  if (window.closePalette && closePalette()) return; // first touch just closes the colour palette
   stage.setPointerCapture(e.pointerId);
   stopAnimation();
 
