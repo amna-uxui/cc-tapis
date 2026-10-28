@@ -26,12 +26,20 @@
         e.viewTransition.ready.catch(function () {}); // skipped (e.g. a hidden tab): nothing to slide
         e.viewTransition.finished.then(done, done);
       });
+      addEventListener("pageswap", function (e) {
+        if (e.viewTransition) e.viewTransition.ready.catch(function () {}); // leaving: skipped is fine too
+      });
       setTimeout(done, 1500);
     })();
   </script>
 
-  <link rel="stylesheet" href="css/tokens.css">
-  <link rel="stylesheet" href="css/main.css">
+  <!-- The styles and the code below are fetched fresh on every visit (the live site would otherwise
+       let phones keep an old copy for 10 minutes), so a change shows as soon as it's pushed -->
+  <script>
+    var fresh = Date.now();
+    document.write('<link rel="stylesheet" href="css/tokens.css?' + fresh + '">');
+    document.write('<link rel="stylesheet" href="css/main.css?' + fresh + '">');
+  </script>
 </head>
 <body>
 
@@ -104,11 +112,15 @@
     </button>
   </nav>
 
-  <script src="js/carpet-viewer.js"></script>
-  <script src="js/carpet-strip.js"></script>
-  <script src="js/carpet-save.js"></script>
-  <script src="js/carpet-menu.js"></script>
-  <script src="js/carpet-blow.js"></script>
-  <script src="js/carpet-rugs.js"></script>
+  <script>
+    [
+      "js/carpet-viewer.js",
+      "js/carpet-strip.js",
+      "js/carpet-save.js",
+      "js/carpet-menu.js",
+      "js/carpet-blow.js",
+      "js/carpet-rugs.js",
+    ].forEach(function (src) { document.write('<script src="' + src + '?' + fresh + '"><\/script>'); });
+  </script>
 </body>
 </html>
