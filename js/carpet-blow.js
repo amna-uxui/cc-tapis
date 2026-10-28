@@ -17,10 +17,16 @@
 */
 
 // ---------- Hearing a breath ----------
-// Blowing on a microphone is loud: much louder than the quiet room. (Phones clean up the low rumble
-// of wind themselves, so we just listen for loudness; for now, a loud voice blows a little too.)
+// Blowing on a microphone is loud, and it's only rushing air: a hiss with no note in it. Talking has
+// a note (the voice vibrates at a pitch, so its sound repeats itself many times a second), and its
+// hissy bits ("s", "f", "p") are short. So a sound blows only when it's loud, has no pitch, is
+// hiss-like across the frequencies, and goes on for a moment; and not just after a voice.
 const BLOW_GATE = 7;        // dB the sound must rise above the quiet room before it counts as a breath
 const BLOW_RANGE = 16;      // dB more for the strongest breath
+const VOICE_PITCH = 0.45;   // how clearly a sound repeats itself (0 = not at all, 1 = a pure note) before it's a voice
+const BREATH_HISS = 0.18;   // how evenly a breath spreads over the frequencies, at least (0 = one note, 1 = pure hiss)
+const BREATH_HOLD = 0.2;    // seconds a breath must go on before the rug moves (talking's hissy bits are shorter)
+const VOICE_REST = 0.3;     // seconds after a voice before a breath counts (the gaps between words don't blow)
 const ROOM_LEARN = 1;       // seconds after tapping spent listening to the quiet room (nothing blows then)
 const BREATH_RISE = 0.35;   // how quickly the wind follows a breath that gets stronger (1 = instantly)
 const BREATH_FALL = 0.06;   // and one that fades (lower = the gust trails off more softly)
@@ -67,18 +73,18 @@ let micState = "off"; // off, asking, on, or what went wrong (shown with ?debug)
 let noMic = false;    // the microphone was refused or is missing: holding the button blows instead
 let breath = 0;       // the breath that blows, smoothed
 
-const hearing = { level: -100, floor: -100 }; // for the debug meter
+const hearing = { level: -100, floor: -100, pitch: 0, hiss: 0 }; // for the debug meter
 
-// Two ways to start listening, tried in turn:
-// 1. the standard way: the plainest microphone request first, then the sound (while the
-//    microphone records, iPhone lets the sound start without a tap);
-// 2. if that fails: the sound first, inside the tap, then the microphone with the phone's noise
-//    and echo cleaning off.
+// Ways to start listening, tried in turn: the raw sound, then the plain sound, each asked for
+// first and the sound started after (while the microphone records, iPhone lets the sound start
+// without a tap); last, the sound started first, inside the tap.
 // Safari only runs sound that ends up at the speaker, so the microphone also goes there, turned
 // all the way down: silent, but it keeps the sound running.
+// The raw sound: the phone's own voice cleaning would take out exactly the breath we listen for
 const RAW_SOUND = { audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } };
+const PLAIN_SOUND = { audio: true };
 
-async function openMicrophone(soundFirst) {
+async function openMicrophone({ ask, soundFirst }) {
   let ctx = null;
   let stream = null;
   let step = soundFirst ? "sound" : "microphone";
@@ -87,15 +93,15 @@ async function openMicrophone(soundFirst) {
       ctx = new (window.AudioContext || window.webkitAudioContext)();
       ctx.resume();
       step = "microphone";
-      stream = await navigator.mediaDevices.getUserMedia(RAW_SOUND);
+      stream = await navigator.mediaDevices.getUserMedia(ask);
     } else {
-      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream = await navigator.mediaDevices.getUserMedia(ask);
       step = "sound";
       ctx = new (window.AudioContext || window.webkitAudioContext)();
     }
     step = "connect";
     const analyser = ctx.createAnalyser();
-    analyser.fftSize = 1024;
+    analyser.fftSize = 2048; // about 40 ms of sound: long enough to hear a low voice's pitch
     const mute = ctx.createGain();
     mute.gain.value = 0;
     ctx.createMediaStreamSource(stream).connect(analyser);
@@ -103,7 +109,16 @@ async function openMicrophone(soundFirst) {
     mute.connect(ctx.destination);
     step = "resume";
     if (ctx.state !== "running") await ctx.resume();
-    return { ctx, stream, analyser, samples: new Float32Array(analyser.fftSize), heard: 0 };
+    return {
+      ctx,
+      stream,
+      analyser,
+      samples: new Float32Array(analyser.fftSize),
+      bins: new Float32Array(analyser.frequencyBinCount),
+      heard: 0,      // seconds listened
+      blowing: 0,    // seconds the current breath has gone on
+      voiceAt: -9,   // when a voice was last heard
+    };
   } catch (error) {
     if (stream) stream.getTracks().forEach((track) => track.stop());
     if (ctx) ctx.close();
@@ -121,9 +136,13 @@ async function startListening() {
   showBlowStatus("Allow the microphone");
   if (micChannel) micChannel.postMessage("mine"); // other pages of this site: let go of it
   const tries = [];
-  for (const soundFirst of [false, true]) {
+  for (const way of [
+    { ask: RAW_SOUND, soundFirst: false },
+    { ask: PLAIN_SOUND, soundFirst: false },
+    { ask: RAW_SOUND, soundFirst: true },
+  ]) {
     try {
-      audio = await openMicrophone(soundFirst);
+      audio = await openMicrophone(way);
       break;
     } catch (error) {
       tries.push(`${error.name} at ${error.step}${error.message ? ": " + error.message : ""}`);
@@ -137,7 +156,7 @@ async function startListening() {
   floor = null;
   listening = true;
   noMic = false;
-  micState = tries.length ? `on (second way, first: ${tries[0]})` : "on";
+  micState = tries.length ? `on (way ${tries.length + 1}; first: ${tries[0]})` : "on";
   blowButton.classList.add("is-listening");
   blowButton.setAttribute("aria-pressed", "true");
   showBlowStatus("Blow on the bottom of the phone");
@@ -198,7 +217,82 @@ function hear(seconds) {
   hearing.floor = floor;
   if (audio.heard < ROOM_LEARN) return 0;
 
-  return Math.min(1, Math.max(0, (level - floor - BLOW_GATE) / BLOW_RANGE));
+  const loud = Math.min(1, Math.max(0, (level - floor - BLOW_GATE) / BLOW_RANGE));
+  if (loud <= 0) {
+    audio.blowing = 0;
+    hearing.pitch = hearing.hiss = 0;
+    return 0;
+  }
+
+  // a voice? (a clear pitch, or the sound gathered on a few notes)
+  const pitch = pitchStrength(samples, audio.ctx.sampleRate);
+  analyser.getFloatFrequencyData(audio.bins);
+  const hiss = hissiness(audio.bins, audio.ctx.sampleRate, 250, 4000);
+  hearing.pitch = pitch;
+  hearing.hiss = hiss;
+  if (pitch > VOICE_PITCH || hiss < BREATH_HISS) {
+    audio.voiceAt = audio.heard;
+    audio.blowing = 0;
+    return 0;
+  }
+  if (audio.heard - audio.voiceAt < VOICE_REST) return 0; // a gap between words
+
+  // a breath, once it has gone on for a moment
+  audio.blowing += seconds;
+  return audio.blowing < BREATH_HOLD ? 0 : loud;
+}
+
+// How clearly the sound repeats itself at a voice's pitch (70 to 400 times a second): 0..1.
+// A voice is close to 1, rushing air close to 0. Worked out on every 4th sample (plenty for pitches
+// this low, and four times quicker), with the deep end taken out first: blowing straight into the
+// microphone rumbles, and a rumble alone can look a little like a low note; a voice keeps its
+// pitch in its higher overtones too.
+function pitchStrength(samples, rate) {
+  const n = samples.length >> 2;
+  const down = pitchStrength.down && pitchStrength.down.length === n ? pitchStrength.down : (pitchStrength.down = new Float32Array(n));
+  let before = 0;
+  for (let i = 0; i < n; i++) {
+    const k = i * 4;
+    const now = (samples[k] + samples[k + 1] + samples[k + 2] + samples[k + 3]) / 4;
+    down[i] = now - before; // the change from one to the next: the deep end drops away
+    before = now;
+  }
+  const r = rate / 4;
+  const shortest = Math.floor(r / 400);
+  const longest = Math.min(Math.ceil(r / 70), n >> 1);
+  let best = 0;
+  for (let lag = shortest; lag <= longest; lag++) {
+    let both = 0;
+    let first = 0;
+    let second = 0;
+    for (let i = 0; i + lag < n; i++) {
+      const a = down[i];
+      const b = down[i + lag];
+      both += a * b;
+      first += a * a;
+      second += b * b;
+    }
+    const match = both / Math.sqrt(first * second + 1e-12);
+    if (match > best) best = match;
+  }
+  return best;
+}
+
+// How evenly the sound spreads over the frequencies from lo to hi Hz: 0..1 (spectral flatness).
+// Rushing air spreads evenly; a voice gathers on a few notes.
+function hissiness(bins, rate, lo, hi) {
+  const hz = rate / 2 / bins.length;
+  const from = Math.max(1, Math.floor(lo / hz));
+  const to = Math.min(bins.length - 1, Math.ceil(hi / hz));
+  let logs = 0;
+  let sum = 0;
+  for (let i = from; i <= to; i++) {
+    const power = Math.pow(10, bins[i] / 10);
+    logs += Math.log(power + 1e-20);
+    sum += power;
+  }
+  const count = to - from + 1;
+  return Math.exp(logs / count) / (sum / count + 1e-20);
 }
 
 // ---------- The wind ----------
@@ -553,6 +647,8 @@ function showHearing() {
     `level ${hearing.level.toFixed(0)} dB  quiet room ${hearing.floor.toFixed(0)} dB\n` +
     `sound  ${bar(Math.min(1, Math.max(0, (hearing.level + 90) / 90)))}\n` +
     `above  +${(hearing.level - hearing.floor).toFixed(0)} dB (blows from +${BLOW_GATE})\n` +
+    `pitch  ${hearing.pitch.toFixed(2)} (voice above ${VOICE_PITCH})   hiss ${hearing.hiss.toFixed(2)} (breath above ${BREATH_HISS})\n` +
+    `heard  ${audio && audio.blowing > 0 ? "breath" : audio && audio.heard - audio.voiceAt < VOICE_REST ? "voice" : "-"}\n` +
     `mic    ${bar(micBreath)}\n` +
     `breath ${bar(breath)}`;
 }
