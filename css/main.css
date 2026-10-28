@@ -959,3 +959,11 @@ body {
   filter: none;
 }
 
+
+/* "To blow" on GrandMa Patterns' colourful rugs: white glass letters */
+[data-collection="grandma-patterns"] .verb {
+  color: rgba(255, 255, 255, 0.85);
+  text-shadow:
+    0 0 1px rgba(255, 255, 255, 0.6),
+    0 2px 14px rgba(0, 0, 0, 0.3);
+}

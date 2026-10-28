@@ -7,6 +7,11 @@
 # Rugs with cream or white wool: add --solid so the inside of the rug stays solid (only a band
 # SOLID_EDGE pixels wide along its outline fades), else the cream turns see-through too.
 #
+# A rug that only ever sits on the white page doesn't need see-through edges: give the output a
+# .jpg name and it's the photo itself, cropped the same way, on its own white (many times lighter
+# than the PNG, so it loads at once on a phone):
+#   python3 tools/cut-out-rug.py photo.jpg images/grandma-pinkblue.jpg
+#
 # Needs only the Mac's own tools (sips converts the photo to BMP first).
 import os
 import struct
@@ -41,6 +46,25 @@ def read_bmp(path):
     return w, height, pixels
 
 
+def write_jpeg(path, w, h, px, left, top):
+    # the crop as a plain BMP, then the Mac's own sips makes it a JPEG
+    row = (w * 3 + 3) & ~3
+    body = bytearray()
+    for y in range(top + h - 1, top - 1, -1):  # BMP rows go bottom up
+        line = bytearray()
+        for x in range(left, left + w):
+            r, g, b = px[y][x]
+            line += bytes((b, g, r))
+        body += line + b"\x00" * (row - w * 3)
+    header = b"BM" + struct.pack("<IHHI", 54 + len(body), 0, 0, 54)
+    info = struct.pack("<IiiHHIIiiII", 40, w, h, 1, 24, 0, len(body), 2835, 2835, 0, 0)
+    with tempfile.TemporaryDirectory() as tmp:
+        bmp = os.path.join(tmp, "crop.bmp")
+        open(bmp, "wb").write(header + info + bytes(body))
+        subprocess.run(["sips", "-s", "format", "jpeg", "-s", "formatOptions", "72", bmp, "--out", path],
+                       check=True, capture_output=True)
+
+
 def write_png(path, w, h, rows):
     raw = b"".join(b"\x00" + bytes(r) for r in rows)
     def chunk(kind, body):
@@ -64,6 +88,11 @@ def main(src, out, solid=False):
     xs = [x for x in range(w) if sum(dark(px[y][x]) for y in range(0, h, 4)) > h / 16]
     left, right = max(0, xs[0] - MARGIN), min(w - 1, xs[-1] + MARGIN)
     top, bottom = max(0, ys[0] - MARGIN), min(h - 1, ys[-1] + MARGIN)
+
+    if out.lower().endswith(".jpg"):
+        write_jpeg(out, right - left + 1, bottom - top + 1, px, left, top)
+        print(f"{out}: {right - left + 1} x {bottom - top + 1}")
+        return
 
     # with --solid: the rug's outline, row by row, from where its edge first turns dark
     inside = {}

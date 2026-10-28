@@ -9,7 +9,7 @@
 // id: its name in the address (#grandma-patterns); rug: the photo it opens with.
 const MENU_COLLECTIONS = [
   { id: "hypercode", name: "Hypercode", designer: "Roberto Sironi", verb: "To draw", rug: "images/carpet-02-cacao-cut.png" },
-  { id: "grandma-patterns", name: "GrandMa Patterns", designer: "Rop van Mierlo", verb: "To blow", rug: "images/grandma-mustardgreen-cut.png" },
+  { id: "grandma-patterns", name: "GrandMa Patterns", designer: "Rop van Mierlo", verb: "To blow", rug: "images/grandma-mustardgreen.jpg" },
 ];
 const RECEIPT_RULE = "..:^:..:^:..:^:..:^:..:^:..:^:..:^:..:^:..:^:..:^:"; // as on cc-tapis.com
 

@@ -7,19 +7,20 @@
   js/carpet-strip.js (makeStrip) to be loaded first.
 */
 
-// The collection: Rop van Mierlo's GrandMa Patterns. Each photo is the rug cut out with its real
-// soft edge (tools/cut-out-rug.py --solid); thumb: a small copy for the picker (sips -Z 160).
+// The collection: Rop van Mierlo's GrandMa Patterns. Each photo is the rug cropped from its product
+// photo with its real soft edge, on white (tools/cut-out-rug.py, a .jpg: light, so it loads fast);
+// thumb: a small copy for the row (sips -Z 160).
 // The first one is the rug the page opens with (the same photo as in blow.html).
 // size and price in euros (the same for every rug in the collection).
 const GRANDMA_NAME = "GrandMa Patterns";
 const GRANDMA_DESIGNER = "Rop van Mierlo";
 
 const RUGS = [
-  { name: "Mustard Green", size: "200 × 300 cm", price: 2900, src: "images/grandma-mustardgreen-cut.png", thumb: "images/thumbs/grandma-mustardgreen.png" },
-  { name: "Green Red", size: "200 × 300 cm", price: 2900, src: "images/grandma-greenred-cut.png", thumb: "images/thumbs/grandma-greenred.png" },
-  { name: "Mustard Red", size: "200 × 300 cm", price: 2900, src: "images/grandma-mustardred-cut.png", thumb: "images/thumbs/grandma-mustardred.png" },
-  { name: "Pink Blue", size: "200 × 300 cm", price: 2900, src: "images/grandma-pinkblue-cut.png", thumb: "images/thumbs/grandma-pinkblue.png" },
-  { name: "Purple Brown", size: "200 × 300 cm", price: 2900, src: "images/grandma-purplebrown-cut.png", thumb: "images/thumbs/grandma-purplebrown.png" },
+  { name: "Mustard Green", size: "200 × 300 cm", price: 2900, src: "images/grandma-mustardgreen.jpg", thumb: "images/thumbs/grandma-mustardgreen.png" },
+  { name: "Green Red", size: "200 × 300 cm", price: 2900, src: "images/grandma-greenred.jpg", thumb: "images/thumbs/grandma-greenred.png" },
+  { name: "Mustard Red", size: "200 × 300 cm", price: 2900, src: "images/grandma-mustardred.jpg", thumb: "images/thumbs/grandma-mustardred.png" },
+  { name: "Pink Blue", size: "200 × 300 cm", price: 2900, src: "images/grandma-pinkblue.jpg", thumb: "images/thumbs/grandma-pinkblue.png" },
+  { name: "Purple Brown", size: "200 × 300 cm", price: 2900, src: "images/grandma-purplebrown.jpg", thumb: "images/thumbs/grandma-purplebrown.png" },
 ];
 
 const rugRow = document.querySelector("[data-rug-options]");
@@ -65,6 +66,20 @@ function rugThumb(rug) {
   picture.draggable = false;
   return picture;
 }
+
+// All the rug photos are loaded (and unpacked) ahead, soon after the page opens, so tapping one
+// shows it at once
+const rugPhotos = [];
+window.addEventListener("load", () => {
+  setTimeout(() => {
+    RUGS.forEach((rug) => {
+      const photo = new Image();
+      photo.src = rug.src;
+      if (photo.decode) photo.decode().catch(() => {});
+      rugPhotos.push(photo); // kept, so the browser keeps them ready
+    });
+  }, 300);
+});
 
 function buildRugs() {
   makeStrip(rugRow, RUGS, { draw: rugThumb, choose: chooseRug, start: RUGS.indexOf(currentRug) });
