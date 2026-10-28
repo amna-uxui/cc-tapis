@@ -1,6 +1,6 @@
 /*
   Ripple Square by Patricia Urquiola: the same ripple of leaves in four colourways. You colour the
-  rug yourself. Three versions to try (the A · B · C switcher, while we choose one):
+  rug yourself. Four versions to try (the A · B · C · D switcher, while we choose one):
 
   A. Paint: pick a colourway in the row, paint with your finger, and under it the rug turns into
      that colourway.
@@ -8,6 +8,9 @@
      only the ground, whichever it starts on.
   C. Ripple: pick a colourway and tap the rug: it spreads out from your finger like a ripple on
      water, across the whole rug.
+  D. Your own ripples: your finger draws over the rug with a pattern brush made from Ripple's own
+     row of leaves (Ripple_01.svg): a band of ground with leaves standing across it, following the
+     curve you draw, in the colourway picked in the row.
 
   Double-tap to clear. Every version recolours the one photo of the rug (Rose Garden): each spot
   is part leaf, part ground (worked out from its colour), and keeps the light and shade of its
@@ -41,6 +44,10 @@ const PAINT_BRUSH = 26;      // brush radius, in screen pixels (so it feels the 
 const PAINT_FUZZ = 0.25;     // how ragged the brush's edge is, like tufts of wool (share of its radius)
 const RIPPLE_TIME = 1300;    // ms for a ripple to cross the whole rug
 const RIPPLE_WAVE = 0.05;    // how wavy the ripple's edge is (share of its radius)
+const RIPPLE_BAND = 90;      // D: how wide the band of leaves is, in screen pixels (about the rug's own leaves)
+// D's brush, from Ripple_01.svg (its units): a band 87 high, a leaf every 24.33 along it, each leaf
+// an ellipse 12.16 wide and 43.5 tall (half sizes), standing across the band
+const BAND = { height: 87, every: 24.33, rx: 12.16, ry: 43.5 };
 
 const rippleCanvas = carpet.querySelector(".carpet__paint");
 const rippleCtx = rippleCanvas.getContext("2d");
@@ -144,6 +151,7 @@ function drawRug(left, top, right, bottom) {
   top = Math.max(0, Math.floor(top));
   right = Math.min(rug.w - 1, Math.ceil(right));
   bottom = Math.min(rug.h - 1, Math.ceil(bottom));
+  if (rippleVersion === "D") return drawOwn(left, top, right, bottom);
   for (let y = top; y <= bottom; y++) {
     for (let x = left; x <= right; x++) colourSpot(y * rug.w + x);
   }
@@ -204,15 +212,121 @@ function dab(cx, cy) {
   markDirtyRug(left, top, right, bottom);
 }
 
+// ---------- D: your own ripples, with the pattern brush ----------
+
+// The strokes drawn so far (done), and the one being drawn: its band and its leaves apart, so the
+// band never covers its own leaves where the stroke curves. mix: where they're put together.
+let own = null;
+
+function setUpOwn() {
+  const layer = () => {
+    const c = document.createElement("canvas");
+    c.width = rug.w;
+    c.height = rug.h;
+    return c;
+  };
+  own = { done: layer(), band: layer(), leaves: layer(), mix: layer() };
+  own.mixCtx = own.mix.getContext("2d", { willReadFrequently: true });
+}
+
+// (the first leaf waits for the finger to move, so it knows which way to stand)
+function ownStart(p) {
+  stroke = { last: p, next: 0, way: COLOURWAYS[chosenWay] }; // next: how far along until the next leaf
+}
+
+// The brush moved: the band runs on along the finger, with a leaf standing across it at every step
+function ownTo(p) {
+  const size = RIPPLE_BAND / BAND.height / view.scale; // photo pixels per unit of the brush
+  const from = stroke.last;
+  const dx = p.x - from.x;
+  const dy = p.y - from.y;
+  const length = Math.hypot(dx, dy);
+  const band = own.band.getContext("2d");
+  band.strokeStyle = `rgb(${stroke.way.ground})`;
+  band.lineWidth = BAND.height * size;
+  band.lineCap = "butt";
+  band.lineJoin = "round";
+  if (length > 0) {
+    band.beginPath();
+    band.moveTo(from.x, from.y);
+    band.lineTo(p.x, p.y);
+    band.stroke();
+  }
+  const leaves = own.leaves.getContext("2d");
+  leaves.fillStyle = `rgb(${stroke.way.leaf})`;
+  if (length === 0) return;
+  const angle = Math.atan2(dy, dx);
+  let at = stroke.next;
+  while (at <= length) {
+    const t = at / length;
+    leaves.save();
+    leaves.translate(from.x + dx * t, from.y + dy * t);
+    leaves.rotate(angle);
+    leaves.beginPath();
+    leaves.ellipse(0, 0, BAND.rx * size, BAND.ry * size, 0, 0, Math.PI * 2);
+    leaves.fill();
+    leaves.restore();
+    at += BAND.every * size;
+  }
+  stroke.next = at - length;
+  stroke.last = p;
+  const reach = BAND.height * size;
+  markDirtyRug(Math.min(from.x, p.x) - reach, Math.min(from.y, p.y) - reach, Math.max(from.x, p.x) + reach, Math.max(from.y, p.y) + reach);
+}
+
+// The stroke is finished: it joins the ones before (band first, its leaves on top)
+function ownEnd() {
+  const done = own.done.getContext("2d");
+  done.drawImage(own.band, 0, 0);
+  done.drawImage(own.leaves, 0, 0);
+  own.band.getContext("2d").clearRect(0, 0, rug.w, rug.h);
+  own.leaves.getContext("2d").clearRect(0, 0, rug.w, rug.h);
+}
+
+// Show a part of the rug: the strokes over the photo, in the wool's light and shade (where nothing
+// is drawn, the photo shows)
+function drawOwn(left, top, right, bottom) {
+  if (right < left || bottom < top) return;
+  const w = right - left + 1;
+  const h = bottom - top + 1;
+  const mix = own.mixCtx;
+  mix.clearRect(left, top, w, h);
+  mix.drawImage(own.done, left, top, w, h, left, top, w, h);
+  mix.drawImage(own.band, left, top, w, h, left, top, w, h);
+  mix.drawImage(own.leaves, left, top, w, h, left, top, w, h);
+  const painted = mix.getImageData(left, top, w, h).data;
+  const d = rug.image.data;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const k = (y * w + x) * 4;
+      const i = (top + y) * rug.w + left + x;
+      const o = i * 4;
+      const a = painted[k + 3];
+      if (a === 0) {
+        d[o + 3] = 0;
+        continue;
+      }
+      const s = rug.shade[i];
+      d[o] = painted[k] * s;
+      d[o + 1] = painted[k + 1] * s;
+      d[o + 2] = painted[k + 2] * s;
+      d[o + 3] = (rug.cover[i] * a) / 255;
+    }
+  }
+  showRug(left, top, right, bottom);
+}
+
 const ripplePaint = {
   start(p) {
     if (!rug || rippleVersion === "C") return (stroke = null);
+    if (rippleVersion === "D") return ownStart(p);
     const i = Math.round(p.y) * rug.w + Math.round(p.x);
     stroke = { last: p, part: rug.leaf[i] > 127 ? "leaf" : "ground" };
     dab(p.x, p.y);
   },
   to(p) {
     if (!stroke) return;
+    if (rippleVersion === "D") return ownTo(p);
     // dabs close enough together to make one smooth line
     const step = PAINT_BRUSH / view.scale / 3;
     const dist = Math.hypot(p.x - stroke.last.x, p.y - stroke.last.y);
@@ -223,12 +337,14 @@ const ripplePaint = {
     stroke.last = p;
   },
   end() {
+    if (stroke && rippleVersion === "D") ownEnd();
     stroke = null;
   },
   wipe() {
     if (!rug) return;
     rug.groundPaint.fill(255);
     rug.leafPaint.fill(255);
+    if (own) ["done", "band", "leaves"].forEach((layer) => own[layer].getContext("2d").clearRect(0, 0, rug.w, rug.h));
     drawAll();
   },
 };
@@ -333,6 +449,7 @@ const TRY_HINTS = {
   A: "Pick a colourway, then paint the rug",
   B: "Pick a colour, then paint the leaves or the ground",
   C: "Pick a colourway, then tap the rug",
+  D: "Pick a colourway, then draw your own ripples",
 };
 
 function chooseVersion(version) {
@@ -359,7 +476,10 @@ async function enterRipple(whole) {
   tryButtons.forEach((b) => b.setAttribute("aria-pressed", b.dataset.try === rippleVersion));
   buildRippleRow();
   await changeRug(RIPPLE_PHOTO, { zoomOut: whole, fade: false });
-  if (!rug) readRug();
+  if (!rug) {
+    readRug();
+    setUpOwn();
+  }
   drawAll();
   fingerPaint = ripplePaint;
 }
