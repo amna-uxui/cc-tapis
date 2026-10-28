@@ -115,7 +115,9 @@ function updateArrows() {
 
 // The full carpet fits between the name and size (under the top bar) and the shapes (above Buy)
 function measure() {
-  const top = rugInfo.getBoundingClientRect().bottom + FIT_GAP;
+  // from the last line of text above it (the size and price), so the space above the rug is the
+  // same as below it
+  const top = (rugInfo.querySelector("[data-rug-size]") || rugInfo).getBoundingClientRect().bottom + FIT_GAP;
   // above the highest of what's under it (that's on show in this collection)
   const tops = [...underRug].filter((e) => e.getClientRects().length).map((e) => e.getBoundingClientRect().top);
   const bottom = Math.min(bottomBar.getBoundingClientRect().top, ...tops) - FIT_GAP;
