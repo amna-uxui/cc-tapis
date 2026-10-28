@@ -1489,27 +1489,33 @@ body {
   pointer-events: auto;
 }
 
-/* like the page about a rug: floating with the bars' margins, sliding up smoothly */
+/* it grows out of the bag (top right) and hangs under the top bar, as tall as its rugs need,
+   floating with the bars' margins; Close shrinks it back into the bag */
 .cart-sheet {
   position: fixed;
   left: 0;
   right: 0;
-  bottom: calc(var(--space-3) + env(safe-area-inset-bottom));
+  top: calc(var(--space-3) + env(safe-area-inset-top) + var(--header-height) + var(--space-2));
   z-index: 6;
   width: calc(100% - var(--space-4) * 2);
   max-width: calc(var(--page-max-width) - var(--space-4) * 2);
-  max-height: calc(100% - var(--space-3) * 2 - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  max-height: calc(100% - var(--header-height) - var(--space-3) * 3 - env(safe-area-inset-top) - env(safe-area-inset-bottom));
   margin: 0 auto;
   padding: var(--space-3) var(--space-3) 0;
   display: flex;
   flex-direction: column;
-  transform: translateY(calc(100% + var(--space-6)));
-  transition: transform 800ms cubic-bezier(0.65, 0, 0.35, 1);
+  transform-origin: calc(100% - 20px) -30px; /* the bag */
+  transform: scale(0.06);
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 800ms cubic-bezier(0.65, 0, 0.35, 1), opacity 300ms cubic-bezier(0.65, 0, 0.35, 1);
   will-change: transform;
 }
 
 .cart-sheet.is-open {
-  transform: translateY(0);
+  transform: scale(1);
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .cart-sheet__scroll {
