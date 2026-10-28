@@ -1088,8 +1088,8 @@ body {
   display: none;
   flex-direction: column;
   background: var(--color-panel);
-  font-family: var(--font-sans);
-  font-size: 13px; /* one font, one size, one weight for everything on it: headings only in capitals */
+  font-family: var(--font-mono); /* the font of the size and price on the home page, and only it */
+  font-size: 12px; /* one font, one size, one weight for everything on it: headings only in capitals */
   font-weight: 400;
   transform: translateY(100vh);
   /* smooth as butter: off quickly, gliding into place with a long, soft slowdown (js/carpet-info.js:
@@ -1123,7 +1123,6 @@ body {
 
 .info-sheet__title {
   grid-column: 2;
-  font-size: 13px;
   text-transform: uppercase;
 }
 
@@ -1171,19 +1170,16 @@ body {
 }
 
 .info-head__name {
-  font-size: 13px;
   text-transform: uppercase;
   line-height: 1.3;
 }
 
 .info-head__designer {
-  font-size: 13px; /* as big as the name above it */
   line-height: 1.3;
 }
 
 .info-head .info-head__size {
   margin: var(--space-2) 0 var(--space-6);
-  font-size: 13px;
 }
 
 /* The parts folded away: [+] Description, [+] Product details, [+] Customisation. An open one's
@@ -1203,7 +1199,6 @@ body {
   width: 100%;
   padding: var(--space-3) 0;
   text-align: left;
-  font-size: 13px;
   text-transform: uppercase;
   background: var(--color-panel);
 }
@@ -1224,7 +1219,6 @@ body {
 
 .info-text {
   margin: 0 0 var(--space-3);
-  font-size: 13px;
   line-height: 1.5;
 }
 
@@ -1238,13 +1232,11 @@ body {
   grid-template-columns: 8.5em 1fr;
   gap: var(--space-2) var(--space-3);
   margin: 0 0 var(--space-4);
-  font-size: 13px;
 }
 
 .info-details dt {
   padding-top: 2px;
   color: #6b6b6b;
-  font-size: 13px;
   text-transform: uppercase;
 }
 

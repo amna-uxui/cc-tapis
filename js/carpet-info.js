@@ -52,7 +52,7 @@ const RUG_STORIES = {
       "Patricia Urquiola starts from the ease of a digital gesture and lets it flow across the floor.",
       "Bands of leaves ripple from edge to edge, their textures and colours shifting as they go, so the rug seems to move.",
     ],
-    details: [["Materials", "100% Himalayan wool"], ["Technique", "Hand-knotted"], ["Quality", "A+, about 152,000 knots a m²"], ["Atelier", "Made by hand in Nepal"]],
+    details: [["Materials", "100% Himalayan wool"], ["Technique", "Hand-knotted"], ["Quality", "A+, about 152,000 knots per\u00a0m²"], ["Atelier", "Made by hand in Nepal"]],
     custom: "Size and colour",
     pictures: {
       "Rose Garden": "images/sheet/ripple-rose-garden.jpg",
