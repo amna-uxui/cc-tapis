@@ -27,7 +27,8 @@
       <img src="images/carpet-02-cacao-cut.png" alt="Plain velvet cc-tapis rug, ready to draw on" draggable="false">
       <canvas class="carpet__brush"></canvas>
       <canvas class="carpet__paint" aria-hidden="true"></canvas> <!-- Ripple Square: the ripples you draw (js/carpet-ripple.js) -->
-      <canvas class="carpet__wind" aria-hidden="true"></canvas> <!-- GrandMa Patterns: the pile moving in the wind (js/carpet-blow.js) -->
+      <canvas class="carpet__wind" aria-hidden="true"></canvas>
+      <canvas class="carpet__warp" aria-hidden="true"></canvas> <!-- Stroke: the rug as you bend it (js/carpet-stroke.js) --> <!-- GrandMa Patterns: the pile moving in the wind (js/carpet-blow.js) -->
       <div class="carpet__light" aria-hidden="true"></div> <!-- Hypercode: the lamp's light (js/carpet-lamp.js) -->
     </div>
 
@@ -128,6 +129,7 @@
       "js/carpet-blow.js",
       "js/carpet-rugs.js",
       "js/carpet-ripple.js",
+      "js/carpet-stroke.js",
       "js/carpet-collections.js",
     ].forEach(function (src) { document.write('<script src="' + src + '?' + fresh + '"><\/script>'); });
   </script>

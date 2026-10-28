@@ -90,6 +90,12 @@ def main(src, out, solid=False):
     top, bottom = max(0, ys[0] - MARGIN), min(h - 1, ys[-1] + MARGIN)
 
     if out.lower().endswith(".jpg"):
+        # on white, the crop can be generous: from the rug's furthest point on every side (pointed or
+        # uneven rugs reach further than their main body), plus the margin
+        rows = [y for y in range(h) if sum(dark(px[y][x]) for x in range(0, w, 2)) > 2]
+        cols = [x for x in range(w) if sum(dark(px[y][x]) for y in range(0, h, 2)) > 2]
+        left, right = max(0, cols[0] - MARGIN * 2), min(w - 1, cols[-1] + MARGIN * 2)
+        top, bottom = max(0, rows[0] - MARGIN * 2), min(h - 1, rows[-1] + MARGIN * 2)
         write_jpeg(out, right - left + 1, bottom - top + 1, px, left, top)
         print(f"{out}: {right - left + 1} x {bottom - top + 1}")
         return

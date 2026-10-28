@@ -11,6 +11,7 @@ const MENU_COLLECTIONS = [
   { id: "hypercode", name: "Hypercode", designer: "Roberto Sironi", verb: "To touch", rug: "images/carpet-02-cacao-cut.png" },
   { id: "grandma-patterns", name: "GrandMa Patterns", designer: "Rop van Mierlo", verb: "To blow", rug: "images/grandma-mustardgreen.jpg" },
   { id: "ripple-square", name: "Ripple Square", designer: "Patricia Urquiola", verb: "To paint", rug: "images/ripple-canvas.png" },
+  { id: "stroke", name: "Stroke", designer: "Sabine Marcelis", verb: "To shape", rug: "images/stroke-1-violet.jpg" },
 ];
 const RECEIPT_RULE = "..:^:..:^:..:^:..:^:..:^:..:^:..:^:..:^:..:^:..:^:"; // as on cc-tapis.com
 
