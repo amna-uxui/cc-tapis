@@ -9,16 +9,16 @@
 // The collection: Rop van Mierlo's GrandMa Patterns. Each photo is the rug cut out with its real
 // soft edge (tools/cut-out-rug.py --solid); thumb: a small copy for the picker (sips -Z 160).
 // The first one is the rug the page opens with (the same photo as in blow.html).
-// size and price in euros: placeholders until the real ones come in.
+// size and price in euros (the same for every rug in the collection).
 const COLLECTION = "GrandMa Patterns";
 const DESIGNER = "Rop van Mierlo";
 
 const RUGS = [
-  { name: "Mustard Green", size: "200 × 300 cm", price: 6999, src: "images/grandma-mustardgreen-cut.png", thumb: "images/thumbs/grandma-mustardgreen.png" },
-  { name: "Green Red", size: "200 × 300 cm", price: 6999, src: "images/grandma-greenred-cut.png", thumb: "images/thumbs/grandma-greenred.png" },
-  { name: "Mustard Red", size: "200 × 300 cm", price: 6999, src: "images/grandma-mustardred-cut.png", thumb: "images/thumbs/grandma-mustardred.png" },
-  { name: "Pink Blue", size: "200 × 300 cm", price: 6999, src: "images/grandma-pinkblue-cut.png", thumb: "images/thumbs/grandma-pinkblue.png" },
-  { name: "Purple Brown", size: "200 × 300 cm", price: 6999, src: "images/grandma-purplebrown-cut.png", thumb: "images/thumbs/grandma-purplebrown.png" },
+  { name: "Mustard Green", size: "200 × 300 cm", price: 2900, src: "images/grandma-mustardgreen-cut.png", thumb: "images/thumbs/grandma-mustardgreen.png" },
+  { name: "Green Red", size: "200 × 300 cm", price: 2900, src: "images/grandma-greenred-cut.png", thumb: "images/thumbs/grandma-greenred.png" },
+  { name: "Mustard Red", size: "200 × 300 cm", price: 2900, src: "images/grandma-mustardred-cut.png", thumb: "images/thumbs/grandma-mustardred.png" },
+  { name: "Pink Blue", size: "200 × 300 cm", price: 2900, src: "images/grandma-pinkblue-cut.png", thumb: "images/thumbs/grandma-pinkblue.png" },
+  { name: "Purple Brown", size: "200 × 300 cm", price: 2900, src: "images/grandma-purplebrown-cut.png", thumb: "images/thumbs/grandma-purplebrown.png" },
 ];
 
 const rugRow = document.querySelector("[data-rug-options]");
