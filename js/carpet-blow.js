@@ -136,9 +136,10 @@ async function startListening() {
   }
   micState = "asking";
   showBlowStatus("Allow the microphone");
-  // iPhone: the page may be set to only play sound (the brushing sound on Hypercode does that); to
-  // listen too it must play and record, or the microphone is refused
-  if (navigator.audioSession) navigator.audioSession.type = "play-and-record";
+  // iPhone: the page may be set to only play sound (the brushing sound on Hypercode does that), which
+  // refuses the microphone; back to automatic, which allows it and keeps sound on the loudspeaker
+  // ("play-and-record" would send it to the quiet earpiece used for calls)
+  if (navigator.audioSession) navigator.audioSession.type = "auto";
   if (micChannel) micChannel.postMessage("mine"); // other pages of this site: let go of it
   const tries = [];
   for (const way of [
@@ -566,7 +567,7 @@ function frame(now) {
   const moving = stepWind(seconds);
   document.body.classList.toggle("is-blowing", moving);
   if (moving) drawPile();
-  if (typeof windSound !== "undefined") windSound.follow(breath, seconds); // the wind's sound
+  if (typeof windSound !== "undefined") windSound.follow(want, seconds); // the wind answers once the breath stops
 
   // keep going while the wind blows or the rug listens; otherwise rest until the next breath
   running = moving || listening || holding || heldBreath > 0.001 ? requestAnimationFrame(frame) : null;
