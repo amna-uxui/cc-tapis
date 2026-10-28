@@ -1353,7 +1353,7 @@ body {
   }
 }
 
-/* While the rug rolls up and away (and the note is up), nothing else reacts */
+/* While the rug rolls up and away, and back, nothing else reacts */
 .cart-shield {
   position: fixed;
   inset: 0;
@@ -1366,7 +1366,8 @@ body {
 }
 
 /* The rug being rolled up: its picture over the page, and the roll travelling up from its
-   bottom edge, the rug wound round it (lit along its top, shaded under it) */
+   bottom edge: the rug itself wound round it, matte wool (softly shaded under it, no shine), its
+   ends showing the rug's colour wound round (--roll-colour, --roll-deep, js/carpet-cart.js) */
 .roll-rug,
 .roll-rug__roll {
   position: fixed;
@@ -1379,28 +1380,48 @@ body {
 }
 
 .roll-rug__roll {
-  border-radius: 999px;
+  border-radius: 8px;
+  background-color: var(--roll-colour, #b9b0a4);
   background-repeat: repeat-y;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
-  overflow: hidden;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.22);
 }
 
 .roll-rug__shade {
   position: absolute;
   inset: 0;
+  border-radius: inherit;
   background: linear-gradient(
     to bottom,
-    rgba(255, 255, 255, 0.3) 0%,
-    rgba(255, 255, 255, 0.05) 25%,
-    rgba(0, 0, 0, 0) 45%,
-    rgba(0, 0, 0, 0.25) 78%,
-    rgba(0, 0, 0, 0.5) 100%
+    rgba(0, 0, 0, 0) 0%,
+    rgba(0, 0, 0, 0) 40%,
+    rgba(0, 0, 0, 0.16) 75%,
+    rgba(0, 0, 0, 0.34) 100%
   );
 }
 
-/* ---------- The pink notes, as on cc-tapis.com: pink, mono capitals, °~*~° rules ---------- */
+/* its ends: the rug wound round, in its own colour */
+.roll-rug__roll::before,
+.roll-rug__roll::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 1;
+  aspect-ratio: 0.45;
+  border-radius: 50%;
+  background: repeating-radial-gradient(ellipse at center, var(--roll-deep, #7d7468) 0 1px, var(--roll-colour, #b9b0a4) 1px 3.5px);
+}
 
-.cart-note,
+.roll-rug__roll::before {
+  left: -2px;
+}
+
+.roll-rug__roll::after {
+  right: -2px;
+}
+
+/* ---------- The bag and the thank-you, as on cc-tapis.com: pink, mono capitals, °~*~° rules ---------- */
+
 .cart-sheet,
 .cart-thanks {
   --cart-pink: var(--color-pink);
@@ -1408,30 +1429,6 @@ body {
   color: var(--color-ink);
   font-size: 13px;
   letter-spacing: 0.04em;
-}
-
-/* the note: drops in under the top bar */
-.cart-note {
-  position: fixed;
-  left: 0;
-  right: 0;
-  top: calc(var(--space-3) + env(safe-area-inset-top) + var(--header-height) + var(--space-2));
-  z-index: 6;
-  width: calc(100% - var(--space-4) * 2);
-  max-width: calc(var(--page-max-width) - var(--space-4) * 2);
-  margin: 0 auto;
-  padding: var(--space-3) var(--space-3) var(--space-2);
-  text-align: center;
-  opacity: 0;
-  transform: translateY(-14px);
-  pointer-events: none;
-  transition: opacity 500ms cubic-bezier(0.65, 0, 0.35, 1), transform 500ms cubic-bezier(0.65, 0, 0.35, 1);
-}
-
-.cart-note.is-open {
-  opacity: 1;
-  transform: translateY(0);
-  pointer-events: auto;
 }
 
 /* a rule: °~*~° to each side (of Close, on the top one), cut off at the edge */
@@ -1452,10 +1449,6 @@ body {
 .cart-rule__close {
   flex: none;
   font-size: 13px;
-}
-
-.cart-note__text {
-  margin: var(--space-5) 0 var(--space-3);
 }
 
 .cart-buttons {
@@ -1534,7 +1527,7 @@ body {
   text-align: center;
 }
 
-/* a rug in the bag: its picture on a white tile, its words, [–] to take it out */
+/* a rug in the bag: its picture (cut out, straight on the pink), its words, [–] to take it out */
 .cart-item {
   display: grid;
   grid-template-columns: 64px 1fr auto;
@@ -1547,10 +1540,8 @@ body {
 .cart-item__picture {
   width: 64px;
   height: 64px;
-  padding: 4px;
   display: grid;
   place-items: center;
-  background: var(--color-paper);
 }
 
 .cart-item__picture img {
@@ -1626,7 +1617,5 @@ body {
 .cart-thanks__rugs img {
   width: 84px;
   height: 84px;
-  padding: 6px;
   object-fit: contain;
-  background: var(--color-paper);
 }

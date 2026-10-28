@@ -1,18 +1,19 @@
 /*
   Buying, and the end of the journey. Tap Buy on any rug, at any zoom: the rug is rolled up from
-  its bottom edge, as a rug is for delivery, and the roll flies up into the bag at the top right
-  (Shop gives way to the bag at the first rug; the number in it counts the rugs). Then, as on
-  cc-tapis.com, a pink note: "We are rolling up your rug", with Close (the rug unrolls back into
-  place, to play on or buy another), Go to cart, and Proceed to check out.
+  its bottom edge, as a rug is for delivery (the roll is the rug itself, its own wool round it,
+  its ends showing its colour wound round), and the roll flies up into the bag at the top right
+  (Shop gives way to the bag at the first rug; the number in it counts the rugs). Then the rug
+  unrolls back into place, to play on or buy another.
 
   - What goes in the bag: the rug on show (Hypercode in its shape and colour, the GrandMa rug on
     show) or, on Ripple Square, your own design: a picture of what you drew.
-  - The bag (tap it): each rug with its picture, name, size and price, [–] to take it out, the
+  - The bag (tap it): each rug, cut out, with its name, size and price, [–] to take it out, the
     total, and Proceed to check out.
   - Checking out: a thank-you, the end of the prototype (nothing is paid); back to the rugs, the
     bag is empty again and Shop is back.
 
-  All in cc-tapis.com's look for these moments: pink, the mono font in capitals, °~*~° rules.
+  The bag and the thank-you in cc-tapis.com's look for these moments: pink, the mono font in
+  capitals, °~*~° rules.
 
   Needs js/carpet-viewer.js (img, carpet, rugInfo, isWhole, animateTo, centredView, fitScale),
   js/carpet-colors.js (current) and js/carpet-ripple.js (rippleCanvas) to be loaded first.
@@ -21,13 +22,13 @@
 const ROLL_UP = 1100;        // ms the rug takes to roll up (and to unroll again)
 const ROLL_FLY = 750;        // ms the roll takes to fly into the bag
 const ROLL_THICKEST = 52;    // px: the roll's thickness once the whole rug is on it
+const ROLL_BACK_AFTER = 350; // ms in the bag before the rug unrolls back into place
 const CART_RULE = "°~*~"; // the rule along the top and bottom of the pink notes, as on cc-tapis.com
 
 const buyButton = document.querySelector("[data-buy]");
 const shopLink = document.querySelector("[data-shop]");
 const bag = document.querySelector("[data-bag]");
 const bagCount = bag.querySelector("[data-bag-count]");
-const cartNote = document.querySelector("[data-cart-note]");
 const cartSheet = document.querySelector("[data-cart-sheet]");
 const cartList = cartSheet.querySelector("[data-cart-list]");
 const cartBackdrop = document.querySelector("[data-cart-backdrop]");
@@ -35,7 +36,7 @@ const cartThanks = document.querySelector("[data-cart-thanks]");
 
 const cart = []; // { name, designer, size, price, picture }
 let buying = false;
-let rolledAway = null; // the rolled-up rug, while the pink note is up: { overlay, roll, box, picture }
+let rolledAway = null; // the rolled-up rug, until it unrolls back: { overlay, roll, box }
 
 // ---------- Helpers ----------
 
@@ -64,8 +65,10 @@ function rugNow() {
   const sizeLine = rugInfo.querySelector("[data-rug-size]").textContent;
   const price = Number((sizeLine.split("€")[1] || "0").replace(/\D/g, ""));
   let name = rugInfo.querySelector("[data-rug-name]").textContent;
-  let picture = img.src;
+  let picture = img.src; // Hypercode's photos are cut out already
+  let cutOut = picture;
   if (collection === "hypercode") name += ` ${current.name}`;
+  if (collection === "grandma-patterns") cutOut = currentRug.thumb; // its photo is on white: the small cut-out
   if (collection === "ripple-square") {
     name += " (your design)";
     // your own design: what you drew, on white, smaller
@@ -73,14 +76,16 @@ function rugNow() {
     snap.width = snap.height = 600;
     const ctx = snap.getContext("2d");
     ctx.drawImage(rippleCanvas, 0, 0, 600, 600);
-    picture = snap.toDataURL("image/png");
+    picture = cutOut = snap.toDataURL("image/png");
   }
   return {
     name,
     designer: rugInfo.querySelector("[data-rug-designer]").textContent,
     size: sizeLine.split("|")[0].trim(),
     price,
-    picture,
+    picture, // as on the page
+    cutOut, // for the bag and the thank-you (no white round it)
+    ground: collection === "ripple-square" ? `rgb(${COLOURWAYS[chosenWay].ground})` : null,
   };
 }
 
@@ -92,6 +97,54 @@ function showBag() {
 }
 
 // ---------- Rolling the rug up, and into the bag ----------
+
+// What the roll is wrapped in: the rug itself, without the white (or see-through) round it in its
+// photo, and its colour (for the ends, where you see it wound round)
+function rollSkin(src, ground) {
+  return new Promise((done) => {
+    const photo = new Image();
+    photo.onload = () => {
+      const size = 240;
+      const c = document.createElement("canvas");
+      c.width = size;
+      c.height = Math.round((size * photo.naturalHeight) / photo.naturalWidth);
+      const ctx = c.getContext("2d");
+      ctx.drawImage(photo, 0, 0, c.width, c.height);
+      const px = ctx.getImageData(0, 0, c.width, c.height).data;
+      // where the rug is: not see-through, not the photo's white
+      let left = c.width, right = 0, top = c.height, bottom = 0;
+      const sum = [0, 0, 0];
+      let count = 0;
+      for (let y = 0; y < c.height; y++) {
+        for (let x = 0; x < c.width; x++) {
+          const i = (y * c.width + x) * 4;
+          if (px[i + 3] < 200 || Math.min(px[i], px[i + 1], px[i + 2]) > 238) continue;
+          left = Math.min(left, x); right = Math.max(right, x);
+          top = Math.min(top, y); bottom = Math.max(bottom, y);
+          sum[0] += px[i]; sum[1] += px[i + 1]; sum[2] += px[i + 2];
+          count++;
+        }
+      }
+      if (!count) return done(null);
+      // a little inside its edge, so none of the white comes along
+      const inX = (right - left) * 0.06;
+      const inY = (bottom - top) * 0.06;
+      const skin = document.createElement("canvas");
+      skin.width = Math.round(right - left - inX * 2);
+      skin.height = Math.round(bottom - top - inY * 2);
+      const s = skin.getContext("2d");
+      if (ground) {
+        s.fillStyle = ground; // your own design: drawn on its ground
+        s.fillRect(0, 0, skin.width, skin.height);
+      }
+      s.drawImage(c, left + inX, top + inY, skin.width, skin.height, 0, 0, skin.width, skin.height);
+      const colour = sum.map((v) => Math.round(v / count));
+      done({ src: skin.toDataURL("image/jpeg", 0.85), colour });
+    };
+    photo.onerror = () => done(null);
+    photo.src = src;
+  });
+}
 
 // One step of the rolling: rolled 0 (flat) .. 1 (all rolled up), from its bottom edge
 function rollTo(state, rolled) {
@@ -130,16 +183,27 @@ async function buy() {
     await wait(ZOOM_DURATION + 60);
   }
   const item = rugNow();
+  const skin = await rollSkin(item.picture, item.ground);
   const box = img.getBoundingClientRect();
-  // the rug, as a picture over the page, and its roll
+  // the rug, as a picture over the page, and its roll, wrapped in the rug itself
   const overlay = tag("div", "roll-rug");
   const roll = tag("div", "roll-rug__roll");
-  const picture = `url("${item.picture}")`;
-  Object.assign(overlay.style, { left: `${box.left}px`, top: `${box.top}px`, width: `${box.width}px`, height: `${box.height}px`, backgroundImage: picture });
-  Object.assign(roll.style, { left: `${box.left}px`, width: `${box.width}px`, backgroundImage: picture, backgroundSize: `${box.width}px ${box.height}px` });
+  Object.assign(overlay.style, { left: `${box.left}px`, top: `${box.top}px`, width: `${box.width}px`, height: `${box.height}px`, backgroundImage: `url("${item.picture}")` });
+  const inset = box.width * 0.04;
+  Object.assign(roll.style, {
+    left: `${box.left + inset}px`,
+    width: `${box.width - inset * 2}px`,
+    backgroundImage: skin ? `url("${skin.src}")` : "none",
+    backgroundSize: `100% ${box.height}px`,
+  });
+  if (skin) {
+    const [r, g, b] = skin.colour;
+    roll.style.setProperty("--roll-colour", `rgb(${r}, ${g}, ${b})`);
+    roll.style.setProperty("--roll-deep", `rgb(${Math.round(r * 0.62)}, ${Math.round(g * 0.62)}, ${Math.round(b * 0.62)})`);
+  }
   roll.append(tag("span", "roll-rug__shade"));
   document.body.append(overlay, roll);
-  const state = { overlay, roll, box, picture };
+  const state = { overlay, roll, box };
   rollTo(state, 0);
   carpet.style.visibility = "hidden";
 
@@ -170,53 +234,25 @@ async function buy() {
   bag.classList.add("is-landing");
 
   rolledAway = state;
+  await wait(ROLL_BACK_AFTER);
+  await unroll();
   buying = false;
-  showNote();
 }
 
-// The rug unrolls back into place (Close on the note); now: just put it back (it's under the bag)
-async function unroll(now = false) {
+// The rug unrolls back into place, to play on or buy another
+async function unroll() {
   const state = rolledAway;
   if (!state) return;
   rolledAway = null;
-  if (!now) {
-    state.roll.getAnimations().forEach((a) => a.cancel());
-    state.roll.style.visibility = "";
-    rollTo(state, 1);
-    await animate(ROLL_UP, (t) => rollTo(state, 1 - t));
-  }
+  state.roll.getAnimations().forEach((a) => a.cancel());
+  state.roll.style.visibility = "";
+  rollTo(state, 1);
+  await animate(ROLL_UP, (t) => rollTo(state, 1 - t));
   carpet.style.visibility = "";
   state.overlay.remove();
   state.roll.remove();
   document.body.classList.remove("is-buying");
 }
-
-// ---------- The pink note ----------
-
-function showNote() {
-  cartNote.classList.add("is-open");
-  cartNote.setAttribute("aria-hidden", "false");
-}
-
-function hideNote() {
-  cartNote.classList.remove("is-open");
-  cartNote.setAttribute("aria-hidden", "true");
-}
-
-cartNote.querySelector("[data-cart-note-close]").addEventListener("click", () => {
-  hideNote();
-  unroll();
-});
-cartNote.querySelector("[data-cart-open]").addEventListener("click", () => {
-  hideNote();
-  unroll(true);
-  openCart();
-});
-cartNote.querySelector("[data-cart-checkout]").addEventListener("click", () => {
-  hideNote();
-  unroll(true);
-  checkOut();
-});
 
 // ---------- The bag ----------
 
@@ -229,7 +265,7 @@ function fillCart() {
     const row = tag("div", "cart-item");
     const tile = tag("div", "cart-item__picture");
     const picture = tag("img");
-    picture.src = item.picture;
+    picture.src = item.cutOut;
     picture.alt = "";
     tile.append(picture);
     const words = tag("div", "cart-item__words");
@@ -283,7 +319,7 @@ function checkOut() {
   const pictures = tag("div", "cart-thanks__rugs");
   cart.forEach((item) => {
     const picture = tag("img");
-    picture.src = item.picture;
+    picture.src = item.cutOut;
     picture.alt = item.name;
     pictures.append(picture);
   });
