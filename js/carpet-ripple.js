@@ -8,7 +8,8 @@
   - Strokes only show inside the 200 × 200 cm square (its edge is invisible): the rug you make is
     never bigger than that.
   - The strokes are knotted wool: a fine woolly texture over their colours.
-  - Double-tap to start again from the single ripple.
+  - Double-tap to start again from the single ripple; picking another colourway starts again too,
+    with the single ripple in that colourway.
 
   Needs js/carpet-viewer.js (changeRug, img, carpet, fingerPaint), js/carpet-strip.js and
   js/carpet-menu.js to be loaded first.
@@ -33,8 +34,11 @@ const RIPPLE_BAND = 260;     // how wide the band of leaves is, in pixels of the
 // an ellipse 12.16 wide and 43.5 tall (half sizes), standing across the band
 const BAND = { height: 87, every: 24.33, rx: 12.16, ry: 43.5 };
 // The first ripple on the blank canvas: a gentle curve across it (points on the 1500 px canvas)
-const FIRST_RIPPLE = { way: 0, from: [220, 980], bend: [700, 520], to: [1290, 720] };
+const FIRST_RIPPLE = { from: [220, 980], bend: [700, 520], to: [1290, 720] };
 const WOOL_GRAIN = 0.16;     // how strongly the woolly texture shows on the strokes (0 = flat colour)
+const BRUSH_STEP = 0.12;     // the brush only moves on once the finger has gone this far (share of the band's
+                             // width): a slowing or resting finger jitters, and those tiny moves in random
+                             // directions would fan the band out into thin spikes
 
 const rippleCanvas = carpet.querySelector(".carpet__paint");
 const rippleCtx = rippleCanvas.getContext("2d");
@@ -146,11 +150,11 @@ function markDirtyRug(left, top, right, bottom) {
 
 // ---------- The brush ----------
 
-let stroke = null; // { last, next (how far along until the next leaf), way }
+let stroke = null; // { last, points (the path so far), next (how far along until the next leaf), way }
 
 // (the first leaf waits for the finger to move, so it knows which way to stand)
 function ownStart(p, way = COLOURWAYS[chosenWay]) {
-  stroke = { last: p, next: 0, way };
+  stroke = { last: p, points: [p], next: 0, way };
 }
 
 // The brush moved: the band runs on along the finger, with a leaf standing across it at every step
@@ -160,15 +164,18 @@ function ownTo(p) {
   const dx = p.x - from.x;
   const dy = p.y - from.y;
   const length = Math.hypot(dx, dy);
-  if (length === 0) return;
+  if (length < RIPPLE_BAND * BRUSH_STEP) return; // a tiny move: wait until the finger has really gone on
+  stroke.points.push(p);
+  // the band: the whole path so far, as one smooth line (no seams or slivers where it bends)
   const band = own.band.getContext("2d");
+  band.clearRect(0, 0, own.w, own.h);
   band.strokeStyle = `rgb(${stroke.way.ground})`;
   band.lineWidth = BAND.height * size;
   band.lineCap = "butt";
   band.lineJoin = "round";
   band.beginPath();
-  band.moveTo(from.x, from.y);
-  band.lineTo(p.x, p.y);
+  band.moveTo(stroke.points[0].x, stroke.points[0].y);
+  for (let k = 1; k < stroke.points.length; k++) band.lineTo(stroke.points[k].x, stroke.points[k].y);
   band.stroke();
   const leaves = own.leaves.getContext("2d");
   leaves.fillStyle = `rgb(${stroke.way.leaf})`;
@@ -202,13 +209,14 @@ function ownEnd() {
 
 // The single ripple the blank canvas starts with: a gentle curve, drawn like a stroke
 function firstRipple() {
-  const { way, from, bend, to } = FIRST_RIPPLE;
+  const { from, bend, to } = FIRST_RIPPLE;
+  const way = chosenWay;
   const at = (t) => ({
     x: (1 - t) * (1 - t) * from[0] + 2 * (1 - t) * t * bend[0] + t * t * to[0],
     y: (1 - t) * (1 - t) * from[1] + 2 * (1 - t) * t * bend[1] + t * t * to[1],
   });
   ownStart(at(0), COLOURWAYS[way]);
-  for (let k = 1; k <= 60; k++) ownTo(at(k / 60));
+  for (let k = 1; k <= 120; k++) ownTo(at(k / 120));
   ownEnd();
   stroke = null;
 }
@@ -218,6 +226,12 @@ function startOver() {
   ["done", "band", "leaves"].forEach((layer) => own[layer].getContext("2d").clearRect(0, 0, own.w, own.h));
   firstRipple();
   drawAll();
+}
+
+// A new colourway picked: a fresh canvas, with its single ripple in that colourway
+function pickWay(way) {
+  chosenWay = COLOURWAYS.indexOf(way);
+  if (own) startOver();
 }
 
 // The finger on the rug (js/carpet-viewer.js)
@@ -261,7 +275,7 @@ function markRipple() {
 }
 
 function buildRippleRow() {
-  makeStrip(rippleRow, COLOURWAYS, { draw: waySwatch, choose: (w) => (chosenWay = COLOURWAYS.indexOf(w)), start: chosenWay });
+  makeStrip(rippleRow, COLOURWAYS, { draw: waySwatch, choose: pickWay, start: chosenWay });
   markRipple();
 }
 
