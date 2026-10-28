@@ -35,14 +35,19 @@ const WIND_DOWN = 0.12;     // seconds for the pile to bend all the way when the
 const WIND_UP = 0.7;        // seconds for it to rise halfway back once the wind has passed
 
 // ---------- How the pile looks in the wind (in photo pixels and shares) ----------
-const LEAN_PX = 14;         // how far the tufts bend away from the wind, at full strength
-const FLUTTER_PX = 9;       // how far they tremble back and forth in it
-const SWAY_PX = 4;          // and sideways
-const TUFT_PX = 26;         // about the size of one tuft in the photo: the trembling moves tuft by tuft
+// Real shag in the wind: the fibres bend one way, away from the wind, and each tuft is tugged a
+// little further and springs back on its own, slowly; the bent fibres stretch into strands.
+// (Not a trembling of the whole picture back and forth: that looks like water.)
+const LEAN_PX = 8;          // how far the pile bends away from the wind, at full strength
+const SWAY_PX = 5;          // how much further each tuft is tugged as the wind pulls at it
+const SWAY_SPEED = 7;       // how quickly a tuft is tugged and springs back (7 = about once a second)
+const SIDE_PX = 1.5;        // the little a tuft leans sideways as it's tugged
+const TUFT_PX = 20;         // about the width of one tuft in the photo (each one moves on its own)
+const TUFT_TALL = 1.6;      // tufts are taller than wide, along the wind
 const WIND_DEEP = 0.22;     // flattened pile shows its deeper roots: this much darker at full strength
 const WIND_RICH = 0.35;     // and this much richer in colour
 const WIND_SHEEN = 0.16;    // the front of a gust catches the light: this much lighter
-const WIND_SHIMMER = 0.07;  // single tufts flicker lighter and darker in the wind
+const WIND_SHIMMER = 0.05;  // a tuft catches a little more light as it's tugged further
 
 const windCanvas = carpet.querySelector(".carpet__wind");
 const blowButton = document.querySelector("[data-blow]");
@@ -298,12 +303,21 @@ uniform vec2 uCell;    // one wind cell, in texture units
 uniform float uTime;
 
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
-float noise(vec2 p) {
+
+// How far one tuft is tugged right now, 0..1: each tuft at its own pace and moment
+float tug(vec2 tuft) {
+  float pace = 0.7 + 0.6 * hash(tuft);
+  float moment = 6.2831 * hash(tuft + 17.3);
+  return 0.5 + 0.5 * sin(uTime * ${SWAY_SPEED.toFixed(2)} * pace + moment);
+}
+
+// The tug at any point, blended between the four nearest tufts so their borders don't show
+float tugAt(vec2 p) {
   vec2 i = floor(p);
   vec2 f = fract(p);
   f = f * f * (3.0 - 2.0 * f);
-  return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x),
-             mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y);
+  return mix(mix(tug(i), tug(i + vec2(1.0, 0.0)), f.x),
+             mix(tug(i + vec2(0.0, 1.0)), tug(i + vec2(1.0, 1.0)), f.x), f.y);
 }
 
 void main() {
@@ -311,26 +325,37 @@ void main() {
   float gust = wind.r;  // wind passing over here now
   float laid = wind.g;  // how far the pile lies down
 
-  // each tuft trembles on its own, faster in a stronger wind
-  vec2 tuft = vUv / (uPx * ${TUFT_PX.toFixed(1)});
-  float a = noise(tuft + vec2(0.0, uTime * (3.0 + gust * 5.0)));
-  float b = noise(tuft * 1.7 + vec2(uTime * (4.0 + gust * 6.0), 7.0));
+  vec2 tuft = vUv / (uPx * vec2(${TUFT_PX.toFixed(1)}, ${(TUFT_PX * TUFT_TALL).toFixed(1)}));
+  float t = tugAt(tuft);
 
-  // the tips bend away from the wind (up the screen), so each pixel shows the pile from just below it
-  vec2 shift = vec2((b - 0.5) * ${SWAY_PX.toFixed(1)} * gust,
-                    laid * ${LEAN_PX.toFixed(1)} + (a - 0.5) * ${FLUTTER_PX.toFixed(1)} * gust) * uPx;
-  vec4 photo = texture2D(uPhoto, clamp(vUv + shift, uPx, 1.0 - uPx));
-  vec3 c = photo.rgb;
+  // how far the fibres here bend away from the wind (up the screen), in photo pixels: always the
+  // same way, further while the wind tugs at them
+  float bend = laid * ${LEAN_PX.toFixed(1)} + gust * ${SWAY_PX.toFixed(1)} * t;
+  float side = (t - 0.5) * ${SIDE_PX.toFixed(1)} * gust;
+
+  // a bent fibre runs from its root (further down) to its tip (here): the photo is drawn out
+  // along it into a strand, the tip counting most
+  vec3 c = vec3(0.0);
+  float total = 0.0;
+  for (int k = 0; k < 6; k++) {
+    float along = float(k) / 5.0;
+    float weight = 0.12 + along * along * along * 2.0;
+    vec2 at = vUv + vec2(side * along, bend * along) * uPx;
+    c += texture2D(uPhoto, clamp(at, uPx, 1.0 - uPx)).rgb * weight;
+    total += weight;
+  }
+  c /= total;
+  float alpha = texture2D(uPhoto, vUv).a; // the rug's soft edge stays where it is
 
   // the front of the gust: more wind just below than just above
   float front = texture2D(uWind, vUv + vec2(0.0, uCell.y * 1.5)).g - texture2D(uWind, vUv - vec2(0.0, uCell.y * 1.5)).g;
   float tone = 1.0 - ${WIND_DEEP.toFixed(3)} * laid
-             + ${WIND_SHEEN.toFixed(3)} * clamp(front * 3.0, 0.0, 1.0) * (0.6 + 0.8 * a)
-             + ${WIND_SHIMMER.toFixed(3)} * (b - 0.5) * 2.0 * gust;
+             + ${WIND_SHEEN.toFixed(3)} * clamp(front * 3.0, 0.0, 1.0)
+             + ${WIND_SHIMMER.toFixed(3)} * (t - 0.5) * 2.0 * gust;
   float grey = dot(c, vec3(0.3, 0.59, 0.11));
   c = mix(vec3(grey), c, 1.0 + ${WIND_RICH.toFixed(3)} * laid);
   // the cut-out rug's soft edge and shadow stay see-through, as in the photo
-  gl_FragColor = vec4(c * tone * photo.a, photo.a);
+  gl_FragColor = vec4(c * tone * alpha, alpha);
 }`;
 
 let gl = null;
