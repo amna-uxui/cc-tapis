@@ -27,6 +27,8 @@ const VOICE_PITCH = 0.45;   // how clearly a sound repeats itself (0 = not at al
 const BREATH_HISS = 0.18;   // how evenly a breath spreads over the frequencies, at least (0 = one note, 1 = pure hiss)
 const BREATH_HOLD = 0.2;    // seconds a breath must go on before the rug moves (talking's hissy bits are shorter)
 const VOICE_REST = 0.3;     // seconds after a voice before a breath counts (the gaps between words don't blow)
+const ECHO_MARGIN = 18;     // dB louder a breath must be while the rug's own wind sound plays at full
+                            // volume (js/carpet-wind-sound.js), so the microphone doesn't hear it as a breath
 const ROOM_LEARN = 1;       // seconds after tapping spent listening to the quiet room (nothing blows then)
 const BREATH_RISE = 0.35;   // how quickly the wind follows a breath that gets stronger (1 = instantly)
 const BREATH_FALL = 0.06;   // and one that fades (lower = the gust trails off more softly)
@@ -134,6 +136,9 @@ async function startListening() {
   }
   micState = "asking";
   showBlowStatus("Allow the microphone");
+  // iPhone: the page may be set to only play sound (the brushing sound on Hypercode does that); to
+  // listen too it must play and record, or the microphone is refused
+  if (navigator.audioSession) navigator.audioSession.type = "play-and-record";
   if (micChannel) micChannel.postMessage("mine"); // other pages of this site: let go of it
   const tries = [];
   for (const way of [
@@ -217,7 +222,8 @@ function hear(seconds) {
   hearing.floor = floor;
   if (audio.heard < ROOM_LEARN) return 0;
 
-  const loud = Math.min(1, Math.max(0, (level - floor - BLOW_GATE) / BLOW_RANGE));
+  const echo = typeof windSound !== "undefined" ? windSound.level() * ECHO_MARGIN : 0;
+  const loud = Math.min(1, Math.max(0, (level - floor - BLOW_GATE - echo) / BLOW_RANGE));
   if (loud <= 0) {
     audio.blowing = 0;
     hearing.pitch = hearing.hiss = 0;
@@ -559,9 +565,11 @@ function frame(now) {
   const moving = stepWind(seconds);
   document.body.classList.toggle("is-blowing", moving);
   if (moving) drawPile();
+  if (typeof windSound !== "undefined") windSound.follow(breath, seconds); // the wind's sound
 
   // keep going while the wind blows or the rug listens; otherwise rest until the next breath
   running = moving || listening || holding || heldBreath > 0.001 ? requestAnimationFrame(frame) : null;
+  if (!running && typeof windSound !== "undefined") windSound.hush();
 }
 
 // ---------- The wind button ----------
@@ -576,6 +584,7 @@ function showBlowStatus(text) {
 
 // A tap: listen, or stop listening (nothing blows until you do)
 blowButton.addEventListener("click", () => {
+  if (typeof windSound !== "undefined") windSound.start(); // a tap: the wind's sound may play from now
   if (listening) stopListening();
   else if (micState !== "asking") startListening(); // also tries again after it went wrong
 });
@@ -583,6 +592,7 @@ blowButton.addEventListener("click", () => {
 // Without a microphone, holding the button blows instead
 blowButton.addEventListener("pointerdown", () => {
   if (!noMic) return;
+  if (typeof windSound !== "undefined") windSound.start();
   holding = true;
   wake();
 });
@@ -603,6 +613,7 @@ function calmWind() {
     lay.fill(0);
   }
   document.body.classList.remove("is-blowing");
+  if (typeof windSound !== "undefined") windSound.hush();
 }
 
 // The phone gives the microphone to one page at a time. So leaving the page (another tab, another
@@ -625,6 +636,7 @@ if (micChannel) {
 document.addEventListener("keydown", (e) => {
   if (e.code !== "Space" || e.repeat || !blowActive) return;
   e.preventDefault();
+  if (typeof windSound !== "undefined") windSound.start();
   holding = true;
   wake();
 });

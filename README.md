@@ -8,7 +8,7 @@ Mobile-first prototype in the look and feel of cc-tapis (Milano). One screen, no
 
 Live: https://amna-uxui.github.io/cc-tapis/
 
-- **Hypercode** by Roberto Sironi: to draw, brush the velvet pile with your finger.
+- **Hypercode** by Roberto Sironi: to touch, brush the velvet pile with your finger.
 - **GrandMa Patterns** by Rop van Mierlo (`#grandma-patterns`): to blow, tap the wind button and blow on the bottom of the phone. Add `?debug` to see what the microphone hears.
 
 ## Run it

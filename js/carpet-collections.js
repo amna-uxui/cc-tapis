@@ -1,5 +1,5 @@
 /*
-  The collections on the one page: Hypercode (to draw) and GrandMa Patterns (to blow). Going from
+  The collections on the one page: Hypercode (to touch) and GrandMa Patterns (to blow). Going from
   one to the next, only the rug moves: it slides off to the side (its bottom trailing a little
   behind, like fabric pulled across a floor) and the next collection's rug slides in from the other
   side and settles; its name above and its row below just fade over. The top bar and the buttons at the
