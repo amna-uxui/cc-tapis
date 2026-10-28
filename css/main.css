@@ -1173,12 +1173,13 @@ body {
   right: 0;
 }
 
-/* Its top: a black bar, the title in the middle, [–] on the right, in white; stays put while
-   what's under it scrolls */
+/* Its top: a black bar, the title in the middle, [–] on the right, in white, floating clear of
+   the sheet's edges; stays put while what's under it scrolls */
 .info-sheet__top {
   flex: none;
-  height: var(--header-height);
-  padding: 0 var(--space-4);
+  height: 44px;
+  margin: var(--space-3) var(--space-3) var(--space-2);
+  padding: 0 var(--space-3);
   background: var(--color-ink);
   color: var(--color-paper);
   display: grid;
