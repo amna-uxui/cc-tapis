@@ -24,7 +24,7 @@ const ZOOM_STRETCH = 0.35;   // how far you can pinch past the limits before it 
 const ZOOM_SNAP = 0.1;       // pinch at least this much (10%) to switch between full carpet and close-up
 const ZOOM_DURATION = 650;   // ms for the double-tap / snap zoom animation
 const FIT_GAP = 16;     // space around the full carpet, between the bars
-const FIT_SIDE = 24;    // space left and right of the full carpet (52 makes room for the arrows)
+const FIT_SIDE = 24;    // space left and right of the full carpet (the arrows sit in it)
 const FIT_LOW = 0.5;    // where the full carpet sits in the space it has, top (0) to bottom (1): centred
 const BRUSH_WIDTH = 56;      // how wide the brush is, in carpet pixels: between a fingertip and a palm
 const PILE_PUSH = 1.4;       // how far one stroke pushes the pile (1 = fully pushed after a brush width)
@@ -72,7 +72,6 @@ let fit = { left: 0, top: 0, width: 0, height: 0 }; // the area the full carpet 
 
 // ---------- Drawing ----------
 
-const arrows = stage.querySelectorAll(".arrow");
 const verb = stage.querySelector(".verb"); // "To Draw", kept on the middle of the rug
 
 const OUT_ZOOM = 1.02; // zoomed out to (almost exactly) the full carpet: arrows, name, size and shapes show
@@ -85,11 +84,8 @@ let leaning = null;
 function render() {
   carpet.style.transform = `translate3d(${view.x + swipeShift}px, ${view.y}px, 0) scale(${view.scale}) skewX(${swipeLean}deg)`;
   if (swipeShift !== lastShift && !leaning) leaning = requestAnimationFrame(dragFabric);
-  if (verb) {
-    verb.style.setProperty("--rug-x", `${view.x + (img.naturalWidth * view.scale) / 2}px`);
-    verb.style.setProperty("--rug-y", `${view.y + (img.naturalHeight * view.scale) / 2}px`);
-  }
-  updateArrows();
+  if (verb) verb.style.setProperty("--rug-x", `${view.x + (img.naturalWidth * view.scale) / 2}px`);
+  stage.style.setProperty("--rug-y", `${view.y + (img.naturalHeight * view.scale) / 2}px`); // the verb, the arrows
   document.body.classList.toggle("is-zoomed-out", view.scale < fitScale * OUT_ZOOM);
 }
 
@@ -101,14 +97,6 @@ function onCarpet(x, y) {
   const v = (y - view.y) / h;
   if (carpet.classList.contains("is-round")) return (u - 0.5) ** 2 + (v - 0.5) ** 2 < 0.25;
   return u > 0 && u < 1 && v > 0 && v < 1;
-}
-
-// White arrows over the carpet, black arrows when they sit on the white page
-function updateArrows() {
-  arrows.forEach((arrow) => {
-    const box = arrow.getBoundingClientRect();
-    arrow.classList.toggle("is-on-paper", !onCarpet(box.left + box.width / 2, box.top + box.height / 2));
-  });
 }
 
 // ---------- Measuring ----------

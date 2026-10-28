@@ -31,10 +31,15 @@
       <div class="carpet__light" aria-hidden="true"></div> <!-- Hypercode: the lamp's light (js/carpet-lamp.js) -->
     </div>
 
-    <!-- Arrows, taken out for now (their styles are still in css/main.css):
-    <button class="arrow arrow--prev mono" aria-label="Previous carpet">←</button>
-    <button class="arrow arrow--next mono" aria-label="Next carpet">→</button>
-    -->
+    <!-- Zoomed out, a slim arrow each side of the rug, in the white beside it: there's another
+         collection that way (swipe, or tap the arrow); none past the first or the last
+         (js/carpet-collections.js) -->
+    <button class="arrow arrow--prev" aria-label="Previous collection" data-switch="-1">
+      <svg viewBox="0 0 8 16" aria-hidden="true"><path d="M7 1 1 8l6 7" /></svg>
+    </button>
+    <button class="arrow arrow--next" aria-label="Next collection" data-switch="1">
+      <svg viewBox="0 0 8 16" aria-hidden="true"><path d="m1 1 6 7-6 7" /></svg>
+    </button>
     <!-- The verb: tells you what you can do with this carpet, shown for a few seconds when the page opens -->
     <p class="verb" aria-live="polite" data-verb>To touch</p>
   </main>

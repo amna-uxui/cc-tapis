@@ -52,6 +52,8 @@ function applyCollection(index) {
   }
   markMenu(collection.id);
   history.replaceState(null, "", `#${collection.id}`);
+  // no arrow where there's no collection that way
+  switchArrows.forEach((arrow) => arrow.classList.toggle("is-end", !canSwitch(Number(arrow.dataset.switch))));
 }
 
 // Slide to the collection at `index`. dir: 1 = it comes in from the right, -1 from the left
@@ -94,6 +96,10 @@ function canSwitch(step) {
   const index = collectionIndex + step;
   return index >= 0 && index < MENU_COLLECTIONS.length;
 }
+
+// The arrows beside the whole rug: a tap goes that way, as a swipe does
+const switchArrows = document.querySelectorAll("[data-switch]");
+switchArrows.forEach((arrow) => arrow.addEventListener("click", () => switchCollection(Number(arrow.dataset.switch))));
 
 // The next (step 1) or previous (step -1) collection; at the ends, the rug springs back
 function switchCollection(step) {

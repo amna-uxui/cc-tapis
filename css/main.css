@@ -120,21 +120,22 @@ body {
   cursor: crosshair;
 }
 
+/* The arrows: slim, in the white margin beside the whole rug (never on it), level with its middle
+   (--rug-y, js/carpet-viewer.js); only while it's all in view, and none where there's no other
+   collection that way (js/carpet-collections.js) */
 .arrow {
   position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
+  top: var(--rug-y, 50%);
   z-index: 1;
-  width: 48px;
-  height: 48px;
-  font-size: 36px;
-  line-height: 1;
-  color: var(--color-paper);
-  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.35); /* keeps the arrows readable on light carpets */
-  transition: color var(--duration) var(--ease), text-shadow var(--duration) var(--ease), opacity var(--duration) var(--ease);
-  /* only while the whole rug is in view (body.is-zoomed-out, set by js/carpet-viewer.js) */
+  width: 24px;
+  height: 56px;
+  margin-top: -28px;
+  display: grid;
+  place-items: center;
+  color: var(--color-ink);
   opacity: 0;
   pointer-events: none;
+  transition: opacity var(--duration) var(--ease);
 }
 
 .is-zoomed-out .arrow {
@@ -142,18 +143,28 @@ body {
   pointer-events: auto;
 }
 
-/* Zoomed out: the arrows sit on the white page, so they turn black (set by js/carpet-viewer.js) */
-.arrow.is-on-paper {
-  color: var(--color-ink);
-  text-shadow: none;
+.is-zoomed-out .arrow.is-end,
+.is-zoomed-out.is-switching .arrow,
+.is-reading .arrow {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.arrow svg {
+  width: 8px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: square;
 }
 
 .arrow--prev {
-  left: var(--space-2);
+  left: 0;
 }
 
 .arrow--next {
-  right: var(--space-2);
+  right: 0;
 }
 
 /* Karbon (Klim Type Foundry), trial version (fonts/TestKarbon-Light.otf): check its licence before
