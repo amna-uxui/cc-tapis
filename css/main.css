@@ -1066,15 +1066,19 @@ body {
   position: fixed;
   inset: 0;
   z-index: 5;
-  display: none;
+  background: rgba(0, 0, 0, 0.12); /* the page behind dims a little */
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 800ms cubic-bezier(0.65, 0, 0.35, 1);
 }
 
 .is-reading .info-backdrop {
-  display: block;
+  opacity: 1;
+  pointer-events: auto;
 }
 
 /* The sheet: the grey of the top bar, floating with its margins, as tall as the screen less them
-   (its top lines up with the top bar's); it slides up from the bottom (js/carpet-info.js). One font throughout, headings in capitals, as on cc-tapis.com. */
+   (its top lines up with the top bar's); it slides up from below like a page (js/carpet-info.js). One font throughout, headings in capitals, as on cc-tapis.com. */
 .info-sheet {
   position: fixed;
   left: 0;
@@ -1091,11 +1095,16 @@ body {
   font-family: var(--font-mono); /* the font of the size and price on the home page, and only it */
   font-size: 12px; /* one font, one size, one weight for everything on it: headings only in capitals */
   font-weight: 400;
-  transform: translateY(100vh);
-  /* smooth as butter: off quickly, gliding into place with a long, soft slowdown (js/carpet-info.js:
-     SLIDE_TIME), on the graphics chip so it never stutters */
-  transition: transform 600ms cubic-bezier(0.22, 1, 0.36, 1);
+  /* put away: just below the screen. It slides up like a page, smoothly: starting gently, moving
+     steadily and settling gently (js/carpet-info.js: SLIDE_TIME), on the graphics chip so it never
+     stutters */
+  transform: translateY(calc(100% + var(--space-6)));
+  transition: transform 800ms cubic-bezier(0.65, 0, 0.35, 1);
   will-change: transform;
+}
+
+.info-sheet.is-shown {
+  transform: translateY(0);
 }
 
 .info-sheet.is-dragging {

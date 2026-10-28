@@ -5,8 +5,8 @@
   folded away, its description, its product details and how it can be made to order ([+] opens
   one at a time).
 
-  - A simple page: it slides up from the bottom, and back down again with [–], a tap outside it,
-    or pulling it down from its top (pulled only a little, it slides back up). What's on it
+  - A simple page: it slides up from below, smoothly, and back down again with [–], a tap outside
+    it, or pulling it down from its top (pulled only a little, it settles back). What's on it
     scrolls.
   - While it's open, the rug can't be zoomed, swiped to the next collection or drawn on.
   - The words follow each collection's page on cc-tapis.com (its details as they are, its
@@ -63,7 +63,7 @@ const RUG_STORIES = {
   },
 };
 
-const SLIDE_TIME = 600;      // ms it takes to slide up or down (as in css/main.css)
+const SLIDE_TIME = 800;      // ms it takes to slide up or down (as in css/main.css)
 const CLOSE_PAST = 1 / 3;    // pulled down further than this share of it, it goes when let go
 
 const infoButton = document.querySelector("[data-info]");
@@ -158,21 +158,16 @@ function fillSheet() {
 
 // ---------- Opening and closing it ----------
 
-// Where the sheet is: 0 open, its own height below that put away (now: no gliding there)
-function placeSheet(y, now = false) {
-  infoSheet.classList.toggle("is-dragging", now);
-  infoSheet.style.transform = `translateY(${y}px)`;
-}
-
+// Opening, it slides up like a page, smoothly, and the page behind dims a little; closing, the
+// same in reverse (the moves themselves are in css/main.css: .info-sheet, .is-shown)
 function openInfo() {
   fillSheet();
   infoSheet.classList.add("is-open");
   infoSheet.setAttribute("aria-hidden", "false");
   infoButton.setAttribute("aria-expanded", "true");
   document.body.classList.add("is-reading");
-  placeSheet(window.innerHeight, true);
   infoSheet.getBoundingClientRect(); // (start from below)
-  placeSheet(0);
+  infoSheet.classList.add("is-shown");
   reading = true;
 }
 
@@ -182,7 +177,8 @@ function closeInfo() {
   infoSheet.setAttribute("aria-hidden", "true");
   infoButton.setAttribute("aria-expanded", "false");
   document.body.classList.remove("is-reading");
-  placeSheet(window.innerHeight);
+  infoSheet.style.transform = "";
+  infoSheet.classList.remove("is-dragging", "is-shown");
   setTimeout(() => !reading && infoSheet.classList.remove("is-open"), SLIDE_TIME);
 }
 
@@ -218,7 +214,8 @@ infoSheet.addEventListener(
     drag.last = y;
     drag.time = now;
     drag.down = Math.max(0, dy);
-    placeSheet(drag.down, true);
+    infoSheet.classList.add("is-dragging");
+    infoSheet.style.transform = `translateY(${drag.down}px)`;
   },
   { passive: false }
 );
@@ -227,10 +224,7 @@ infoSheet.addEventListener("touchend", () => {
   const { moving, speed, down = 0 } = drag;
   drag = null;
   if (!moving) return;
+  infoSheet.classList.remove("is-dragging");
+  infoSheet.style.transform = "";
   if (down > infoSheet.offsetHeight * CLOSE_PAST || speed > 0.6) closeInfo();
-  else placeSheet(0);
-});
-
-window.addEventListener("resize", () => {
-  if (!reading) placeSheet(window.innerHeight, true);
 });
