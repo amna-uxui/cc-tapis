@@ -28,7 +28,7 @@ const COLOURWAYS = [
   { name: "Dune Shadow", ground: [70, 50, 40], leaf: [219, 202, 176] },
 ];
 
-const RIPPLE_BAND = 128;     // how wide the band of leaves is, in pixels of the 1500 px canvas (about 17 cm)
+const RIPPLE_BAND = 260;     // how wide the band of leaves is, in pixels of the 1500 px canvas (about 35 cm)
 // The brush, from Ripple_01.svg (its units): a band 87 high, a leaf every 24.33 along it, each leaf
 // an ellipse 12.16 wide and 43.5 tall (half sizes), standing across the band
 const BAND = { height: 87, every: 24.33, rx: 12.16, ry: 43.5 };
@@ -110,6 +110,10 @@ function drawOwn(left, top, right, bottom) {
   mix.drawImage(own.leaves, left, top, w, h, left, top, w, h);
   const ctx = rippleCtx;
   ctx.save();
+  // only this part: cutting the wool to the strokes' shape would otherwise clear the whole canvas
+  ctx.beginPath();
+  ctx.rect(left, top, w, h);
+  ctx.clip();
   ctx.clearRect(left, top, w, h);
   ctx.drawImage(own.mix, left, top, w, h, left, top, w, h);
   ctx.globalCompositeOperation = "multiply";
