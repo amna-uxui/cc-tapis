@@ -347,6 +347,7 @@ function ownTo(p, aim) {
     stroke.time = now;
     const fast = Math.min(1, Math.max(0, (speed - STRETCH_SPEED[0]) / (STRETCH_SPEED[1] - STRETCH_SPEED[0])));
     aim = 1 + fast * (STRETCH_MOST - 1);
+    if (typeof rippleSound !== "undefined") rippleSound.move(fast); // a swish of wool now and then (js/carpet-ripple-sound.js)
   }
   const way = COLOURWAYS[chosenWay];
   drawBand(stroke.points, way.ground);
@@ -535,6 +536,7 @@ function pickWay(way) {
 const ripplePaint = {
   start(p) {
     if (own) ownStart(p);
+    if (own && typeof rippleSound !== "undefined") rippleSound.begin();
   },
   to(p) {
     if (stroke) ownTo(p);
@@ -542,6 +544,7 @@ const ripplePaint = {
   end() {
     if (stroke) ownEnd();
     stroke = null;
+    if (typeof rippleSound !== "undefined") rippleSound.end();
   },
   wipe() {
     if (own) startOver();
