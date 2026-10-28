@@ -3,6 +3,10 @@
   up the shaggy pile from the bottom of the screen. The harder you blow, the further the pile
   bends and the faster it flutters; when you stop, it settles back.
 
+  How close you are counts, as with a real rug: with the whole rug in view your breath moves all
+  of it; close up, only a patch of pile in the middle of what you see, its edge soft (the closer,
+  the smaller that patch is on the rug), and the gust starts at the patch's lower edge.
+
   - Tap the wind button (bottom right) to let the rug listen (the phone asks for the microphone
     once). Nothing moves until you blow. Tap again to stop listening.
   - No microphone ("Don't allow", or none at all): then holding the wind button blows instead.
@@ -39,6 +43,8 @@ const GUST_SPEED = 900;     // screen pixels per second a gust travels up the sc
 const GUST_FADE = 1.4;      // seconds for a gust to lose half its strength as it travels
 const GUST_SWAY = 0.6;      // how much the gust curls left and right as it goes (in grid cells)
 const GUST_SPREAD = 0.18;   // how much it spreads sideways, so its front is soft, not a ruler line
+const PATCH = 0.42;         // close up, the wind reaches this far from the middle of the screen (share of its narrower side) ..
+const PATCH_SOFT = 0.5;     // .. fading out over this share of that, so the patch has no edge
 const WIND_DOWN = 0.12;     // seconds for the pile to bend all the way when the wind reaches it
 const WIND_UP = 1.2;        // seconds for it to rise halfway back once the wind has passed
 
@@ -341,33 +347,64 @@ function sampleEnergy(x, y) {
   return top * (1 - fy) + bottom * fy;
 }
 
+// How close up the rug is: 0 with the whole rug in view .. 1 at the close-up (or closer)
+function closeness() {
+  const near = closeUpScale() / fitScale - 1;
+  return near > 0 ? Math.min(1, Math.max(0, (view.scale / fitScale - 1) / near)) : 0;
+}
+
+// Close up, where the wind can reach: the patch round the middle of the screen (in wind cells),
+// and how much of it reaches a cell, 1 .. 0 at its soft edge (everywhere 1 with the whole rug in view)
+function windPatch(cell) {
+  const near = closeness();
+  const radius = (PATCH * Math.min(stage.clientWidth, stage.clientHeight)) / view.scale / cell;
+  return {
+    near,
+    x: (stage.clientWidth / 2 - view.x) / view.scale / cell,
+    y: (stage.clientHeight / 2 - view.y) / view.scale / cell,
+    radius,
+    reach(x, y) {
+      if (near <= 0) return 1;
+      const d = Math.hypot(x - this.x, y - this.y) / radius;
+      const inside = Math.min(1, Math.max(0, (1 - d) / PATCH_SOFT));
+      const soft = inside * inside * (3 - 2 * inside);
+      return 1 - near * (1 - soft);
+    },
+  };
+}
+
 // One step of the wind: gusts travel up the screen, fading and spreading, new ones come in at the
-// bottom of the screen with the breath, and the pile bends under them and rises again after
+// bottom of the screen with the breath (close up, at the bottom of the patch), and the pile bends
+// under them and rises again after
 function stepWind(seconds) {
   clock += seconds;
   const cell = img.naturalWidth / gw;                       // photo pixels per cell
   const rise = (GUST_SPEED / view.scale / cell) * seconds;   // cells the gusts travel this step
   const keep = Math.pow(0.5, seconds / GUST_FADE);
+  const patch = windPatch(cell);
 
   for (let y = 0; y < gh; y++) {
     for (let x = 0; x < gw; x++) {
       const sway = (Math.sin(y * 0.21 + clock * 2.3) + Math.sin(x * 0.13 - clock * 1.7)) * 0.5 * GUST_SWAY;
       const here = sampleEnergy(x + sway, y + rise);
       const sides = (sampleEnergy(x - 1 + sway, y + rise) + sampleEnergy(x + 1 + sway, y + rise)) / 2;
-      spare[y * gw + x] = (here + (sides - here) * GUST_SPREAD) * keep;
+      spare[y * gw + x] = (here + (sides - here) * GUST_SPREAD) * keep * patch.reach(x, y);
     }
   }
   [energy, spare] = [spare, energy];
 
-  // the breath comes in along the bottom of the screen (or the rug's bottom edge, if that's higher)
+  // the breath comes in along the bottom of the screen (or the rug's bottom edge, if that's
+  // higher); close up, along the bottom of the patch
   if (breath > 0.001) {
-    const bottom = (stage.clientHeight - view.y) / view.scale / cell;
+    const screenBottom = (stage.clientHeight - view.y) / view.scale / cell;
+    const patchBottom = Math.min(screenBottom, patch.y + patch.radius * (1 - PATCH_SOFT));
+    const bottom = screenBottom + (patchBottom - screenBottom) * patch.near;
     const row = Math.min(gh - 1, Math.floor(bottom));
     const depth = Math.max(1, Math.ceil(rise)); // fill the rows a fast gust would otherwise skip
     for (let r = row; r > row - depth && r >= 0; r--) {
       for (let x = 0; x < gw; x++) {
         const i = r * gw + x;
-        energy[i] = Math.max(energy[i], breath * (0.55 + 0.45 * ragged(x)));
+        energy[i] = Math.max(energy[i], breath * (0.55 + 0.45 * ragged(x)) * patch.reach(x, r));
       }
     }
   }

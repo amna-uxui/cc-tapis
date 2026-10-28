@@ -1,8 +1,8 @@
 /*
   The sound of the wind on GrandMa Patterns: the rug answers your breath. While you blow it stays
-  quiet, and when you stop, a wind made from a recording of a breath (sounds/blow.m4a) plays out as
-  the pile settles: louder and airier after a strong or long blow, softer after a little puff,
-  fading away over a couple of seconds. It is never the same twice: it's woven from short,
+  quiet, and when you stop, a short, soft wind made from a recording of a breath (sounds/blow.m4a)
+  answers: a little airier after a strong or long blow, softer after a puff, and gone within
+  about a second. It is never the same twice: it's woven from short,
   overlapping pieces of the recording, each from a different moment in it, at a slightly different
   speed, drifting a little left or right.
 
@@ -17,15 +17,15 @@
 */
 
 const WIND_FILE = "sounds/blow.m4a";
-const WIND_VOLUME = 1;        // loudest the wind gets (0..1)
-const WIND_BOOST = 26;        // the recording is soft: this much louder (a limiter keeps it clean)
-const WIND_PIECE = 1.1;       // seconds each piece of the recording plays
+const WIND_VOLUME = 0.6;      // loudest the wind gets (0..1): a soft answer, not a storm
+const WIND_BOOST = 18;        // the recording is soft: this much louder (a limiter keeps it clean)
+const WIND_PIECE = 0.7;       // seconds each piece of the recording plays
 const WIND_EVERY = [0.55, 0.25]; // seconds between new pieces: soft breath .. strong breath
 const WIND_SPEED = [0.85, 1.15]; // how fast the pieces play: soft .. strong (faster sounds higher, airier)
 const WIND_DULL = 1200;       // Hz: after a soft breath it sounds this muffled ..
 const WIND_AIRY = 9000;       // .. after a strong one this open
 const WIND_SWELL = 0.12;      // seconds the wind takes to swell once the breath stops
-const WIND_TAIL = 1.1;        // seconds for it to fall to a third (fading out with the pile settling)
+const WIND_TAIL = 0.45;       // seconds for it to fall to a third: a short breath of wind, quickly gone
 const WIND_LONG = 1.2;        // seconds of blowing for the fullest answer (a shorter puff answers softer)
 
 const windSound = (() => {
