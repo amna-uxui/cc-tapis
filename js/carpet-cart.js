@@ -115,10 +115,11 @@ uniform vec2 uView;          // the screen (px)
 uniform float uGone;         // how much of it, from its bottom edge, is on the roll (px)
 uniform float uCore;         // the roll's radius with nothing on it (px)
 uniform float uThick;        // the rug's thickness (px): the roll grows by this each turn
+uniform vec4 uCrop;          // where the rug is in its picture: left, top, width, height (0..1)
 varying vec2 vUV;
 varying vec3 vNormal;
 void main() {
-  vUV = aUV;
+  vUV = uCrop.xy + aUV * uCrop.zw;
   float x = uBox.x + aUV.x * uBox.z;
   float y = uBox.y + aUV.y * uBox.w;
   float fromBottom = (1.0 - aUV.y) * uBox.w;
@@ -224,7 +225,7 @@ function setUpRollGl() {
     count: index.length,
     rug: texture(0),
     grain: texture(1),
-    uniforms: { box: u("uBox"), view: u("uView"), gone: u("uGone"), core: u("uCore"), thick: u("uThick"), onWhite: u("uOnWhite") },
+    uniforms: { box: u("uBox"), view: u("uView"), gone: u("uGone"), core: u("uCore"), thick: u("uThick"), onWhite: u("uOnWhite"), crop: u("uCrop") },
   };
   gl.uniform1i(u("uRug"), 0);
   gl.uniform1i(u("uGrain"), 1);
@@ -252,12 +253,42 @@ function loadImage(src) {
   });
 }
 
-// Ready to roll this rug: its picture on the mesh, the canvas over the whole screen
-async function readyRoll(item, box) {
+// Where the rug itself is in its picture (not the white or see-through margin round it), 0..1
+function rugArea(picture, onWhite) {
+  const c = document.createElement("canvas");
+  c.width = 160;
+  c.height = Math.max(1, Math.round((160 * picture.naturalHeight) / picture.naturalWidth));
+  const ctx = c.getContext("2d");
+  ctx.drawImage(picture, 0, 0, c.width, c.height);
+  const d = ctx.getImageData(0, 0, c.width, c.height).data;
+  let left = c.width, right = -1, top = c.height, bottom = -1;
+  for (let y = 0; y < c.height; y++) {
+    for (let x = 0; x < c.width; x++) {
+      const i = (y * c.width + x) * 4;
+      if (d[i + 3] < 128 || (onWhite && Math.min(d[i], d[i + 1], d[i + 2]) > 242)) continue;
+      left = Math.min(left, x); right = Math.max(right, x);
+      top = Math.min(top, y); bottom = Math.max(bottom, y);
+    }
+  }
+  if (right < 0) return { u: 0, v: 0, width: 1, height: 1 };
+  return { u: left / c.width, v: top / c.height, width: (right + 1 - left) / c.width, height: (bottom + 1 - top) / c.height };
+}
+
+// Ready to roll this rug: its picture on the mesh (just the rug, not the margin round it in its
+// picture), the canvas over the whole screen
+async function readyRoll(item, page) {
   if (!rollGl) rollGl = setUpRollGl();
   if (!rollGl) return null;
   const picture = await loadImage(item.picture);
   if (!picture) return null;
+  const onWhite = document.body.dataset.collection === "grandma-patterns";
+  const area = rugArea(picture, onWhite);
+  const box = {
+    left: page.left + area.u * page.width,
+    top: page.top + area.v * page.height,
+    width: area.width * page.width,
+    height: area.height * page.height,
+  };
   const { gl, stage, canvas, uniforms } = rollGl;
   const scale = Math.min(2, window.devicePixelRatio || 1);
   canvas.width = Math.round(window.innerWidth * scale);
@@ -265,7 +296,7 @@ async function readyRoll(item, box) {
   stage.style.transform = "";
   stage.style.visibility = "visible";
   // the roll's ends: the rug's own colour wound round
-  const [r, g, b] = averageColour(picture, document.body.dataset.collection === "grandma-patterns");
+  const [r, g, b] = averageColour(picture, onWhite);
   stage.style.setProperty("--roll-colour", `rgb(${r}, ${g}, ${b})`);
   stage.style.setProperty("--roll-deep", `rgb(${Math.round(r * 0.6)}, ${Math.round(g * 0.6)}, ${Math.round(b * 0.6)})`);
   gl.viewport(0, 0, canvas.width, canvas.height);
@@ -277,7 +308,8 @@ async function readyRoll(item, box) {
   gl.uniform2f(uniforms.view, window.innerWidth, window.innerHeight);
   gl.uniform1f(uniforms.core, ROLL_CORE);
   gl.uniform1f(uniforms.thick, ROLL_THICKNESS);
-  gl.uniform1f(uniforms.onWhite, document.body.dataset.collection === "grandma-patterns" ? 1 : 0);
+  gl.uniform1f(uniforms.onWhite, onWhite ? 1 : 0);
+  gl.uniform4f(uniforms.crop, area.u, area.v, area.width, area.height);
   return { box };
 }
 
@@ -315,7 +347,7 @@ function rollTo(state, rolled) {
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
   gl.drawElements(gl.TRIANGLES, count, gl.UNSIGNED_SHORT, 0);
   const roll = rollSize(state, rolled);
-  const on = rolled > 0.01;
+  const on = Math.min(1, rolled * 25); // fading in as they start to grow
   const reach = (roll.width / 2) * (1 + roll.radius / 900); // as wide as the roll is, at its middle
   ends.forEach((end, k) => {
     const x = roll.x + (k ? reach : -reach);
@@ -324,7 +356,7 @@ function rollTo(state, rolled) {
       top: `${roll.y - roll.radius}px`,
       width: `${roll.radius * 0.84}px`,
       height: `${roll.radius * 2}px`,
-      opacity: on ? 1 : 0,
+      opacity: on,
     });
   });
   Object.assign(shadow.style, {
@@ -332,7 +364,7 @@ function rollTo(state, rolled) {
     top: `${roll.y + roll.radius * 0.4}px`,
     width: `${reach * 2}px`,
     height: `${roll.radius * 1.3}px`,
-    opacity: on ? 1 : 0,
+    opacity: on,
   });
 }
 
