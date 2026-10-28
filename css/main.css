@@ -1001,40 +1001,8 @@ body {
 
 
 
-/* No button on the right (colour or wind) on Ripple Square and Stroke: an empty space there keeps
-   Buy centred */
-[data-collection="ripple-square"] .bar--bottom::after,
-[data-collection="stroke"] .bar--bottom::after {
+/* No button on the right (colour or wind) on Ripple Square: an empty space there keeps Buy centred */
+[data-collection="ripple-square"] .bar--bottom::after {
   content: "";
   width: 32px;
-}
-
-/* ---------- Stroke (js/carpet-stroke.js) ---------- */
-
-/* The rug as you bend it: drawn on a canvas reaching past the rug (its size set by the script);
-   the photo itself steps aside */
-.carpet__warp {
-  position: absolute;
-  pointer-events: none;
-}
-
-[data-collection]:not([data-collection="stroke"]) .carpet__warp {
-  display: none;
-}
-
-[data-collection="stroke"] .carpet img {
-  visibility: hidden;
-}
-
-/* A colour in the row: a round dot of the rug's colour */
-.stroke-dot {
-  display: block;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  background: var(--a);
-}
-
-.strip__item:has(.stroke-dot) {
-  border-radius: 50%;
 }
