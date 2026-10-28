@@ -1,12 +1,13 @@
 /*
   Ripple Square by Patricia Urquiola: make your own rug. It starts as a blank 200 × 200 cm
   canvas with a single ripple on it; you add more, stroke by stroke, with a brush made from
-  Ripple's own row of leaves (Ripple_01.svg): a band of ground with leaves standing across it,
-  following the curve you draw, in the colourway picked in the row under the rug.
+  Ripple's own band of leaves, as on the real rug: a band of ground, and on it a row of tall,
+  slightly pointed arches side by side, their feet on one edge of the band (touching each other)
+  and their tips nearly reaching the other, so the ground shows only as narrow V's between them.
+  The band follows the curve you draw, in the colourway picked in the row under the rug.
 
-  - The brush is always the same width on the rug, zoomed in or out. Its leaves stretch with the
-    finger's speed, as they do in the real rug: slowly, small and close; faster, big and wide,
-    each overlapping the one before.
+  - The brush is always the same width on the rug, zoomed in or out. Its arches widen with the
+    finger's speed, as they vary on the real rug: slowly, slim and close; faster, broad.
   - The blank canvas starts with one ripple along the rug's top edge, showing how a band runs.
   - The rug's outline (the real Ripple's, in the 200 × 200 cm square) shows as a fine, faint line,
     so you see where to draw; strokes only show inside it.
@@ -40,31 +41,32 @@ const COLOURWAYS = [
   { name: "Dune Shadow", ground: [70, 50, 40], leaf: [219, 202, 176] },
 ];
 
-const RIPPLE_BAND = 260;     // how wide the band of leaves is, in pixels of the 1500 px canvas (about 35 cm)
-// The brush, from Ripple_01.svg (its units): a band 87 high, a leaf every 24.33 along it, each leaf
-// an ellipse 12.16 wide and 43.5 tall (half sizes), standing across the band
-const BAND = { height: 87, every: 24.33, rx: 12.16, ry: 43.5 };
+const RIPPLE_BAND = 180;     // how wide the band is, in pixels of the 1500 px canvas (about 24 cm, as on the rug)
+// The arches, as measured on the real rug (shares of the band's width): half as wide at their feet
+// as `wide`, as tall as `tall`, one every `every` along the band (so their feet just touch)
+const ARCH = { wide: 0.17, tall: 0.93, every: 0.32 };
 // The first ripple on the blank canvas: along the rug's top edge, as the real rug's first band runs
-// (points on the 1500 px canvas); its leaves grow big towards the middle and small again
-const FIRST_RIPPLE = { from: [330, 172], bend: [655, 222], to: [990, 150] };
-const RUG_LINE = "rgba(60, 45, 35, 0.22)"; // the rug's outline: a fine, faint line round it
+// (points on the 1500 px canvas), its arches pointing up to the edge; they broaden towards the
+// middle and slim again
+const FIRST_RIPPLE = { from: [330, 140], bend: [655, 190], to: [990, 118] };
+const RUG_LINE = "rgba(60, 45, 35, 0.1)"; // the rug's outline: a fine, very faint line round it
 // Sizes in pixels of the 1500 px canvas (7.5 to a centimetre)
 const WOOL_FUZZ = 3;         // how far the pile spills over a stroke's outer edges
 const FIBRES = 1;            // how ragged the fibres make every edge
-const GROOVE = 2;            // the carved groove round each leaf: how wide ..
-const GROOVE_DARK = 0.16;    // .. and how dark
-const BEVEL = 8;             // how far in from its edge a leaf's pile rounds down ..
-const BEVEL_DARK = 0.28;     // .. and how much darker it gets there
-const LEAF_SHADOW = 0.18;    // the shadow a leaf throws on the ground round it
-// The leaves stretch, as in the real rug: drawn slowly they're as in Ripple_01.svg; the faster the
-// finger, the wider they grow and the further apart, overlapping the one before
-const STRETCH_MOST = 2.3;    // the widest a leaf grows (times its width in Ripple_01.svg)
+const GROOVE = 1.5;          // the carved groove round each arch: how wide ..
+const GROOVE_DARK = 0.05;    // .. and how dark (barely there)
+const BEVEL = 7;             // how far in from its edge an arch's pile rounds down ..
+const BEVEL_DARK = 0.12;     // .. and how much darker it gets there
+const LEAF_SHADOW = 0.06;    // the shadow an arch throws on the ground round it
+// The arches broaden, as they vary on the real rug: drawn slowly they're slim; the faster the
+// finger, the broader they grow and the further apart
+const STRETCH_MOST = 1.7;    // the broadest an arch grows (times its slim width)
 const STRETCH_SPEED = [0.35, 2.2]; // finger speed (canvas pixels a millisecond): no stretch .. the most
 const STRETCH_EASE = 0.3;    // each leaf goes only this share of the way to the new stretch: gradual
 const ROWS = { across: 69, down: -25, strength: 36 }; // the pile's rows: about every 3.5 px, slanting a little
 const PILE_STRENGTH = 1;     // how strongly the real wool's texture shows (0..1)
 const WOOL_DRIFT = 14;       // the wool's colour drifting lighter and darker across the rug (0..255)
-const FLOOR_SHADOW = 0.28;   // the soft shadow the rug throws on the floor
+const FLOOR_SHADOW = 0.18;   // the soft shadow the rug throws on the floor
 const LEAF_VARY = 0.07;      // how much one hand-knotted leaf differs from the next (share of its size)
 const BRUSH_STEP = 0.12;     // the brush only moves on once the finger has gone this far (share of the band's
                              // width): a slowing or resting finger jitters, and those tiny moves in random
@@ -327,7 +329,6 @@ function ownStart(p) {
 // The brush moved: the band runs on along the finger, with a leaf standing across it at every step
 // (aim: how wide the leaves should grow; without it, as fast as the finger goes)
 function ownTo(p, aim) {
-  const size = RIPPLE_BAND / BAND.height; // canvas pixels per unit of the brush
   const from = stroke.last;
   const dx = p.x - from.x;
   const dy = p.y - from.y;
@@ -345,19 +346,22 @@ function ownTo(p, aim) {
   drawBand(stroke.points, way.ground);
   const leaves = own.leaves.getContext("2d");
   const angle = Math.atan2(dy, dx);
+  // the arches' feet: on the band's edge to the right of the way it's drawn
+  const footX = (-dy / length) * (RIPPLE_BAND / 2);
+  const footY = (dx / length) * (RIPPLE_BAND / 2);
   let at = stroke.next;
   while (at <= length) {
     const t = at / length;
     stroke.stretch += (aim - stroke.stretch) * STRETCH_EASE;
-    const leaf = { x: from.x + dx * t, y: from.y + dy * t, angle, look: leafLook(size, stroke.stretch) };
+    const leaf = { x: from.x + dx * t + footX, y: from.y + dy * t + footY, angle, look: leafLook(stroke.stretch) };
     stroke.leaves.push(leaf);
     knotLeaf(leaves, leaf, way.leaf);
-    // wider leaves, further apart, but not quite as far as they grow: each overlaps the one before
-    at += BAND.every * size * (1 + (stroke.stretch - 1) * 0.8);
+    // broader arches, further apart, so their feet still just touch
+    at += RIPPLE_BAND * ARCH.every * stroke.stretch;
   }
   stroke.next = at - length;
   stroke.last = p;
-  const reach = BAND.height * size;
+  const reach = RIPPLE_BAND * 1.2;
   markDirtyRug(Math.min(from.x, p.x) - reach, Math.min(from.y, p.y) - reach, Math.max(from.x, p.x) + reach, Math.max(from.y, p.y) + reach);
 }
 
@@ -372,7 +376,7 @@ function drawBand(points, ground) {
   band.beginPath();
   band.moveTo(points[0].x, points[0].y);
   for (let k = 1; k < points.length; k++) band.lineTo(points[k].x, points[k].y);
-  for (const [wider, alpha, light] of [[2 * WOOL_FUZZ, 0.35, 0.85], [WOOL_FUZZ, 0.6, 0.88], [0, 1, 0.91], [-4, 1, 0.94], [-8, 1, 0.97], [-12, 1, 1]]) {
+  for (const [wider, alpha, light] of [[2 * WOOL_FUZZ, 0.35, 0.95], [WOOL_FUZZ, 0.6, 0.96], [0, 1, 0.97], [-4, 1, 0.98], [-8, 1, 0.99], [-12, 1, 1]]) {
     band.globalAlpha = alpha;
     band.strokeStyle = `rgb(${ground.map((c) => Math.round(c * light))})`;
     band.lineWidth = width + wider;
@@ -381,30 +385,33 @@ function drawBand(points, ground) {
   band.globalAlpha = 1;
 }
 
-// A leaf knotted by hand: a little wider or narrower, longer or shorter and tilted than the last,
+// An arch knotted by hand: a little broader or slimmer, taller or shorter and tilted than the last,
 // its outline not quite a perfect curve, its wool a touch lighter or darker
-function leafLook(size, stretch) {
+function leafLook(stretch) {
   const vary = () => (Math.random() * 2 - 1) * LEAF_VARY;
   return {
-    rx: BAND.rx * size * stretch * (1 + vary()),
-    ry: BAND.ry * size * (1 + vary() * 0.6),
-    tilt: vary() * 0.8,
+    rx: RIPPLE_BAND * ARCH.wide * stretch * (1 + vary()),
+    ry: RIPPLE_BAND * ARCH.tall * (1 + vary() * 0.4),
+    tilt: vary() * 0.4,
     w1: Math.random() * 6.3,
     w2: Math.random() * 6.3,
     shade: 1 + vary() * 0.8,
   };
 }
 
-// One leaf, as thick pile: it throws a little shadow on the ground round it, its edge is a carved
-// groove, and inside the groove the pile rounds down, darker towards the edge
+// One arch, as thick pile, standing on its feet (leaf.x, leaf.y) with its tip across the band: it
+// throws a faint shadow on the ground round it, its edge is a faint carved groove, and inside the
+// groove the pile rounds down a little. (Its lower half, below its feet, is cut off by the band.)
 function knotLeaf(ctx, leaf, rgb) {
   const { rx, ry, tilt, w1, w2, shade } = leaf.look;
   const outline = (grow) => {
     ctx.beginPath();
-    for (let k = 0; k <= 48; k++) {
-      const a = (k / 48) * Math.PI * 2;
+    for (let k = 0; k <= 64; k++) {
+      const a = (k / 64) * Math.PI * 2;
       const wobble = 1 + 0.02 * Math.sin(3 * a + w1) + 0.012 * Math.sin(5 * a + w2);
-      const px = Math.cos(a) * (rx * wobble + grow);
+      // slimmer towards the tip, so it comes to a soft point
+      const up = Math.max(0, -Math.sin(a));
+      const px = Math.cos(a) * (rx * wobble * (1 - 0.15 * up ** 4) + grow);
       const py = Math.sin(a) * (ry * wobble + grow);
       if (k) ctx.lineTo(px, py);
       else ctx.moveTo(px, py);
