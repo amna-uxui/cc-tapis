@@ -1,22 +1,15 @@
 /*
   The menu: tap the three lines (top left) and a paper receipt slides out of the top bar, listing
-  the collections, each with its designer and what you can do with it. Tap a collection to open
-  it; tap the lines again, or anywhere else, and the receipt rolls back up.
-
-  Also the way between collections without the menu: swiping the whole rug (js/carpet-viewer.js)
-  calls goToCollection(1) or (-1), round and round. The next page slides in (css/main.css, page
-  slide; the side it comes from is picked up at the top of each page) and opens on its whole rug,
-  its rug photo already loaded.
-
-  On its own: works on any page with the top bar (index.html, blow.html).
+  the collections, each with its designer and what you can do with it. Tap a collection to slide
+  its rug in (js/carpet-collections.js); tap the lines again, or anywhere else, and the receipt
+  rolls back up.
 */
 
-// page: the page that shows the collection. The one this page shows is marked on the receipt.
-// rug: the photo that page opens with (loaded ahead, so swiping to it shows the rug at once).
-// Swiping goes through them in this order, and from the last back to the first.
+// The collections, in the order swiping goes through them (and from the last back to the first).
+// id: its name in the address (#grandma-patterns); rug: the photo it opens with.
 const MENU_COLLECTIONS = [
-  { name: "Hypercode", designer: "Roberto Sironi", verb: "To draw", page: "index.html", rug: "images/carpet-02-cacao-cut.png" },
-  { name: "GrandMa Patterns", designer: "Rop van Mierlo", verb: "To blow", page: "blow.html", rug: "images/grandma-mustardgreen-cut.png" },
+  { id: "hypercode", name: "Hypercode", designer: "Roberto Sironi", verb: "To draw", rug: "images/carpet-02-cacao-cut.png" },
+  { id: "grandma-patterns", name: "GrandMa Patterns", designer: "Rop van Mierlo", verb: "To blow", rug: "images/grandma-mustardgreen-cut.png" },
 ];
 const RECEIPT_RULE = "..:^:..:^:..:^:..:^:..:^:..:^:..:^:..:^:..:^:..:^:"; // as on cc-tapis.com
 
@@ -35,13 +28,17 @@ receipt.innerHTML = `
   </div>`;
 document.body.append(receipt);
 
-const here = location.pathname.split("/").pop() || "index.html";
-MENU_COLLECTIONS.forEach((collection) => {
+MENU_COLLECTIONS.forEach((collection, index) => {
   const item = document.createElement("li");
   const link = document.createElement("a");
   link.className = "receipt__item";
-  link.href = collection.page;
-  if (collection.page === here) link.setAttribute("aria-current", "page");
+  link.href = `#${collection.id}`;
+  link.dataset.id = collection.id;
+  link.addEventListener("click", (e) => {
+    e.preventDefault();
+    closeMenu();
+    if (typeof showCollection === "function") showCollection(index);
+  });
   link.innerHTML = `
     <span class="receipt__name">${collection.name}</span>
     <span class="receipt__verb">${collection.verb}</span>
@@ -90,26 +87,10 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") closeMenu();
 });
 
-// ---------- Swiping between collections ----------
-
-const hereIndex = Math.max(0, MENU_COLLECTIONS.findIndex((c) => c.page === here));
-
-// The next (step 1) or previous (step -1) collection, round and round: it slides in from that
-// side and opens on its whole rug
-function goToCollection(step) {
-  const next = MENU_COLLECTIONS[(hereIndex + step + MENU_COLLECTIONS.length) % MENU_COLLECTIONS.length];
-  try {
-    sessionStorage.setItem("cc-slide", step > 0 ? "next" : "prev");
-    sessionStorage.setItem("cc-open-whole", "1");
-  } catch (e) {}
-  document.documentElement.dataset.slide = step > 0 ? "next" : "prev"; // this page slides out that way
-  location.href = next.page;
-}
-
-// Load the neighbours' rug photos ahead, so the slide shows them straight away
-window.addEventListener("load", () => {
-  [1, -1].forEach((step) => {
-    const c = MENU_COLLECTIONS[(hereIndex + step + MENU_COLLECTIONS.length) % MENU_COLLECTIONS.length];
-    if (c.page !== here) new Image().src = c.rug;
+// Mark the collection on show (js/carpet-collections.js)
+function markMenu(id) {
+  receipt.querySelectorAll(".receipt__item").forEach((link) => {
+    if (link.dataset.id === id) link.setAttribute("aria-current", "page");
+    else link.removeAttribute("aria-current");
   });
-});
+}

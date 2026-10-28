@@ -11,8 +11,8 @@
 // soft edge (tools/cut-out-rug.py --solid); thumb: a small copy for the picker (sips -Z 160).
 // The first one is the rug the page opens with (the same photo as in blow.html).
 // size and price in euros (the same for every rug in the collection).
-const COLLECTION = "GrandMa Patterns";
-const DESIGNER = "Rop van Mierlo";
+const GRANDMA_NAME = "GrandMa Patterns";
+const GRANDMA_DESIGNER = "Rop van Mierlo";
 
 const RUGS = [
   { name: "Mustard Green", size: "200 × 300 cm", price: 2900, src: "images/grandma-mustardgreen-cut.png", thumb: "images/thumbs/grandma-mustardgreen.png" },
@@ -29,8 +29,8 @@ let switching = false;
 
 // Show the chosen rug's name, designer, size and price
 function markRug() {
-  rugInfo.querySelector("[data-rug-name]").textContent = `${COLLECTION} ${currentRug.name}`;
-  rugInfo.querySelector("[data-rug-designer]").textContent = `by ${DESIGNER}`;
+  rugInfo.querySelector("[data-rug-name]").textContent = `${GRANDMA_NAME} ${currentRug.name}`;
+  rugInfo.querySelector("[data-rug-designer]").textContent = `by ${GRANDMA_DESIGNER}`;
   // Italian style, "€ 6.999"; the € in the plain font (in the mono font it looks crooked)
   const euro = document.createElement("span");
   euro.className = "rug-info__currency";
@@ -67,8 +67,21 @@ function rugThumb(rug) {
 }
 
 function buildRugs() {
-  makeStrip(rugRow, RUGS, { draw: rugThumb, choose: chooseRug, start: 0 });
+  makeStrip(rugRow, RUGS, { draw: rugThumb, choose: chooseRug, start: RUGS.indexOf(currentRug) });
   markRug();
 }
 
-buildRugs();
+// GrandMa Patterns comes on (js/carpet-collections.js): its rugs in the strip, the rug you were on.
+// whole: show the whole rug.
+async function enterGrandma(whole) {
+  buildRugs();
+  await changeRug(currentRug.src, { zoomOut: whole, fade: false });
+  loadPhoto();
+  blowActive = true;
+}
+
+// ... and goes: the wind stops and the microphone is let go
+function leaveGrandma() {
+  blowActive = false;
+  calmWind();
+}

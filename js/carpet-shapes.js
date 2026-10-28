@@ -8,8 +8,8 @@
 */
 
 // The rug's name is the collection plus its shape: "Hypercode Rectangle", "Hypercode Square", ...
-const COLLECTION = "Hypercode";
-const DESIGNER = "Roberto Sironi";
+const HYPERCODE_NAME = "Hypercode";
+const HYPERCODE_DESIGNER = "Roberto Sironi";
 
 // The first one is the shape the page opens with. aspect: width / height.
 // size and price in euros, shown under the collection name (placeholders, except the rectangle's price).
@@ -115,11 +115,12 @@ function softEdge(ctx, w, h, round) {
   ctx.putImageData(image, 0, 0);
 }
 
-// Show the current colour in the current shape (also used by js/carpet-colors.js)
-async function renderRug(zoomOut = false) {
+// Show the current colour in the current shape (also used by js/carpet-colors.js).
+// fade: false swaps it straight away (while it's slid off screen).
+async function renderRug(zoomOut = false, fade = true) {
   await current.loaded;
   const src = await shapedSrc(current, currentShape);
-  await changeRug(src, { round: Boolean(currentShape.round), zoomOut });
+  await changeRug(src, { round: Boolean(currentShape.round), zoomOut, fade });
   setBrushTone(current.tone);
 }
 
@@ -151,8 +152,8 @@ function shapeIcon(shape) {
 
 // Show the chosen shape's name, size and price
 function markShape() {
-  infoName.textContent = `${COLLECTION} ${currentShape.name}`;
-  infoDesigner.textContent = `by ${DESIGNER}`;
+  infoName.textContent = `${HYPERCODE_NAME} ${currentShape.name}`;
+  infoDesigner.textContent = `by ${HYPERCODE_DESIGNER}`;
   // Italian style, "€ 8.999"; the € in the plain font (in the mono font it looks crooked)
   const euro = document.createElement("span");
   euro.className = "rug-info__currency";
@@ -168,4 +169,10 @@ function buildShapes() {
   markShape();
 }
 
-buildShapes();
+// Hypercode comes on (js/carpet-collections.js): its shapes in the strip, its rug as you left it.
+// whole: show the whole rug.
+async function enterHypercode(whole) {
+  buildShapes();
+  if (current.swatch) showSwatch(current.swatch);
+  await renderRug(whole, false);
+}

@@ -469,6 +469,11 @@ body {
   user-select: none;
 }
 
+.strip__track {
+  position: absolute;
+  inset: 0;
+}
+
 .strip__item {
   position: absolute;
   left: 50%;
@@ -941,40 +946,26 @@ body {
   translate: var(--swipe, 0px) 0;
 }
 
-/* The page slide: going to another collection, the page slides out and the next one slides in
-   (from the right when swiping left, "next"; from the left for "prev"; a soft cross-fade from
-   the menu). The top bar and the buttons at the bottom stay where they are. Browsers without page
-   transitions simply switch. */
-@view-transition {
-  navigation: auto;
+/* ---------- One page, two collections (js/carpet-collections.js) ---------- */
+
+/* Until the collection in the address has its rug in place, the rug stays hidden */
+.is-starting .carpet {
+  opacity: 0;
 }
 
-.bar--top {
-  view-transition-name: top-bar;
+/* Each collection's own parts: Hypercode has the lamp and the colours; GrandMa Patterns the wind */
+[data-collection="grandma-patterns"] .lamp-dial,
+[data-collection="grandma-patterns"] .tool--color,
+[data-collection="grandma-patterns"] .palette,
+[data-collection="grandma-patterns"] .carpet__light,
+[data-collection="hypercode"] .tool--blow,
+[data-collection="hypercode"] .carpet__wind {
+  display: none;
 }
 
-.bar--bottom {
-  view-transition-name: bottom-bar;
+/* the lamp's night mood dims only Hypercode's rug */
+[data-collection="grandma-patterns"] .carpet img,
+[data-collection="grandma-patterns"] .carpet__wind {
+  filter: none;
 }
 
-::view-transition-old(root),
-::view-transition-new(root) {
-  animation-duration: 520ms;
-  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-:root[data-slide="next"]::view-transition-old(root) { animation-name: page-out-left; }
-:root[data-slide="next"]::view-transition-new(root) { animation-name: page-in-right; }
-:root[data-slide="prev"]::view-transition-old(root) { animation-name: page-out-right; }
-:root[data-slide="prev"]::view-transition-new(root) { animation-name: page-in-left; }
-
-@keyframes page-out-left  { to   { transform: translateX(-100%); } }
-@keyframes page-in-right  { from { transform: translateX(100%); } }
-@keyframes page-out-right { to   { transform: translateX(100%); } }
-@keyframes page-in-left   { from { transform: translateX(-100%); } }
-
-/* the bars themselves don't move or flicker */
-::view-transition-group(top-bar),
-::view-transition-group(bottom-bar) {
-  animation: none;
-}

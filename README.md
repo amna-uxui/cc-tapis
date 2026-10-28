@@ -4,12 +4,12 @@ DXD Workshop with parcstudio.
 
 ## What if people could interact with carpets digitally?
 
-Mobile-first prototype in the look and feel of cc-tapis (Milano). One screen, no scroll: a rug in the middle, and one interaction per collection. The menu (top left) switches collections.
+Mobile-first prototype in the look and feel of cc-tapis (Milano). One screen, no scroll: a rug in the middle, and one interaction per collection. Zoomed out, swipe on the white around the rug to slide to the next collection (or use the menu, top left); the strip under the rug goes round its shapes or rugs.
 
 Live: https://amna-uxui.github.io/cc-tapis/
 
-- **Hypercode** by Roberto Sironi (`index.html`): to draw, brush the velvet pile with your finger.
-- **GrandMa Patterns** by Rop van Mierlo (`blow.html`): to blow, tap the wind button and blow on the bottom of the phone. Add `?debug` to see what the microphone hears.
+- **Hypercode** by Roberto Sironi: to draw, brush the velvet pile with your finger.
+- **GrandMa Patterns** by Rop van Mierlo (`#grandma-patterns`): to blow, tap the wind button and blow on the bottom of the phone. Add `?debug` to see what the microphone hears.
 
 ## Run it
 
@@ -21,12 +21,14 @@ Then open http://localhost:8000 (use the browser's phone view). The microphone o
 
 ## Files
 
-- `index.html`, `blow.html`: the two collections
+- `index.html`: the one page, with both collections (`blow.html` just forwards old links to GrandMa Patterns)
 - `css/tokens.css`: design language (colours, fonts, sizes, spacing)
 - `css/main.css`: layout of both screens
 - `js/carpet-viewer.js`: zoom and move around the rug, brushing the pile
 - `js/carpet-colors.js`, `js/carpet-shapes.js`, `js/carpet-lamp.js`, `js/carpet-sound.js`: Hypercode's colours, shapes, lamp and brushing sound
 - `js/carpet-blow.js`, `js/carpet-rugs.js`: GrandMa Patterns' blowing and its rugs
+- `js/carpet-collections.js`: going from one collection to the next (only the rug slides)
 - `js/carpet-menu.js`: the collections menu
+- `js/carpet-strip.js`: the endless strip under the rug
 - `js/carpet-save.js`: save your rug as an image
 - `images/`: the rugs, cut out of their product photos with `tools/cut-out-rug.py`

@@ -5,7 +5,7 @@
   and that item is shown on the rug above. Tapping an item brings it to the middle too.
 
   makeStrip(row, items, { draw, choose, start }):
-    row:    the element under the rug (it becomes the strip)
+    row:    the element under the rug (it becomes the strip; making a new strip in it replaces the old)
     items:  the list to go round
     draw:   item -> the element that shows it (a shape, a small rug)
     choose: called with the item that settles in the middle
@@ -26,13 +26,15 @@ function makeStrip(row, items, { draw, choose, start = 0 }) {
   const wrap = (i) => ((i % count) + count) % count;
 
   row.classList.add("strip");
-  row.replaceChildren();
+  const track = document.createElement("div"); // holds the items and listens to the finger
+  track.className = "strip__track";
+  row.replaceChildren(track);
   const slots = [];
   for (let k = -STRIP_SIDE - 1; k <= STRIP_SIDE + 1; k++) {
     const slot = document.createElement("button");
     slot.className = "strip__item";
     slot.tabIndex = -1;
-    row.append(slot);
+    track.append(slot);
     slots.push(slot);
   }
 
@@ -88,14 +90,14 @@ function makeStrip(row, items, { draw, choose, start = 0 }) {
 
   let drag = null;
 
-  row.addEventListener("pointerdown", (e) => {
+  track.addEventListener("pointerdown", (e) => {
     if (settling) cancelAnimationFrame(settling);
     settling = null;
-    row.setPointerCapture(e.pointerId);
+    track.setPointerCapture(e.pointerId);
     drag = { x: e.clientX, pos, last: e.clientX, time: performance.now(), speed: 0, moved: false };
   });
 
-  row.addEventListener("pointermove", (e) => {
+  track.addEventListener("pointermove", (e) => {
     if (!drag) return;
     const now = performance.now();
     drag.speed = (e.clientX - drag.last) / Math.max(now - drag.time, 1);
@@ -121,8 +123,8 @@ function makeStrip(row, items, { draw, choose, start = 0 }) {
     settle(Math.round(pos - (flick * STRIP_GLIDE) / STRIP_SLOT));
   }
 
-  row.addEventListener("pointerup", release);
-  row.addEventListener("pointercancel", release);
+  track.addEventListener("pointerup", release);
+  track.addEventListener("pointercancel", release);
 
   layout();
   return {

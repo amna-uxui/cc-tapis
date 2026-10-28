@@ -60,6 +60,7 @@ let listening = false;
 let audio = null;     // { ctx, stream, analyser, samples }
 let floor = null;     // how loud the low rumble of the quiet room is (dB), learnt as we go
 let micBreath = 0;    // the breath the microphone hears, 0..1
+let blowActive = false; // GrandMa Patterns is on show (js/carpet-rugs.js): the space bar blows
 let heldBreath = 0;   // the breath from holding the button or the space bar, 0..1
 let holding = false;
 let micState = "off"; // off, asking, on, or what went wrong (shown with ?debug)
@@ -416,6 +417,7 @@ function setupGl() {
 
 // A new rug photo: the layer takes its size and pixels, and the wind starts calm
 function loadPhoto() {
+  if (!gl) return; // not ready yet: it takes the photo once it is (setupBlow)
   windCanvas.width = img.naturalWidth;
   windCanvas.height = img.naturalHeight;
   gl.viewport(0, 0, windCanvas.width, windCanvas.height);
@@ -495,6 +497,20 @@ blowButton.addEventListener("pointerdown", () => {
 );
 blowButton.addEventListener("contextmenu", (e) => e.preventDefault()); // long press: no menu
 
+// Another collection comes on: the wind dies down at once and the microphone is let go
+function calmWind() {
+  if (listening) stopListening();
+  holding = false;
+  heldBreath = 0;
+  micBreath = 0;
+  breath = 0;
+  if (energy) {
+    energy.fill(0);
+    lay.fill(0);
+  }
+  document.body.classList.remove("is-blowing");
+}
+
 // The phone gives the microphone to one page at a time. So leaving the page (another tab, another
 // app, closing it) lets go of it, and when this page starts listening, any other open page of
 // this site lets go too. Tap the wind button again when you come back.
@@ -513,7 +529,7 @@ if (micChannel) {
 
 // On a computer: hold the space bar for a breath
 document.addEventListener("keydown", (e) => {
-  if (e.code !== "Space" || e.repeat) return;
+  if (e.code !== "Space" || e.repeat || !blowActive) return;
   e.preventDefault();
   holding = true;
   wake();

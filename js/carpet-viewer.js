@@ -9,8 +9,8 @@
   - Double-tap to wipe the drawing, back to the plain carpet.
   - With the whole rug in view, one finger on the white page around it swipes left or right to the
     next collection (the rug follows the finger; let go far enough, or flick, and the next one
-    slides in: js/carpet-menu.js). On a rug you draw on, the finger on the rug draws as always; on
-    one you don't (data-brush="off"), the rug swipes too.
+    slides in: js/carpet-collections.js). On a rug you draw on, the finger on the rug draws as
+    always; on one you don't, the rug swipes too.
   - You can zoom out until the whole carpet fits, but never lose it off screen.
 */
 
@@ -44,7 +44,7 @@ const BRUSH_LIGHT = [218, 170, 125]; // the colour of brushed wool catching the 
 const BRUSH_SHADE = [196, 146, 104]; // a slightly deeper wool tone, mixed in for depth
 
 const stage = document.querySelector("[data-viewer]");
-const BRUSHING = stage.dataset.brush !== "off"; // data-brush="off": one finger doesn't draw (blow.html)
+let brushing = true; // whether one finger draws on the rug (js/carpet-collections.js: not on GrandMa Patterns)
 const carpet = stage.querySelector(".carpet");
 const img = carpet.querySelector("img");
 const brush = carpet.querySelector(".carpet__brush");
@@ -645,35 +645,33 @@ function isWhole() {
   return view.scale < fitScale * 1.05;
 }
 
+// Slide the rug (and its name and strip) sideways to `target` screen pixels from the middle;
+// resolves when it's there
+function slideRug(target, duration, ease = (t) => 1 - Math.pow(1 - t, 3)) {
+  const from = swipeShift;
+  const start = performance.now();
+  return new Promise((done) => {
+    function step(now) {
+      const t = Math.min((now - start) / duration, 1);
+      swipeShift = from + (target - from) * ease(t);
+      render();
+      if (t < 1) requestAnimationFrame(step);
+      else done();
+    }
+    requestAnimationFrame(step);
+  });
+}
+
 // Let go: far enough (or a flick) goes to the next collection that way, round and round;
 // otherwise the rug springs back to the middle
 function endSwipe(velocityX) {
   const far = Math.abs(swipeShift) > stage.clientWidth * SWIPE_FAR;
   const flick = Math.abs(velocityX) > SWIPE_FLICK && Math.abs(swipeShift) > 50 && Math.sign(velocityX) === Math.sign(swipeShift);
-  if ((far || flick) && typeof goToCollection === "function") {
-    goToCollection(swipeShift < 0 ? 1 : -1); // swiped left: the next one comes in from the right
+  if ((far || flick) && typeof switchCollection === "function") {
+    switchCollection(swipeShift < 0 ? 1 : -1); // swiped left: the next one comes in from the right
     return;
   }
-  const from = swipeShift;
-  const start = performance.now();
-  function step(now) {
-    const t = Math.min((now - start) / SWIPE_BACK, 1);
-    swipeShift = from * Math.pow(1 - t, 3);
-    render();
-    if (t < 1) requestAnimationFrame(step);
-  }
-  requestAnimationFrame(step);
-}
-
-// Opened by a swipe from another collection (js/carpet-menu.js): start on the whole rug
-function openedWhole() {
-  try {
-    const whole = sessionStorage.getItem("cc-open-whole") === "1";
-    sessionStorage.removeItem("cc-open-whole");
-    return whole;
-  } catch (e) {
-    return false;
-  }
+  slideRug(0, SWIPE_BACK);
 }
 
 // ---------- Touch, mouse and pen ----------
@@ -735,7 +733,7 @@ stage.addEventListener("pointermove", (e) => {
   if (gesture.type === "draw" && pointers.size === 1) {
     // With the whole rug in view, a finger on the white page around it swipes between collections
     // (on a rug you draw on, the finger on the rug draws; on one you don't, the rug swipes too)
-    if (gesture.swipe || (!moved && isWhole() && (!BRUSHING || !onCarpet(gesture.start.x, gesture.start.y)))) {
+    if (gesture.swipe || (!moved && isWhole() && (!brushing || !onCarpet(gesture.start.x, gesture.start.y)))) {
       const dx = p.x - gesture.start.x;
       if (!gesture.swipe) {
         if (Math.hypot(dx, p.y - gesture.start.y) <= 6) return;
@@ -750,7 +748,7 @@ stage.addEventListener("pointermove", (e) => {
       render();
       return;
     }
-    if (!BRUSHING) return;
+    if (!brushing) return;
     // A tap is not a stroke: only start brushing once the finger really moves
     if (!moved) {
       if (Math.hypot(p.x - gesture.start.x, p.y - gesture.start.y) <= 4) return;
@@ -918,7 +916,7 @@ function sizeCarpet() {
 function setup() {
   sizeCarpet();
   measure();
-  view = centredView(openedWhole() ? fitScale : closeUpScale());
+  view = centredView(closeUpScale());
   render();
   carpet.classList.add("is-ready");
 }
@@ -953,14 +951,17 @@ function whenLoaded(image) {
 
 // Show another rug photo. The marks come along: scaled to fit the new rug, centred.
 // You stay at the same zoom, looking at the same part of the carpet, unless zoomOut is set:
-// then the whole new rug is shown. round: the rug is a circle.
-async function changeRug(src, { round = false, zoomOut = false } = {}) {
+// then the whole new rug is shown. round: the rug is a circle. fade: false swaps it straight
+// away (when it's slid off screen, js/carpet-collections.js).
+async function changeRug(src, { round = false, zoomOut = false, fade = true } = {}) {
   const next = new Image();
   next.src = src;
   await whenLoaded(next);
 
-  carpet.classList.add("is-changing");
-  await new Promise((done) => setTimeout(done, RUG_FADE));
+  if (fade) {
+    carpet.classList.add("is-changing");
+    await new Promise((done) => setTimeout(done, RUG_FADE));
+  }
 
   const zoom = view.scale / fitScale;
   const fx = (stage.clientWidth / 2 - view.x) / (img.naturalWidth * view.scale);
