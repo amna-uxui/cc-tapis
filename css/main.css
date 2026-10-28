@@ -435,7 +435,7 @@ body {
 .rug-tabs {
   position: fixed;
   left: 50%;
-  bottom: calc(var(--space-3) + env(safe-area-inset-bottom) + 48px + var(--space-2) + 62px + var(--space-2));
+  bottom: calc(var(--space-3) + env(safe-area-inset-bottom) + 48px + var(--space-5) + 62px + var(--space-2));
   z-index: 1;
   transform: translateX(-50%);
   display: flex;
@@ -462,7 +462,12 @@ body {
   color: var(--color-paper);
 }
 
-/* ... and the row under them: small pictures of the real rug, each with its name under it */
+/* ... and the row under them: small pictures of the real rug, each with its name under it, with
+   room between it and Buy */
+[data-collection="hypercode"] .rug-shapes {
+  bottom: calc(var(--space-3) + env(safe-area-inset-bottom) + 48px + var(--space-5));
+}
+
 [data-collection="hypercode"] .rug-shapes.strip {
   height: 62px;
   gap: var(--space-3);
