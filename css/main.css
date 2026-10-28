@@ -931,3 +931,49 @@ body {
   color: var(--receipt-soft);
   font-size: var(--text-xs);
 }
+
+/* ---------- Swiping between collections (js/carpet-viewer.js, js/carpet-menu.js) ---------- */
+
+/* While the whole rug is swiped sideways (--swipe), its name and its row under it move along */
+.rug-info,
+.rug-shapes {
+  translate: var(--swipe, 0px) 0;
+}
+
+/* The page slide: going to another collection, the page slides out and the next one slides in
+   (from the right when swiping left, "next"; from the left for "prev"; a soft cross-fade from
+   the menu). The top bar and the buttons at the bottom stay where they are. Browsers without page
+   transitions simply switch. */
+@view-transition {
+  navigation: auto;
+}
+
+.bar--top {
+  view-transition-name: top-bar;
+}
+
+.bar--bottom {
+  view-transition-name: bottom-bar;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 520ms;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+:root[data-slide="next"]::view-transition-old(root) { animation-name: page-out-left; }
+:root[data-slide="next"]::view-transition-new(root) { animation-name: page-in-right; }
+:root[data-slide="prev"]::view-transition-old(root) { animation-name: page-out-right; }
+:root[data-slide="prev"]::view-transition-new(root) { animation-name: page-in-left; }
+
+@keyframes page-out-left  { to   { transform: translateX(-100%); } }
+@keyframes page-in-right  { from { transform: translateX(100%); } }
+@keyframes page-out-right { to   { transform: translateX(100%); } }
+@keyframes page-in-left   { from { transform: translateX(-100%); } }
+
+/* the bars themselves don't move or flicker */
+::view-transition-group(top-bar),
+::view-transition-group(bottom-bar) {
+  animation: none;
+}

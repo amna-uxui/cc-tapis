@@ -7,6 +7,8 @@
   - Move and pinch with two fingers to move around and zoom. Flicks keep gliding.
   - On a computer: scroll to move, trackpad pinch / ctrl + scroll to zoom.
   - Double-tap to wipe the drawing, back to the plain carpet.
+  - On the whole rug, one finger swipes left or right to the next collection (the rug follows the
+    finger; let go far enough, or flick, and the next one slides in: js/carpet-menu.js).
   - You can zoom out until the whole carpet fits, but never lose it off screen.
 */
 
@@ -33,6 +35,9 @@ const PILE_STREAKS = 0;      // fine streaks along each stroke (0 = none)
 const PILE_SOFT = 0.3;       // how much of the brush's width fades out softly: a firm, organic edge
 const PILE_WOBBLE = 0.35;    // how much the stroke's outline wanders, like the shapes in brushed velvet (0..1)
 const PILE_RECOVER = 25;     // seconds for brushed pile to spring halfway back (marks fade; about 2 min to vanish)
+const SWIPE_FAR = 0.22;      // on the whole rug: drag this share of the screen's width to go to the next collection
+const SWIPE_FLICK = 0.5;     // or flick at least this fast (screen pixels per ms)
+const SWIPE_BACK = 380;      // ms for the rug to spring back when the swipe wasn't far enough
 const BRUSH_LIGHT = [218, 170, 125]; // the colour of brushed wool catching the light (r, g, b)
 const BRUSH_SHADE = [196, 146, 104]; // a slightly deeper wool tone, mixed in for depth
 
@@ -62,8 +67,11 @@ const verb = stage.querySelector(".verb"); // "To Draw", kept on the middle of t
 
 const OUT_ZOOM = 1.02; // zoomed out to (almost exactly) the full carpet: arrows, name, size and shapes show
 
+let swipeShift = 0; // how far the whole rug is being swiped sideways, in screen pixels
+
 function render() {
-  carpet.style.transform = `translate3d(${view.x}px, ${view.y}px, 0) scale(${view.scale})`;
+  carpet.style.transform = `translate3d(${view.x + swipeShift}px, ${view.y}px, 0) scale(${view.scale})`;
+  document.body.style.setProperty("--swipe", `${swipeShift}px`); // its name and row move along (css/main.css)
   if (verb) {
     verb.style.setProperty("--rug-x", `${view.x + (img.naturalWidth * view.scale) / 2}px`);
     verb.style.setProperty("--rug-y", `${view.y + (img.naturalHeight * view.scale) / 2}px`);
@@ -629,6 +637,43 @@ function recoverPile() {
 
 setInterval(recoverPile, RECOVER_EVERY);
 
+// ---------- Swiping to the next collection ----------
+
+function isWhole() {
+  return view.scale < fitScale * 1.05;
+}
+
+// Let go: far enough (or a flick) goes to the next collection that way, round and round;
+// otherwise the rug springs back to the middle
+function endSwipe(velocityX) {
+  const far = Math.abs(swipeShift) > stage.clientWidth * SWIPE_FAR;
+  const flick = Math.abs(velocityX) > SWIPE_FLICK && Math.abs(swipeShift) > 50 && Math.sign(velocityX) === Math.sign(swipeShift);
+  if ((far || flick) && typeof goToCollection === "function") {
+    goToCollection(swipeShift < 0 ? 1 : -1); // swiped left: the next one comes in from the right
+    return;
+  }
+  const from = swipeShift;
+  const start = performance.now();
+  function step(now) {
+    const t = Math.min((now - start) / SWIPE_BACK, 1);
+    swipeShift = from * Math.pow(1 - t, 3);
+    render();
+    if (t < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+// Opened by a swipe from another collection (js/carpet-menu.js): start on the whole rug
+function openedWhole() {
+  try {
+    const whole = sessionStorage.getItem("cc-open-whole") === "1";
+    sessionStorage.removeItem("cc-open-whole");
+    return whole;
+  } catch (e) {
+    return false;
+  }
+}
+
 // ---------- Touch, mouse and pen ----------
 
 const pointers = new Map(); // finger id -> { x, y }
@@ -686,6 +731,22 @@ stage.addEventListener("pointermove", (e) => {
   pointers.set(e.pointerId, p);
 
   if (gesture.type === "draw" && pointers.size === 1) {
+    // On the whole rug, one finger swipes between collections (it doesn't draw)
+    if (gesture.swipe || (!moved && isWhole())) {
+      const dx = p.x - gesture.start.x;
+      if (!gesture.swipe) {
+        if (Math.hypot(dx, p.y - gesture.start.y) <= 6) return;
+        moved = true;
+        gesture.swipe = { last: p.x, time: performance.now(), velocity: 0 };
+      }
+      const now = performance.now();
+      gesture.swipe.velocity = (p.x - gesture.swipe.last) / Math.max(now - gesture.swipe.time, 1);
+      gesture.swipe.last = p.x;
+      gesture.swipe.time = now;
+      swipeShift = dx;
+      render();
+      return;
+    }
     if (!BRUSHING) return;
     // A tap is not a stroke: only start brushing once the finger really moves
     if (!moved) {
@@ -771,6 +832,12 @@ function endPointer(e) {
 
   if (pointers.size > 0 || gesture.type === "rest") return;
 
+  if (gesture.swipe) {
+    endSwipe(performance.now() - gesture.swipe.time < 100 ? gesture.swipe.velocity : 0);
+    gesture = { type: "rest" };
+    return;
+  }
+
   if (gesture.stroke) finishStroke(gesture.stroke, toCarpet(p));
   if (typeof brushSound !== "undefined") brushSound.stop();
 
@@ -848,7 +915,7 @@ function sizeCarpet() {
 function setup() {
   sizeCarpet();
   measure();
-  view = centredView(closeUpScale());
+  view = centredView(openedWhole() ? fitScale : closeUpScale());
   render();
   carpet.classList.add("is-ready");
 }

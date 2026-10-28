@@ -10,6 +10,26 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 
+  <script>
+    // The page slide (css/main.css): opened by a swipe from another collection (js/carpet-menu.js),
+    // this page slides in from that side. Set before the page shows; cleared once it has slid in.
+    (function () {
+      var root = document.documentElement;
+      try {
+        var slide = sessionStorage.getItem("cc-slide");
+        sessionStorage.removeItem("cc-slide");
+        if (slide) root.dataset.slide = slide;
+      } catch (e) {}
+      function done() { delete root.dataset.slide; }
+      addEventListener("pagereveal", function (e) {
+        if (!e.viewTransition) return done();
+        e.viewTransition.ready.catch(function () {}); // skipped (e.g. a hidden tab): nothing to slide
+        e.viewTransition.finished.then(done, done);
+      });
+      setTimeout(done, 1500);
+    })();
+  </script>
+
   <link rel="stylesheet" href="css/tokens.css">
   <link rel="stylesheet" href="css/main.css">
 </head>
