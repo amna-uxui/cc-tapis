@@ -794,8 +794,13 @@ body {
 
 /* ---------- The menu: a paper receipt printing out of the top bar (js/carpet-menu.js) ---------- */
 
-/* The slot: right under the top bar, as wide as it. The paper hides above it until it prints. */
+/* The slot: right under the top bar, as wide as it. The paper hides above it until it prints.
+   Dark paper, white print. */
 .receipt {
+  --receipt-paper: #111111;
+  --receipt-ink: var(--color-paper);
+  --receipt-soft: #9a9a9a; /* designers, verbs, the footer */
+  --receipt-line: #4a4a4a; /* the dotted rules and dashed lines */
   position: fixed;
   left: 50%;
   top: calc(var(--space-3) + env(safe-area-inset-top) + var(--header-height));
@@ -822,12 +827,12 @@ body {
 .receipt__paper {
   position: relative;
   padding: var(--space-3) var(--space-4) var(--space-4);
-  background: var(--color-paper);
-  color: var(--color-ink);
+  background: var(--receipt-paper);
+  color: var(--receipt-ink);
   font-size: var(--text-sm);
   text-align: center;
   text-transform: uppercase;
-  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.12));
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.25));
   transform: translateY(-110%);
 }
 
@@ -864,8 +869,8 @@ body {
   top: 100%;
   height: 8px;
   background:
-    linear-gradient(135deg, var(--color-paper) 50%, transparent 50%) 0 0 / 12px 8px repeat-x,
-    linear-gradient(-135deg, var(--color-paper) 50%, transparent 50%) 0 0 / 12px 8px repeat-x;
+    linear-gradient(135deg, var(--receipt-paper) 50%, transparent 50%) 0 0 / 12px 8px repeat-x,
+    linear-gradient(-135deg, var(--receipt-paper) 50%, transparent 50%) 0 0 / 12px 8px repeat-x;
 }
 
 .receipt p {
@@ -875,7 +880,7 @@ body {
 .receipt__rule {
   overflow: hidden;
   white-space: nowrap;
-  color: var(--color-muted);
+  color: var(--receipt-line);
   font-size: var(--text-xs);
   letter-spacing: 0.05em;
 }
@@ -897,7 +902,7 @@ body {
   grid-template-columns: 1fr auto;
   column-gap: var(--space-3);
   padding: var(--space-3) 0;
-  border-bottom: 1px dashed var(--color-muted);
+  border-bottom: 1px dashed var(--receipt-line);
   color: inherit;
   text-align: left;
   text-decoration: none;
@@ -912,13 +917,13 @@ body {
 }
 
 .receipt__verb {
-  color: #6b6b6b;
+  color: var(--receipt-soft);
 }
 
 .receipt__designer {
   grid-column: 1 / -1;
   margin-top: 2px;
-  color: #6b6b6b;
+  color: var(--receipt-soft);
   font-size: var(--text-xs);
 }
 
@@ -929,6 +934,6 @@ body {
 
 .receipt__foot {
   padding-top: var(--space-2);
-  color: #6b6b6b;
+  color: var(--receipt-soft);
   font-size: var(--text-xs);
 }
