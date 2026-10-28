@@ -1,8 +1,8 @@
 /*
   About this rug: [+] at the bottom right (only while the whole rug is in view) slides up a sheet
   from below, in the look of the grey top bar, like a page of a magazine about the rug on show.
-  At the top the whole rug, as in a product photo; then its name, designer, size and price, and
-  a line about it; then, folded away, its description, its product details and how it can be
+  At the top the whole rug, as in a product photo; then its name, designer, size and price; then,
+  folded away, its description, its product details and how it can be
   made to order ([+] opens one at a time).
 
   - The sheet opens over three quarters of the screen, the rug still showing above it. Swiping up
@@ -16,12 +16,11 @@
   js/carpet-ripple.js (COLOURWAYS, chosenWay) to be loaded first.
 */
 
-// Each collection: a line about it, its description, its details (materials, technique, quality,
+// Each collection: its description, its details (materials, technique, quality,
 // atelier: as on cc-tapis.com), how it can be made to order, and its picture: the rug on show, or
 // (Ripple Square, where the rug on show is your own) the real rug in each colourway
 const RUG_STORIES = {
   hypercode: {
-    line: "Symbols, glyphs and graffiti from around the world, woven into a rug.",
     description: [
       "Roberto Sironi collects inscriptions: the marks people have left on walls, stones and objects, across cultures and centuries.",
       "Hypercode weaves them into visual codes, an old language of signs read through contemporary textile design.",
@@ -31,7 +30,6 @@ const RUG_STORIES = {
     custom: "Size and colour",
   },
   "grandma-patterns": {
-    line: "Grandmother's tartan, painted loose like watercolour.",
     description: [
       "Rop van Mierlo takes a familiar tartan and lets it run, the way watercolour runs on wet paper.",
       "His free, fluid brushstrokes become bold rugs made by hand: nostalgic and textured, and entirely of today.",
@@ -40,7 +38,6 @@ const RUG_STORIES = {
     custom: "Size",
   },
   "ripple-square": {
-    line: "A line drawn on a screen, slowed down into knotted wool.",
     description: [
       "Patricia Urquiola starts from the ease of a digital gesture and lets it flow across the floor.",
       "Bands of leaves ripple from edge to edge, their textures and colours shifting as they go, so the rug seems to move.",
@@ -135,7 +132,6 @@ function fillSheet() {
   infoScroll.replaceChildren(
     rugPicture(collection, story),
     head,
-    element("p", "info-line", story.line),
     foldedPart("Description", story.description.map((text) => element("p", "info-text", text))),
     foldedPart("Product details", [list]),
     foldedPart("Customisation", [

@@ -377,9 +377,10 @@ body {
   font-family: var(--font-sans);
 }
 
+/* The size and price in cc-tapis blue */
 .rug-info .rug-info__size {
   margin-top: var(--space-2); /* a little space between the name and the size */
-  color: #6b6b6b;
+  color: var(--color-accent);
 }
 
 /* Under the rug, just above Buy (shown only while zoomed out, like the name) */
@@ -1177,19 +1178,9 @@ body {
   line-height: 1.4;
 }
 
-/* The size and price in cc-tapis blue */
 .info-head .info-head__size {
-  margin-top: var(--space-2);
+  margin: var(--space-2) 0 var(--space-6);
   font-size: 13px;
-  color: var(--color-accent);
-}
-
-/* The line about it: big, like an editorial standfirst */
-.info-line {
-  margin: var(--space-5) 0 var(--space-6);
-  font-size: var(--text-lg);
-  line-height: 1.2;
-  letter-spacing: -0.01em;
 }
 
 /* The parts folded away: [+] Description, [+] Product details, [+] Customisation. An open one's
