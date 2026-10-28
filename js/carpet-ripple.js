@@ -1,11 +1,10 @@
 /*
   Ripple Square by Patricia Urquiola: make your own rug. It starts as a blank 200 × 200 cm
   canvas with a single ripple on it; you add more, stroke by stroke, with a brush made from
-  Ripple's own band of leaves, as on the real rug: a band of ground, and on it a row of tall ovals
-  side by side, their middles on one edge of the band (touching each other there) and their tips
-  nearly reaching the other edge, so the ground shows only as narrow V's between them. Each oval
-  is whole: its other half reaches out past the band, and the next band drawn over it hides it,
-  so the ovals look like arches, as on the rug. The band follows the curve you draw, in the
+  Ripple's own band of leaves, as on the real rug: a band of ground, and on it a row of tall,
+  whole ovals side by side, touching each other at their middles, their tips nearly reaching the
+  band's edges, so the ground shows only as narrow V's between them. The next band drawn over
+  one half of them hides it, so the ovals look like arches, as on the rug. The band follows the curve you draw, in the
   colourway picked in the row under the rug.
 
   - The brush is always the same width on the rug, zoomed in or out. Its ovals widen with the
@@ -83,8 +82,8 @@ let chosenWay = 0; // the colourway picked in the row
 // ---------- The layers ----------
 
 // done: the strokes so far. band and leaves: the stroke being drawn, apart, so its band never
-// covers its own leaves where it curves. reach: where the stroke's ovals may show (the band, and
-// as far again past its one edge). stroke: the two put together, the leaves cut to the reach (so
+// covers its own leaves where it curves. reach: where the stroke's ovals may show (the band, its
+// ends cut straight). stroke: the two put together, the leaves cut to the reach (so
 // the stroke ends in a straight cut, like the rug's own bands). mix: everything together, cut
 // to the rug's shape. woven: mix with the wool laid over it. fibres: woven with ragged edges, as
 // shown. shape: the rug's outline; line: the soft haze along it. floor: the rug's shadow on the
@@ -381,7 +380,7 @@ function ownTo(p, aim) {
   drawBand(stroke.points, way.ground);
   const leaves = own.leaves.getContext("2d");
   const angle = Math.atan2(dy, dx);
-  // the ovals' middles: on the band's edge to the right of the way it's drawn
+  // the ovals' middles: half a band to the right of the finger's path (the band's middle)
   const footX = (-dy / length) * (RIPPLE_BAND / 2);
   const footY = (dx / length) * (RIPPLE_BAND / 2);
   let at = stroke.next;
@@ -403,31 +402,28 @@ function ownTo(p, aim) {
 // The band: the whole path so far, as one smooth line (no seams or slivers where it bends): its
 // pile spilling a little over its edges, and rounding down a little darker towards them
 function drawBand(points, ground) {
+  // the ground reaches from the ovals' tips on one side to their tips on the other
+  const width = RIPPLE_BAND * (1 + ARCH.tall * 1.04);
+  const path = new Path2D(linePath(points, (width - RIPPLE_BAND) / 2));
   const band = own.band.getContext("2d");
-  const width = RIPPLE_BAND;
   band.clearRect(0, 0, own.w, own.h);
   band.lineCap = "butt";
   band.lineJoin = "round";
-  band.beginPath();
-  band.moveTo(points[0].x, points[0].y);
-  for (let k = 1; k < points.length; k++) band.lineTo(points[k].x, points[k].y);
   for (const [wider, alpha, light] of [[2 * WOOL_FUZZ, 0.35, 0.95], [WOOL_FUZZ, 0.6, 0.96], [0, 1, 0.97], [-4, 1, 0.98], [-8, 1, 0.99], [-12, 1, 1]]) {
     band.globalAlpha = alpha;
     band.strokeStyle = `rgb(${ground.map((c) => Math.round(c * light))})`;
     band.lineWidth = width + wider;
-    band.stroke();
+    band.stroke(path);
   }
   band.globalAlpha = 1;
-  // the reach: the band, and past its ovals' edge as far as the ovals go, its ends cut straight
+  // the reach: where the ovals may show (the band, its ends cut straight)
   const reach = own.reach.getContext("2d");
   reach.clearRect(0, 0, own.w, own.h);
   reach.lineCap = "butt";
   reach.lineJoin = "round";
   reach.strokeStyle = "black";
   reach.lineWidth = width + 2 * WOOL_FUZZ;
-  reach.stroke(new Path2D(linePath(points, 0)));
-  reach.lineWidth = width * 2.2;
-  reach.stroke(new Path2D(linePath(points, width / 2)));
+  reach.stroke(path);
 }
 
 // A line through the points as SVG path data, moved this far to its right (to the right of the way
@@ -457,9 +453,9 @@ function leafLook(stretch) {
   };
 }
 
-// One oval, as thick pile, its middle (leaf.x, leaf.y) on the band's edge, its tip across the band: it
+// One oval, as thick pile, its middle at (leaf.x, leaf.y), its tips across the band: it
 // throws a faint shadow on the ground round it, its edge is a faint carved groove, and inside the
-// groove the pile rounds down a little. It's whole: its lower half reaches out past the band.
+// groove the pile rounds down a little.
 function knotLeaf(ctx, leaf, rgb) {
   const { rx, ry, tilt, w1, w2, shade } = leaf.look;
   const outline = (grow) => {
