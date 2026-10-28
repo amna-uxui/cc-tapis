@@ -6,7 +6,8 @@
     mark. Brush back over a mark the opposite way and it disappears, like on real velvet.
   - Move and pinch with two fingers to move around and zoom. Flicks keep gliding.
   - On a computer: scroll to move, trackpad pinch / ctrl + scroll to zoom.
-  - Double-tap to wipe the drawing, back to the plain carpet.
+  - Double-tap to wipe the drawing, back to the plain carpet. A single tap on the rug shows the
+    collection's next rug or shape (tapRug, js/carpet-collections.js).
   - With the whole rug in view, one finger on the white page around it swipes left or right to the
     next collection (the rug follows the finger; let go far enough, or flick, and the next one
     slides in: js/carpet-collections.js; past the last one it springs back). On a rug you draw on, the finger on the rug draws as
@@ -871,18 +872,23 @@ function endPointer(e) {
   if (gesture.stroke) finishStroke(gesture.stroke, toCarpet(p));
   if (typeof brushSound !== "undefined") brushSound.stop();
 
-  // Double-tap: wipe the drawing
+  // Double-tap: wipe the drawing. A single tap on the rug (no second one follows): the next rug
   if (!moved) {
-    const quick = now - lastTap.time < 300;
+    const quick = now - lastTap.time < DOUBLE_TAP;
     const near = Math.hypot(p.x - lastTap.x, p.y - lastTap.y) < 30;
+    clearTimeout(singleTap);
     if (quick && near) {
       wipeDrawing();
       lastTap = { time: 0, x: 0, y: 0 };
       return;
     }
     lastTap = { time: now, ...p };
+    if (onCarpet(p.x, p.y) && typeof tapRug === "function") singleTap = setTimeout(tapRug, DOUBLE_TAP);
   }
 }
+
+const DOUBLE_TAP = 300; // ms: a second tap within this is a double tap
+let singleTap = null;
 
 stage.addEventListener("pointerup", endPointer);
 stage.addEventListener("pointercancel", endPointer);

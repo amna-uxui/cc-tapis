@@ -23,10 +23,12 @@ const easeOut = (t) => 1 - Math.pow(1 - t, 2);              // already moving (l
 const easeInOut = (t) => 0.5 - Math.cos(Math.PI * t) / 2;   // from rest (the menu): sets off gently
 const settle = (t) => 1 - Math.pow(1 - t, 4);               // arriving: glides in and settles softly
 
-// What each collection brings: whether one finger draws on its rug, and how it comes on and goes
+// What each collection brings: whether one finger draws on its rug, how it comes on and goes, and
+// what a tap on the rug does (the next shape on the whole Hypercode rug, where the close-up is
+// for drawing; the next rug on GrandMa Patterns, at any zoom)
 const COLLECTION_PARTS = {
-  hypercode: { brush: true, enter: (whole) => enterHypercode(whole), leave: () => {} },
-  "grandma-patterns": { brush: false, enter: (whole) => enterGrandma(whole), leave: () => leaveGrandma() },
+  hypercode: { brush: true, enter: (whole) => enterHypercode(whole), leave: () => {}, tap: () => isWhole() && nextShape() },
+  "grandma-patterns": { brush: false, enter: (whole) => enterGrandma(whole), leave: () => leaveGrandma(), tap: () => nextRug() },
 };
 
 const verbText = document.querySelector("[data-verb]");
@@ -77,6 +79,12 @@ async function showCollection(index, dir = index > collectionIndex ? 1 : -1) {
   await slideRug(0, SLIDE_IN, settle);
   sliding = false;
   preloadNeighbours();
+}
+
+// A single tap on the rug (js/carpet-viewer.js)
+function tapRug() {
+  if (sliding || collectionIndex < 0) return;
+  COLLECTION_PARTS[MENU_COLLECTIONS[collectionIndex].id].tap();
 }
 
 // Is there a collection that way? (step 1: the next one, -1: the one before)

@@ -164,9 +164,18 @@ function markShape() {
 
 // ---------- The shapes ----------
 
+let shapeStrip = null;
+
 function buildShapes() {
-  makeStrip(shapeRow, SHAPES, { draw: shapeIcon, choose: chooseShape, start: SHAPES.indexOf(currentShape) });
+  shapeStrip = makeStrip(shapeRow, SHAPES, { draw: shapeIcon, choose: chooseShape, start: SHAPES.indexOf(currentShape) });
   markShape();
+}
+
+// A tap on the whole rug (js/carpet-collections.js): the next shape, round and round
+function nextShape() {
+  const index = (SHAPES.indexOf(currentShape) + 1) % SHAPES.length;
+  shapeStrip.show(index);
+  chooseShape(SHAPES[index]);
 }
 
 // Hypercode comes on (js/carpet-collections.js): its shapes in the row, its rug as you left it.
