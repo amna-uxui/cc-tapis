@@ -1,9 +1,9 @@
 /*
   About this rug: [+] at the bottom right (only while the whole rug is in view) slides up a sheet
-  of paper from below, like a page of a magazine about the rug on show. At the top a close-up of
-  the rug's pile; then its name, designer, size and price, and a line about it; then, folded
-  away, its description, its product details and how it can be made to order ([+] opens one at a
-  time).
+  from below, in the look of the grey top bar, like a page of a magazine about the rug on show.
+  At the top the whole rug, as in a product photo; then its name, designer, size and price, and
+  a line about it; then, folded away, its description, its product details and how it can be
+  made to order ([+] opens one at a time).
 
   - The sheet opens over three quarters of the screen, the rug still showing above it. Swiping up
     on it takes it to the full screen; from then on it scrolls. Swiping down at its top brings it
@@ -17,8 +17,8 @@
 */
 
 // Each collection: a line about it, its description, its details (materials, technique, quality,
-// atelier: as on cc-tapis.com), how it can be made to order, and where its close-up comes from:
-// "rug" (the rug on show, closer) or one picture per colourway
+// atelier: as on cc-tapis.com), how it can be made to order, and its picture: the rug on show, or
+// (Ripple Square, where the rug on show is your own) the real rug in each colourway
 const RUG_STORIES = {
   hypercode: {
     line: "Symbols, glyphs and graffiti from around the world, woven into a rug.",
@@ -29,7 +29,6 @@ const RUG_STORIES = {
     ],
     details: [["Materials", "50% wool, 50% linen"], ["Technique", "Jacquard"], ["Atelier", "Made by hand in India"]],
     custom: "Size and colour",
-    closeUp: { from: "rug", share: 0.42 },
   },
   "grandma-patterns": {
     line: "Grandmother's tartan, painted loose like watercolour.",
@@ -39,7 +38,6 @@ const RUG_STORIES = {
     ],
     details: [["Materials", "Wool"], ["Technique", "Moroccan weave"], ["Atelier", "Made by hand in India"]],
     custom: "Size",
-    closeUp: { from: "rug", share: 0.36 },
   },
   "ripple-square": {
     line: "A line drawn on a screen, slowed down into knotted wool.",
@@ -49,20 +47,16 @@ const RUG_STORIES = {
     ],
     details: [["Materials", "100% Himalayan wool"], ["Technique", "Hand-knotted"], ["Quality", "A+, about 152,000 knots a m²"], ["Atelier", "Made by hand in Nepal"]],
     custom: "Size and colour",
-    closeUp: {
-      from: "colourway",
-      pictures: {
-        "Rose Garden": "images/closeup-ripple-rose-garden.jpg",
-        "Earth Glow": "images/closeup-ripple-earth-glow.jpg",
-        "Lavender Root": "images/closeup-ripple-lavender-root.jpg",
-        "Dune Shadow": "images/closeup-ripple-dune-shadow.jpg",
-      },
+    pictures: {
+      "Rose Garden": "images/ripple-rose-garden.jpg",
+      "Earth Glow": "images/ripple-earth-glow.jpg",
+      "Lavender Root": "images/ripple-lavender-root.jpg",
+      "Dune Shadow": "images/ripple-dune-shadow.jpg",
     },
   },
 };
 
 const OPEN_SHOWS = 0.75;     // how much of the screen the sheet covers when it opens
-const SHEET_TOP = 8;         // how far below the top of the screen it stops when it's full (px)
 const CLOSE_BELOW = 0.55;    // let go with its top lower than this share of the screen, it closes
 
 const infoButton = document.querySelector("[data-info]");
@@ -81,24 +75,13 @@ function rugColour(collection) {
   return null; // GrandMa Patterns: the colour is in the rug's name
 }
 
-// The close-up: a picture of the colourway, or the middle of the rug on show, nearer
-function closeUp(collection, story) {
-  const box = document.createElement("figure");
-  box.className = "info-closeup";
-  if (story.closeUp.from === "colourway") {
-    const picture = document.createElement("img");
-    picture.src = story.closeUp.pictures[rugColour(collection)];
-    picture.alt = "";
-    box.append(picture);
-    return box;
-  }
-  const canvas = document.createElement("canvas");
-  const w = img.naturalWidth * story.closeUp.share;
-  const h = w / 1.5;
-  canvas.width = Math.round(w);
-  canvas.height = Math.round(h);
-  canvas.getContext("2d").drawImage(img, (img.naturalWidth - w) / 2, (img.naturalHeight - h) / 2, w, h, 0, 0, w, h);
-  box.append(canvas);
+// The whole rug, on white like a product photo: the rug on show, or the colourway's own picture
+function rugPicture(collection, story) {
+  const box = element("figure", "info-picture");
+  const picture = document.createElement("img");
+  picture.src = story.pictures ? story.pictures[rugColour(collection)] : img.src;
+  picture.alt = "";
+  box.append(picture);
   return box;
 }
 
@@ -112,7 +95,7 @@ function element(tag, className, text) {
 // A part folded away: [+] and its title; tapped, it opens (and any other one closes)
 function foldedPart(title, body) {
   const part = element("section", "info-part");
-  const head = element("button", "info-part__title mono", `[+] ${title}`);
+  const head = element("button", "info-part__title", `[+] ${title}`);
   head.setAttribute("aria-expanded", "false");
   const inner = element("div", "info-part__body");
   const wrap = element("div", "info-part__wrap");
@@ -141,16 +124,16 @@ function fillSheet() {
   head.append(
     element("p", "info-head__name", rugInfo.querySelector("[data-rug-name]").textContent),
     element("p", "info-head__designer", rugInfo.querySelector("[data-rug-designer]").textContent),
-    element("p", "info-head__size mono", rugInfo.querySelector("[data-rug-size]").textContent)
+    element("p", "info-head__size", rugInfo.querySelector("[data-rug-size]").textContent)
   );
   // the details: as on cc-tapis.com, and the rug on show's own size and colour
   const list = element("dl", "info-details");
   const size = rugInfo.querySelector("[data-rug-size]").textContent.split("|")[0].trim();
   [...story.details, ["Size", size], ...(colour ? [["Colour", colour]] : [])].forEach(([label, value]) => {
-    list.append(element("dt", "mono", label), element("dd", null, value));
+    list.append(element("dt", null, label), element("dd", null, value));
   });
   infoScroll.replaceChildren(
-    closeUp(collection, story),
+    rugPicture(collection, story),
     head,
     element("p", "info-line", story.line),
     foldedPart("Description", story.description.map((text) => element("p", "info-text", text))),
@@ -166,7 +149,7 @@ function fillSheet() {
 // ---------- Opening, moving and closing the sheet ----------
 
 const openAt = () => window.innerHeight * (1 - OPEN_SHOWS);
-const fullAt = () => SHEET_TOP;
+const fullAt = () => 0; // (its top then lines up with the top bar's)
 const closedAt = () => window.innerHeight;
 
 function moveSheet(y, { now = false } = {}) {

@@ -111,16 +111,20 @@
     <button class="button button--wide mono">Buy</button>
 
     <!-- About this rug: opens the sheet below (js/carpet-info.js); only while the whole rug is in view -->
-    <button class="info-button mono" aria-label="About this rug" aria-expanded="false" data-info>[+]</button>
+    <button class="tool info-button" aria-label="About this rug" aria-expanded="false" data-info>
+      <svg class="info-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2H2v20h5M17 2h5v20h-5M12 7v10M7 12h10" /></svg>
+    </button>
   </nav>
 
-  <!-- About this rug: a sheet of paper sliding up from below, with a close-up of the rug, a few
-       words about it, and its description, details and customisation (js/carpet-info.js) -->
+  <!-- About this rug: a sheet sliding up from below, in the grey of the top bar, with the whole
+       rug, a few words about it, and its description, details and customisation (js/carpet-info.js) -->
   <div class="info-backdrop" data-info-backdrop></div>
   <section class="info-sheet" aria-label="About this rug" aria-hidden="true" data-info-sheet>
     <div class="info-sheet__top">
-      <span class="info-sheet__handle" aria-hidden="true"></span>
-      <button class="info-sheet__close mono" aria-label="Close" data-info-close>[–]</button>
+      <span class="info-sheet__title">About this rug</span>
+      <button class="tool info-sheet__close" aria-label="Close" data-info-close>
+        <svg class="info-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2H2v20h5M17 2h5v20h-5M7 12h10" /></svg>
+      </button>
     </div>
     <div class="info-sheet__scroll" data-info-scroll></div>
   </section>
