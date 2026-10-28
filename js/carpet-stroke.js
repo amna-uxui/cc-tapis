@@ -1,16 +1,19 @@
 /*
   Stroke by Sabine Marcelis: rugs made of broad, brushed strokes, and you reshape them for good.
   Each rug is made of pieces: Stroke 1.0 of four strips, Stroke 2.0 of a straight panel with a sash
-  folded across it, the runner of one long strip. Put your finger on a piece and drag: only that
-  piece bends, following your finger into curves and S-shapes like a ribbon; move it round in a
-  circle and it twists into a knot. The piece you move comes to the top, lying over the others
-  with a soft shadow, and stays as you leave it. Double-tap to put the rug back as it was.
+  folded across it, the runner of one long strip. Put your finger on a piece and pull: the piece
+  bends as one thick, heavy band, like a strip of real rug dragged across the floor. Its width and
+  its lines stay as they are (only its course bends), it moves less than your finger and trails
+  behind, and it can't fold up tighter than wool would. The piece you move comes to the top, lying
+  over the others with a soft shadow, and stays as you leave it. Double-tap to put the rug back.
 
   - Tap the rug for the next shape: Stroke 1.0, Stroke 2.0, the runner, and round again.
   - The row under the rug: the two colours of the shape on show.
 
-  Each piece is drawn with WebGL as a fine mesh over the photo, cut to that piece's outline: the
-  finger moves the mesh's points, the piece's wool goes with them, like fabric.
+  How: every piece has a spine, a line down its middle. Pulling moves the spine like a heavy rope
+  (each stretch of it keeps its length, and it stays smoothly curved); every point of the piece
+  keeps its place across the spine, so the band follows the spine without smearing. It's drawn
+  with WebGL, each piece as a fine mesh over the photo cut to the piece's outline.
 
   Needs js/carpet-viewer.js (changeRug, img, carpet, fingerPaint, isWhole), js/carpet-strip.js and
   js/carpet-menu.js to be loaded first.
@@ -29,12 +32,15 @@ const SASH = [
   [-0.05, -0.05], [0.47, -0.05], [0.6, 0.2], [0.95, 0.48], [1.05, 0.6], [1.0, 0.85], [0.88, 0.95],
   [0.82, 0.9], [0.62, 0.71], [0.43, 0.55], [0.2, 0.37], [0.05, 0.22], [-0.05, 0.18],
 ];
+// The spines (lines down the middle) of 2.0's two pieces and of the runner
+const SASH_SPINE = [[0.12, 0.1], [0.35, 0.25], [0.6, 0.45], [0.8, 0.62], [0.95, 0.78]];
+const PANEL_SPINE = [[0.2, 0.05], [0.2, 0.5], [0.3, 0.85], [0.55, 0.88]];
+const RUNNER_SPINE = [[0.5, 0], [0.5, 1]];
 
 // The three shapes, each in its two colours (rgb: its main colour, for the dot in the row)
 const STROKE_SHAPES = [
   {
     name: "1.0",
-    reach: 0.09,
     colours: [
       { name: "Violet", src: "images/stroke-1-violet.jpg", rgb: [136, 117, 168], strips: STRIPS_VIOLET },
       { name: "Blue", src: "images/stroke-1-blue.jpg", rgb: [45, 96, 158], strips: STRIPS_BLUE },
@@ -42,7 +48,6 @@ const STROKE_SHAPES = [
   },
   {
     name: "2.0",
-    reach: 0.14,
     colours: [
       { name: "Yellow", src: "images/stroke-2-yellow.jpg", rgb: [217, 185, 130], sash: SASH },
       { name: "Orange", src: "images/stroke-2-orange.jpg", rgb: [198, 98, 46], sash: SASH },
@@ -50,7 +55,6 @@ const STROKE_SHAPES = [
   },
   {
     name: "Runner",
-    reach: 0.12,
     colours: [
       { name: "Yellow", src: "images/stroke-runner-yellow.jpg", rgb: [219, 182, 102] },
       { name: "Nude", src: "images/stroke-runner-nude.jpg", rgb: [210, 193, 172] },
@@ -58,12 +62,17 @@ const STROKE_SHAPES = [
   },
 ];
 
-const BEND_FOLLOW = 0.95;    // how closely a piece follows the finger where it's held (1 = exactly)
-const TWIST = 0.4;           // how strongly circling the finger twists the piece round it
-const MESH = 80;             // points along the rug's longer side (more = smoother bends)
+const HEAVY = 0.45;          // how far the held part of a piece moves for the finger's travel (lower = heavier)
+const STIFF = 0.25;          // how stiffly a piece keeps its curve smooth (higher = gentler bends, never kinks)
+const GRIP = 7;              // the floor holds a piece: parts further than this many spine points from the
+                             // finger barely move, so the piece bends near the hand instead of sliding whole
+const SLIDE = 0.04;          // ... though even the far end gives a little, so a long pull drags it along
+const SPINE = 32;            // points along each piece's spine
+const SOLVE = 24;            // rounds of keeping the spine's length and smoothness each move
+const MESH = 80;             // mesh points along the rug's longer side (more = smoother bends)
 const ROOM = 0.3;            // room round the rug for its moved pieces (share of its longer side)
 const SHADOW = 0.008;        // how far a moved piece's shadow falls (share of the rug's longer side)
-const LABELS = 512;          // the map of which piece is where: this many points along its longer side
+const LABELS = 1024;         // the map of which piece is where: this many points along its longer side
 
 const warpCanvas = carpet.querySelector(".carpet__warp");
 
@@ -94,10 +103,66 @@ function insidePolygon(points, x, y) {
   return inside;
 }
 
-// ---------- The mesh: one per piece, all over the same photo ----------
+// A piece's spine, as points on the photo (u, v): down the middle between its seams, for a strip
+function spineLine(colour, k) {
+  if (colour.strips) {
+    const seam = (j, v) => {
+      const s = colour.strips;
+      if (j < 0) return 2 * seam(0, v) - seam(1, v); // the outer edges: one strip's width further out
+      if (j >= s.length) return 2 * seam(s.length - 1, v) - seam(s.length - 2, v);
+      const [a, b, c] = s[j];
+      return a + b * v + c * v * v;
+    };
+    const points = [];
+    for (let i = 0; i <= 12; i++) {
+      const v = i / 12;
+      points.push([(seam(k - 1, v) + seam(k, v)) / 2, v]);
+    }
+    return points;
+  }
+  if (colour.sash) return k === 1 ? SASH_SPINE : PANEL_SPINE;
+  return RUNNER_SPINE;
+}
 
-// warp: { w, h, room, cols, rows, rest (x, y per point), pieces: [{ off (how far each point moved),
-// moved }], order (bottom to top), labels: { w, h, data } }
+// Points along a line, evenly spaced along its length (in photo pixels)
+function evenly(points, count) {
+  const lengths = [0];
+  for (let i = 1; i < points.length; i++) lengths.push(lengths[i - 1] + Math.hypot(points[i][0] - points[i - 1][0], points[i][1] - points[i - 1][1]));
+  const total = lengths[lengths.length - 1];
+  const out = new Float32Array(count * 2);
+  let j = 0;
+  for (let i = 0; i < count; i++) {
+    const at = (total * i) / (count - 1);
+    while (j < points.length - 2 && lengths[j + 1] < at) j++;
+    const f = (at - lengths[j]) / (lengths[j + 1] - lengths[j] || 1);
+    out[i * 2] = points[j][0] + (points[j + 1][0] - points[j][0]) * f;
+    out[i * 2 + 1] = points[j][1] + (points[j + 1][1] - points[j][1]) * f;
+  }
+  return out;
+}
+
+// The way across the spine at each of its points (perpendicular to it)
+function acrossSpine(spine) {
+  const n = spine.length / 2;
+  const across = new Float32Array(spine.length);
+  for (let i = 0; i < n; i++) {
+    const a = Math.max(0, i - 1);
+    const b = Math.min(n - 1, i + 1);
+    const tx = spine[b * 2] - spine[a * 2];
+    const ty = spine[b * 2 + 1] - spine[a * 2 + 1];
+    const l = Math.hypot(tx, ty) || 1;
+    across[i * 2] = -ty / l;
+    across[i * 2 + 1] = tx / l;
+  }
+  return across;
+}
+
+// ---------- The meshes: one per piece, all over the same photo ----------
+
+// warp: { w, h, room, cols, rows, rest (x, y per mesh point), pieces, order (bottom to top),
+// labels: { w, h, data (rgba: piece k is channel k) } }
+// piece: { spine (now), restSpine, gaps (each stretch's length), bind (per mesh point: where along
+// the spine, how far across), positions (where its mesh points are now), moved }
 let warp = null;
 let warpGl = null;
 
@@ -116,22 +181,17 @@ function makeMesh(colour) {
     }
   }
   const count = pieceCount(colour);
-  // the map of which piece is where on the photo
+  // the map of which piece is where on the photo: one colour channel per piece, so the edges
+  // between pieces come out smooth
   const lw = Math.round((LABELS * w) / Math.max(w, h));
   const lh = Math.round((LABELS * h) / Math.max(w, h));
-  const labels = new Uint8Array(lw * lh);
-  for (let y = 0; y < lh; y++) for (let x = 0; x < lw; x++) labels[y * lw + x] = pieceAt(colour, (x + 0.5) / lw, (y + 0.5) / lh);
-  warp = {
-    w,
-    h,
-    room: Math.max(w, h) * ROOM,
-    cols,
-    rows,
-    rest,
-    pieces: Array.from({ length: count }, () => ({ off: new Float32Array(rest.length), moved: false })),
-    order: Array.from({ length: count }, (_, k) => k),
-    labels: { w: lw, h: lh, data: labels },
-  };
+  const labels = new Uint8Array(lw * lh * 4);
+  for (let y = 0; y < lh; y++) {
+    for (let x = 0; x < lw; x++) labels[(y * lw + x) * 4 + pieceAt(colour, (x + 0.5) / lw, (y + 0.5) / lh)] = 255;
+  }
+  warp = { w, h, room: Math.max(w, h) * ROOM, cols, rows, rest, order: [], labels: { w: lw, h: lh, data: labels } };
+  warp.pieces = Array.from({ length: count }, (_, k) => makePiece(spineLine(colour, k).map(([u, v]) => [u * w, v * h])));
+  warp.order = warp.pieces.map((_, k) => k);
   // the canvas reaches past the rug on every side, so moved pieces still show
   warpCanvas.width = Math.round(w + warp.room * 2);
   warpCanvas.height = Math.round(h + warp.room * 2);
@@ -141,6 +201,59 @@ function makeMesh(colour) {
     width: `${w + warp.room * 2}px`,
     height: `${h + warp.room * 2}px`,
   });
+}
+
+// A piece: its spine, and every mesh point tied to it (where along it, how far across it)
+function makePiece(line) {
+  const restSpine = evenly(line, SPINE);
+  const across = acrossSpine(restSpine);
+  const gaps = new Float32Array(SPINE - 1);
+  for (let i = 0; i < SPINE - 1; i++) gaps[i] = Math.hypot(restSpine[i * 2 + 2] - restSpine[i * 2], restSpine[i * 2 + 3] - restSpine[i * 2 + 1]);
+  const rest = warp.rest;
+  const bind = new Float32Array(rest.length);
+  for (let p = 0; p < rest.length; p += 2) {
+    // the nearest place on the spine (beyond its ends too, along its first and last stretch)
+    let best = Infinity;
+    for (let i = 0; i < SPINE - 1; i++) {
+      const ax = restSpine[i * 2], ay = restSpine[i * 2 + 1];
+      const dx = restSpine[i * 2 + 2] - ax, dy = restSpine[i * 2 + 3] - ay;
+      let f = ((rest[p] - ax) * dx + (rest[p + 1] - ay) * dy) / (dx * dx + dy * dy);
+      if (i > 0) f = Math.max(0, f);
+      if (i < SPINE - 2) f = Math.min(1, f);
+      const d = Math.hypot(rest[p] - (ax + dx * f), rest[p + 1] - (ay + dy * f));
+      if (d < best) {
+        best = d;
+        bind[p] = i + f;
+      }
+    }
+    // how far across: measured along the spine's crosswise direction there
+    const i = Math.min(SPINE - 2, Math.max(0, Math.floor(bind[p])));
+    const f = bind[p] - i;
+    const sx = restSpine[i * 2] + (restSpine[i * 2 + 2] - restSpine[i * 2]) * f;
+    const sy = restSpine[i * 2 + 1] + (restSpine[i * 2 + 3] - restSpine[i * 2 + 1]) * f;
+    const nx = across[i * 2] + (across[i * 2 + 2] - across[i * 2]) * f;
+    const ny = across[i * 2 + 1] + (across[i * 2 + 3] - across[i * 2 + 1]) * f;
+    bind[p + 1] = (rest[p] - sx) * nx + (rest[p + 1] - sy) * ny;
+  }
+  const piece = { spine: restSpine.slice(), restSpine, gaps, bind, positions: rest.slice(), moved: false };
+  return piece;
+}
+
+// Where every mesh point of a piece is now: at its place along the spine, as far across as before
+function skin(piece) {
+  const { spine, bind, positions } = piece;
+  const across = acrossSpine(spine);
+  for (let p = 0; p < bind.length; p += 2) {
+    const i = Math.min(SPINE - 2, Math.max(0, Math.floor(bind[p])));
+    const f = bind[p] - i;
+    const sx = spine[i * 2] + (spine[i * 2 + 2] - spine[i * 2]) * f;
+    const sy = spine[i * 2 + 1] + (spine[i * 2 + 3] - spine[i * 2 + 1]) * f;
+    let nx = across[i * 2] + (across[i * 2 + 2] - across[i * 2]) * f;
+    let ny = across[i * 2 + 1] + (across[i * 2 + 3] - across[i * 2 + 1]) * f;
+    const l = Math.hypot(nx, ny) || 1;
+    positions[p] = sx + (nx / l) * bind[p + 1];
+    positions[p + 1] = sy + (ny / l) * bind[p + 1];
+  }
 }
 
 const WARP_VERTEX = `
@@ -160,15 +273,16 @@ const WARP_FRAGMENT = `
 precision mediump float;
 uniform sampler2D uPhoto;
 uniform sampler2D uLabels;
-uniform float uPiece;
+uniform vec4 uPiece;
 uniform float uShadow;
 varying vec2 vUv;
 void main() {
-  // only this piece's part of the photo
-  if (abs(texture2D(uLabels, vUv).r * 255.0 - uPiece) > 0.5) discard;
+  // only this piece's part of the photo, with a smooth edge
+  float mine = dot(texture2D(uLabels, vUv), uPiece);
+  if (mine < 0.02) discard;
   // the photo's white paper turns see-through, so where pieces overlap, only rug shows
   vec4 c = texture2D(uPhoto, vUv);
-  float a = clamp((0.975 - (c.r + c.g + c.b) / 3.0) / 0.03, 0.0, 1.0);
+  float a = clamp((0.975 - (c.r + c.g + c.b) / 3.0) / 0.03, 0.0, 1.0) * mine;
   if (uShadow > 0.0) gl_FragColor = vec4(0.0, 0.0, 0.0, a * uShadow);
   else gl_FragColor = vec4(c.rgb * a, a);
 }`;
@@ -187,11 +301,11 @@ function setUpWarpGl() {
   gl.attachShader(program, shader(gl.FRAGMENT_SHADER, WARP_FRAGMENT));
   gl.linkProgram(program);
   gl.useProgram(program);
-  const texture = (filter) => {
+  const texture = () => {
     const t = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, t);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, filter);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, filter);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     return t;
@@ -202,8 +316,8 @@ function setUpWarpGl() {
   return {
     gl,
     program,
-    photo: texture(gl.LINEAR),
-    labels: texture(gl.NEAREST),
+    photo: texture(),
+    labels: texture(),
     positionBuffer: gl.createBuffer(),
     uvBuffer: gl.createBuffer(),
     indexBuffer: gl.createBuffer(),
@@ -218,15 +332,15 @@ function loadWarp(colour) {
   makeMesh(colour);
   const { gl, program, uniforms } = warpGl;
   gl.viewport(0, 0, warpCanvas.width, warpCanvas.height);
+  gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
   gl.activeTexture(gl.TEXTURE0);
   gl.bindTexture(gl.TEXTURE_2D, warpGl.photo);
-  gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
   gl.activeTexture(gl.TEXTURE1);
   gl.bindTexture(gl.TEXTURE_2D, warpGl.labels);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE, warp.labels.w, warp.labels.h, 0, gl.LUMINANCE, gl.UNSIGNED_BYTE, warp.labels.data);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, warp.labels.w, warp.labels.h, 0, gl.RGBA, gl.UNSIGNED_BYTE, warp.labels.data);
 
-  // where on the photo each point is, and the triangles between the points
+  // where on the photo each mesh point is, and the triangles between the points
   const { cols, rows, rest, w, h } = warp;
   const uv = new Float32Array(rest.length);
   for (let i = 0; i < rest.length; i += 2) {
@@ -242,7 +356,6 @@ function loadWarp(colour) {
   }
   warp.triangles = index;
   warpGl.count = index.length;
-  warpGl.positions = new Float32Array(rest.length);
   gl.bindBuffer(gl.ARRAY_BUFFER, warpGl.uvBuffer);
   gl.bufferData(gl.ARRAY_BUFFER, uv, gl.STATIC_DRAW);
   const aUv = gl.getAttribLocation(program, "aUv");
@@ -260,19 +373,18 @@ function loadWarp(colour) {
 // All the pieces, bottom to top; a moved piece with its soft shadow under it
 function drawWarp() {
   if (!warpGl || !warp) return;
-  const { gl, program, positions, uniforms } = warpGl;
+  const { gl, program, uniforms } = warpGl;
   gl.clearColor(0, 0, 0, 0);
   gl.clear(gl.COLOR_BUFFER_BIT);
   const aPos = gl.getAttribLocation(program, "aPos");
   const shadow = Math.max(warp.w, warp.h) * SHADOW;
   for (const k of warp.order) {
     const piece = warp.pieces[k];
-    for (let i = 0; i < positions.length; i++) positions[i] = warp.rest[i] + piece.off[i];
     gl.bindBuffer(gl.ARRAY_BUFFER, warpGl.positionBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, positions, gl.DYNAMIC_DRAW);
+    gl.bufferData(gl.ARRAY_BUFFER, piece.positions, gl.DYNAMIC_DRAW);
     gl.enableVertexAttribArray(aPos);
     gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
-    gl.uniform1f(uniforms.piece, k);
+    gl.uniform4f(uniforms.piece, k === 0 ? 1 : 0, k === 1 ? 1 : 0, k === 2 ? 1 : 0, k === 3 ? 1 : 0);
     if (piece.moved) {
       gl.uniform2f(uniforms.shift, shadow * 0.6, shadow);
       gl.uniform1f(uniforms.shadow, 0.22);
@@ -286,79 +398,77 @@ function drawWarp() {
 
 // ---------- Picking up a piece ----------
 
-// The piece under the finger, from the top down: the triangle of its (moved) mesh the finger is in,
-// and whether that spot of the photo belongs to the piece
+// The piece under the finger, from the top down: the triangle of its mesh the finger is in, and
+// whether that spot of the photo belongs to the piece
 function pieceUnder(p) {
   const { rest, triangles, labels } = warp;
   for (let o = warp.order.length - 1; o >= 0; o--) {
     const k = warp.order[o];
-    const off = warp.pieces[k].off;
+    const pos = warp.pieces[k].positions;
     for (let t = 0; t < triangles.length; t += 3) {
       const a = triangles[t] * 2;
       const b = triangles[t + 1] * 2;
       const c = triangles[t + 2] * 2;
-      const ax = rest[a] + off[a], ay = rest[a + 1] + off[a + 1];
-      const bx = rest[b] + off[b], by = rest[b + 1] + off[b + 1];
-      const cx = rest[c] + off[c], cy = rest[c + 1] + off[c + 1];
+      const ax = pos[a], ay = pos[a + 1], bx = pos[b], by = pos[b + 1], cx = pos[c], cy = pos[c + 1];
       const d = (by - cy) * (ax - cx) + (cx - bx) * (ay - cy);
       if (!d) continue;
       const l1 = ((by - cy) * (p.x - cx) + (cx - bx) * (p.y - cy)) / d;
       const l2 = ((cy - ay) * (p.x - cx) + (ax - cx) * (p.y - cy)) / d;
       const l3 = 1 - l1 - l2;
       if (l1 < 0 || l2 < 0 || l3 < 0) continue;
-      // where on the photo: is it this piece, and rug (not paper)?
+      // where on the photo: is it this piece?
       const u = (rest[a] * l1 + rest[b] * l2 + rest[c] * l3) / warp.w;
       const v = (rest[a + 1] * l1 + rest[b + 1] * l2 + rest[c + 1] * l3) / warp.h;
       const lx = Math.min(labels.w - 1, Math.max(0, Math.floor(u * labels.w)));
       const ly = Math.min(labels.h - 1, Math.max(0, Math.floor(v * labels.h)));
-      if (labels.data[ly * labels.w + lx] === k) return k;
+      if (labels.data[(ly * labels.w + lx) * 4 + k] > 127) return k;
     }
   }
   return null;
 }
 
-// ---------- Bending and twisting with the finger ----------
+// ---------- Pulling a piece ----------
 
-let shaping = null; // { piece, last, heading } while the finger is down
+let shaping = null; // { piece, held (the spine point held), last } while the finger is down
 
-function bend(p) {
-  const dx = p.x - shaping.last.x;
-  const dy = p.y - shaping.last.y;
-  if (Math.hypot(dx, dy) < 0.5) return;
-  const reach = Math.max(warp.w, warp.h) * STROKE_SHAPES[strokeShape].reach;
-  const heading = Math.atan2(dy, dx);
-  // how much the finger turned since its last step: circling turns it steadily, a straight drag not
-  let turn = shaping.heading === null ? 0 : heading - shaping.heading;
-  if (turn > Math.PI) turn -= Math.PI * 2;
-  if (turn < -Math.PI) turn += Math.PI * 2;
-  const rest = warp.rest;
+// The finger moved: the held point of the spine follows (less far: the piece is heavy), and the
+// rest of the spine follows it like a heavy rope, keeping its length and a smooth curve
+function pull(p) {
   const piece = warp.pieces[shaping.piece];
-  const off = piece.off;
-  for (let i = 0; i < rest.length; i += 2) {
-    const x = rest[i] + off[i];
-    const y = rest[i + 1] + off[i + 1];
-    const d2 = (x - shaping.last.x) * (x - shaping.last.x) + (y - shaping.last.y) * (y - shaping.last.y);
-    const pull = Math.exp(-d2 / (2 * reach * reach));
-    if (pull < 0.002) continue;
-    // carried along with the finger
-    let nx = x + dx * pull * BEND_FOLLOW;
-    let ny = y + dy * pull * BEND_FOLLOW;
-    // and turned round it, as much as the finger turned
-    if (turn) {
-      const a = turn * TWIST * pull;
-      const cos = Math.cos(a);
-      const sin = Math.sin(a);
-      const rx = nx - p.x;
-      const ry = ny - p.y;
-      nx = p.x + rx * cos - ry * sin;
-      ny = p.y + rx * sin + ry * cos;
+  const spine = piece.spine;
+  const g = shaping.held;
+  const tx = spine[g * 2] + (p.x - shaping.last.x) * HEAVY;
+  const ty = spine[g * 2 + 1] + (p.y - shaping.last.y) * HEAVY;
+  // how freely each spine point moves: freely near the finger, held by the floor further away
+  const give = (i) => (i === g ? 0 : SLIDE + Math.exp(-Math.abs(i - g) / GRIP));
+  for (let round = 0; round < SOLVE; round++) {
+    spine[g * 2] = tx;
+    spine[g * 2 + 1] = ty;
+    // each stretch keeps its length; the freer end of it gives more (the held point doesn't give)
+    for (let i = 0; i < SPINE - 1; i++) {
+      const ax = spine[i * 2], ay = spine[i * 2 + 1];
+      const bx = spine[i * 2 + 2], by = spine[i * 2 + 3];
+      const d = Math.hypot(bx - ax, by - ay) || 1;
+      const diff = (d - piece.gaps[i]) / d;
+      const ga = give(i);
+      const gb = give(i + 1);
+      const wa = ga / (ga + gb || 1);
+      const wb = gb / (ga + gb || 1);
+      spine[i * 2] += (bx - ax) * diff * wa;
+      spine[i * 2 + 1] += (by - ay) * diff * wa;
+      spine[i * 2 + 2] -= (bx - ax) * diff * wb;
+      spine[i * 2 + 3] -= (by - ay) * diff * wb;
     }
-    off[i] = nx - rest[i];
-    off[i + 1] = ny - rest[i + 1];
+    // and the curve stays smooth: no kinks, never folded up tight
+    for (let i = 1; i < SPINE - 1; i++) {
+      if (i === g) continue;
+      spine[i * 2] += ((spine[i * 2 - 2] + spine[i * 2 + 2]) / 2 - spine[i * 2]) * STIFF;
+      spine[i * 2 + 1] += ((spine[i * 2 - 1] + spine[i * 2 + 3]) / 2 - spine[i * 2 + 1]) * STIFF;
+    }
   }
+  skin(piece);
   piece.moved = true;
   shaping.last = p;
-  shaping.heading = heading;
   redrawWarp();
 }
 
@@ -375,14 +485,19 @@ function redrawWarp() {
 const strokeShaping = {
   start(p) {
     if (!warp) return;
-    const piece = pieceUnder(p);
-    if (piece === null) return;
-    // the piece picked up comes to the top
-    warp.order = warp.order.filter((k) => k !== piece).concat(piece);
-    shaping = { piece, last: p, heading: null };
+    const k = pieceUnder(p);
+    if (k === null) return;
+    // the piece picked up comes to the top; it's held at the spine point nearest the finger
+    warp.order = warp.order.filter((j) => j !== k).concat(k);
+    const spine = warp.pieces[k].spine;
+    let held = 0;
+    for (let i = 1; i < SPINE; i++) {
+      if (Math.hypot(spine[i * 2] - p.x, spine[i * 2 + 1] - p.y) < Math.hypot(spine[held * 2] - p.x, spine[held * 2 + 1] - p.y)) held = i;
+    }
+    shaping = { piece: k, held, last: p };
   },
   to(p) {
-    if (shaping) bend(p);
+    if (shaping) pull(p);
   },
   end() {
     shaping = null;
@@ -390,7 +505,8 @@ const strokeShaping = {
   wipe() {
     if (!warp) return;
     warp.pieces.forEach((piece) => {
-      piece.off.fill(0);
+      piece.spine.set(piece.restSpine);
+      skin(piece);
       piece.moved = false;
     });
     warp.order = warp.pieces.map((_, k) => k);
