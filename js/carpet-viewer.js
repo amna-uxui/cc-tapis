@@ -62,7 +62,7 @@ let brushTone = { light: BRUSH_LIGHT, shade: BRUSH_SHADE }; // the wool tones fo
 const topBar = document.querySelector("[data-fit-top]");
 const rugInfo = document.querySelector("[data-rug-info]"); // collection name and size, under the top bar
 const bottomBar = document.querySelector("[data-fit-bottom]");
-const shapesRow = document.querySelector("[data-shape-options]"); // the shapes, under the full rug
+const underRug = document.querySelectorAll("[data-fit-under]"); // the row (and Hypercode's tabs), under the full rug
 
 // Where the carpet is: top-left corner (x, y) and size multiplier (scale)
 let view = { x: 0, y: 0, scale: 1 };
@@ -116,7 +116,9 @@ function updateArrows() {
 // The full carpet fits between the name and size (under the top bar) and the shapes (above Buy)
 function measure() {
   const top = rugInfo.getBoundingClientRect().bottom + FIT_GAP;
-  const bottom = (shapesRow || bottomBar).getBoundingClientRect().top - FIT_GAP;
+  // above the highest of what's under it (that's on show in this collection)
+  const tops = [...underRug].filter((e) => e.getClientRects().length).map((e) => e.getBoundingClientRect().top);
+  const bottom = Math.min(bottomBar.getBoundingClientRect().top, ...tops) - FIT_GAP;
 
   fit = {
     left: FIT_SIDE,

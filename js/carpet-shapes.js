@@ -1,10 +1,13 @@
 /*
-  Carpet shapes: while zoomed out, the shapes sit in a row under the rug, above Buy
-  (js/carpet-strip.js). Each shape is cut from the current colour's rug photo, so every colour
-  comes in every shape. Tapping one shows the rug in that shape, with its size.
+  Carpet shapes: while zoomed out, the row under the rug, above Buy (js/carpet-strip.js), shows
+  either the shapes or the colours, picked by two tabs above it (Shape | Colour; the one picked in
+  a small black pill). Each is a small picture of the real rug with its name under it: the rug in
+  each shape in its colour, or in its shape in each colour (switching tabs, the row fades over).
+  Each shape is cut from the current colour's rug photo, so every colour comes in every shape.
+  Tapping a shape shows the rug in that shape, with its size; a colour, in that colour.
 
-  Needs js/carpet-viewer.js (changeRug, setBrushTone, rugInfo), js/carpet-colors.js (current) and
-  js/carpet-strip.js (makeStrip) to be loaded first.
+  Needs js/carpet-viewer.js (changeRug, setBrushTone, rugInfo), js/carpet-colors.js (current,
+  COLORS, chooseColor) and js/carpet-strip.js (makeStrip) to be loaded first.
 */
 
 // The rug's name is the collection plus its shape: "Hypercode Rectangle", "Hypercode Square", ...
@@ -144,10 +147,19 @@ async function chooseShape(shape) {
   reshaping = false;
 }
 
-function shapeIcon(shape) {
-  const icon = document.createElement("span");
-  icon.className = `shape-icon shape-icon--${shape.name.toLowerCase()}`;
-  return icon;
+// A choice in the row: a small picture of the real rug (the colour in the shape), its name under it
+function shapeThumb(color, shape, name) {
+  const item = document.createElement("span");
+  item.className = "shape-thumb";
+  const picture = document.createElement("img");
+  picture.className = `shape-thumb__rug shape-thumb__rug--${shape.name.toLowerCase()}`;
+  picture.alt = "";
+  color.loaded.then(() => shapedSrc(color, shape)).then((src) => (picture.src = src));
+  const label = document.createElement("span");
+  label.className = "shape-thumb__name mono";
+  label.textContent = name;
+  item.append(picture, label);
+  return item;
 }
 
 // Show the chosen shape's name, size and price
@@ -164,17 +176,49 @@ function markShape() {
 
 // ---------- The shapes ----------
 
+const SHAPE_NAMES = { Rectangle: "Rectangle", Square: "Square", Circle: "Round" }; // as on cc-tapis.com
+const TAB_FADE = 160; // ms the row takes to fade out before the other tab's choices fade in
+
+const rugTabs = document.querySelector("[data-rug-tabs]");
+let rugTab = "shape"; // which the row shows: "shape" or "colour"
 let shapeStrip = null;
 
 function buildShapes() {
-  shapeStrip = makeStrip(shapeRow, SHAPES, { draw: shapeIcon, choose: chooseShape, start: SHAPES.indexOf(currentShape) });
+  rugTabs.querySelectorAll("[data-tab]").forEach((tab) => tab.setAttribute("aria-selected", tab.dataset.tab === rugTab));
+  if (rugTab === "shape") {
+    shapeStrip = makeStrip(shapeRow, SHAPES, {
+      draw: (shape) => shapeThumb(current, shape, SHAPE_NAMES[shape.name]),
+      choose: chooseShape,
+      start: SHAPES.indexOf(currentShape),
+    });
+  } else {
+    shapeStrip = null;
+    makeStrip(shapeRow, COLORS, {
+      draw: (color) => shapeThumb(color, currentShape, color.name),
+      choose: chooseColor,
+      start: COLORS.indexOf(current),
+    });
+  }
   markShape();
 }
+
+// A tab tapped: the row fades out, and back in with the other choices
+rugTabs.addEventListener("click", (e) => {
+  const tab = e.target.closest("[data-tab]");
+  if (!tab || tab.dataset.tab === rugTab) return;
+  rugTab = tab.dataset.tab;
+  rugTabs.querySelectorAll("[data-tab]").forEach((t) => t.setAttribute("aria-selected", t === tab));
+  shapeRow.classList.add("is-swapping");
+  setTimeout(() => {
+    buildShapes();
+    shapeRow.classList.remove("is-swapping");
+  }, TAB_FADE);
+});
 
 // A tap on the whole rug (js/carpet-collections.js): the next shape, round and round
 function nextShape() {
   const index = (SHAPES.indexOf(currentShape) + 1) % SHAPES.length;
-  shapeStrip.show(index);
+  if (shapeStrip) shapeStrip.show(index);
   chooseShape(SHAPES[index]);
 }
 

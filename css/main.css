@@ -430,67 +430,91 @@ body {
   border-color: var(--color-muted);
 }
 
-/* Hypercode: its colours in a second row, under the shapes (js/carpet-colors.js); the shapes
-   step up to make room */
-.rug-colours {
+/* Hypercode: two tabs over the row, Shape | Colour (js/carpet-shapes.js); the one picked in a
+   small black pill, like the black bar of the page about the rug */
+.rug-tabs {
   position: fixed;
   left: 50%;
-  bottom: calc(var(--space-3) + env(safe-area-inset-bottom) + 48px + var(--space-1));
+  bottom: calc(var(--space-3) + env(safe-area-inset-bottom) + 48px + var(--space-2) + 62px + var(--space-2));
   z-index: 1;
   transform: translateX(-50%);
-  height: 34px;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-2);
+  gap: var(--space-1);
   opacity: 0;
   pointer-events: none;
   transition: opacity var(--duration) var(--ease);
 }
 
-.is-zoomed-out .rug-colours {
+.is-zoomed-out .rug-tabs {
   opacity: 1;
   pointer-events: auto;
 }
 
-[data-collection="hypercode"] .rug-shapes {
-  bottom: calc(var(--space-3) + env(safe-area-inset-bottom) + 48px + var(--space-1) + 34px);
+.rug-tabs__tab {
+  padding: 3px 9px 2px;
+  font-size: 11px;
+  color: #8a8a8a;
+  transition: background var(--duration) var(--ease), color var(--duration) var(--ease);
 }
 
-.colour-dot {
+.rug-tabs__tab[aria-selected="true"] {
+  background: var(--color-ink);
+  color: var(--color-paper);
+}
+
+/* ... and the row under them: small pictures of the real rug, each with its name under it */
+[data-collection="hypercode"] .rug-shapes.strip {
+  height: 62px;
+  gap: var(--space-3);
+  align-items: flex-end;
+  transition: opacity var(--duration) var(--ease);
+}
+
+.rug-shapes.is-swapping {
+  opacity: 0 !important;
+  transition-duration: 160ms;
+}
+
+.strip__item:has(.shape-thumb) {
+  padding: 0;
+  border: 0;
+}
+
+.shape-thumb {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  line-height: 1;
+}
+
+/* the picture in a thin frame, just outside the rug, when it's the one on show */
+.shape-thumb__rug {
   display: block;
-  width: 20px;
-  height: 20px;
+  height: 40px;
+  width: auto;
+  outline: 1.5px solid transparent;
+  outline-offset: 3px;
+  border-radius: 3px;
+  transition: outline-color var(--duration) var(--ease);
+}
+
+.shape-thumb__rug--circle {
   border-radius: 50%;
-  background: var(--color-muted);
 }
 
-.strip__item:has(.colour-dot) {
-  border-radius: 50%;
+.strip__item[aria-pressed="true"] .shape-thumb__rug {
+  outline-color: var(--color-muted);
 }
 
-/* The shapes, filled with the current rug colour (--rug-color, set by js/carpet-colors.js) */
-.shape-icon {
-  display: block;
-  background: var(--rug-color, var(--color-muted));
-  border-radius: 2px;
-  transition: background var(--duration) var(--ease);
+.shape-thumb__name {
+  font-size: 9px;
+  color: #8a8a8a;
+  transition: color var(--duration) var(--ease);
 }
 
-.shape-icon--rectangle {
-  width: 17px;
-  height: 23px;
-}
-
-.shape-icon--square {
-  width: 21px;
-  height: 21px;
-}
-
-.shape-icon--circle {
-  width: 23px;
-  height: 23px;
-  border-radius: 50%;
+.strip__item[aria-pressed="true"] .shape-thumb__name {
+  color: var(--color-ink);
 }
 
 /* ---------- The lamp (zoomed out only, js/carpet-lamp.js) ---------- */
@@ -966,7 +990,7 @@ body {
    while it slides away, and fade back in with the next collection's as the next rug arrives */
 .is-zoomed-out.is-switching .rug-info,
 .is-zoomed-out.is-switching .rug-shapes,
-.is-zoomed-out.is-switching .rug-colours,
+.is-zoomed-out.is-switching .rug-tabs,
 .is-zoomed-out.is-switching .info-button {
   opacity: 0;
   transition-duration: 180ms;
@@ -979,10 +1003,10 @@ body {
   opacity: 0;
 }
 
-/* Each collection's own parts: only Hypercode has the lamp and the row of colours; only GrandMa
-   Patterns the wind */
+/* Each collection's own parts: only Hypercode has the lamp and the Shape | Colour tabs; only
+   GrandMa Patterns the wind */
 [data-collection]:not([data-collection="hypercode"]) .lamp-dial,
-[data-collection]:not([data-collection="hypercode"]) .rug-colours,
+[data-collection]:not([data-collection="hypercode"]) .rug-tabs,
 [data-collection]:not([data-collection="hypercode"]) .carpet__light,
 [data-collection]:not([data-collection="grandma-patterns"]) .tool--blow,
 [data-collection]:not([data-collection="grandma-patterns"]) .carpet__wind {

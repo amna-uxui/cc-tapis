@@ -1,10 +1,9 @@
 /*
-  Carpet colours: while the whole Hypercode rug is in view, its colours sit in a second row, under
-  the shapes. Each colour is a real photo of that rug; picking one swaps the rug (your drawing
-  comes along, re-tinted to the new colour).
+  Carpet colours: each colour is a real photo of that rug; picking one (in the row under the rug,
+  on its Colour tab: js/carpet-shapes.js) swaps the rug (your drawing comes along, re-tinted to
+  the new colour).
 
-  Needs js/carpet-viewer.js (img, changeRug, setBrushTone) and js/carpet-strip.js (makeStrip) to
-  be loaded first.
+  Needs js/carpet-viewer.js (img, changeRug, setBrushTone) to be loaded first.
 */
 
 // The first one is the rug the page opens with. Each photo is the rug cut out with its real edge
@@ -17,7 +16,6 @@ const COLORS = [
   { name: "Sage", src: "images/carpet-04-sage-cut.png", shape: "Rectangle", tone: { light: [226, 226, 212], shade: [196, 198, 184] } },
 ];
 
-const colourRow = document.querySelector("[data-colour-options]");
 
 let current = COLORS[0];
 
@@ -87,7 +85,6 @@ function loadColor(color) {
     const rgb = averageColor(photo);
     color.swatch = rgbToHex(rgb);
     color.tone = color.tone || toneFor(rgb);
-    colourRow.querySelector(`[data-name="${color.name}"]`).style.background = color.swatch;
     if (color === current) showSwatch(color.swatch);
   });
 }
@@ -102,7 +99,7 @@ async function chooseColor(color) {
   current = color;
   markChosen();
 
-  await renderRug(); // js/carpet-shapes.js: this colour in the current shape
+  await renderRug(isWhole()); // js/carpet-shapes.js: this colour in the current shape (the whole rug stays in view)
   changing = false;
 }
 
@@ -115,22 +112,6 @@ function markChosen() {
   if (current.swatch) showSwatch(current.swatch);
 }
 
-// ---------- The row ----------
-
-// A colour in the row: a round dot of the rug's colour (filled in once its photo has loaded)
-function colourDot(color) {
-  const dot = document.createElement("span");
-  dot.className = "colour-dot";
-  dot.dataset.name = color.name;
-  if (color.swatch) dot.style.background = color.swatch;
-  return dot;
-}
-
-function buildColourRow() {
-  makeStrip(colourRow, COLORS, { draw: colourDot, choose: chooseColor, start: COLORS.indexOf(current) });
-}
-
 // ---------- Start ----------
 
-buildColourRow();
 COLORS.forEach(loadColor);

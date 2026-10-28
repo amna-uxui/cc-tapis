@@ -89,10 +89,14 @@
   </button>
 
   <!-- While the whole rug is in view, under it, above Buy: the row (js/carpet-strip.js),
-       Hypercode's shapes, GrandMa Patterns' rugs or Ripple Square's colourways -->
-  <div class="rug-shapes" data-shape-options data-rug-options></div>
-  <!-- ... and under that, on Hypercode only, its colours (js/carpet-colors.js) -->
-  <div class="rug-colours" data-colour-options></div>
+       Hypercode's shapes or colours, GrandMa Patterns' rugs or Ripple Square's colourways -->
+  <div class="rug-shapes" data-shape-options data-rug-options data-fit-under></div>
+  <!-- ... and above it, on Hypercode only, which the row shows: its shapes or its colours
+       (js/carpet-shapes.js) -->
+  <div class="rug-tabs" role="tablist" data-rug-tabs data-fit-under>
+    <button class="rug-tabs__tab mono" role="tab" aria-selected="true" data-tab="shape">Shape</button>
+    <button class="rug-tabs__tab mono" role="tab" aria-selected="false" data-tab="colour">Colour</button>
+  </div>
 
   <!-- Bottom, floating over the carpet: zoom (left), buy (centre), about this rug (right) -->
   <nav class="bar bar--bottom" data-fit-bottom>
