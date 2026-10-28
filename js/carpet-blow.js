@@ -141,11 +141,11 @@ async function startListening() {
 function failListening(why, short = why) {
   noMic = true;
   micState = why;
-  const busy = short === "InvalidStateError" || short === "NotReadableError" || short === "AbortError";
+  // the exact reason shows with ?debug; here, what to do about it
   showBlowStatus(
-    short === "NotAllowedError" ? "Microphone not allowed: hold to blow"
-    : busy ? "Microphone busy: close other tabs using it, then tap again"
-    : `No microphone (${short}): tap to try again`
+    short === "NotAllowedError"
+      ? "Microphone not allowed: hold to blow"
+      : "Mic didn't start: tap again, or open in Safari or Chrome"
   );
   wake();
 }

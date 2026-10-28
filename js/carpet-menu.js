@@ -1,5 +1,5 @@
 /*
-  The menu: tap the three lines (top left) and a paper receipt prints out of the top bar, listing
+  The menu: tap the three lines (top left) and a paper receipt slides out of the top bar, listing
   the collections, each with its designer and what you can do with it. Tap a collection to open
   it; tap the lines again, or anywhere else, and the receipt rolls back up.
 
