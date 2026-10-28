@@ -271,7 +271,8 @@ void main() {
   // the tips bend away from the wind (up the screen), so each pixel shows the pile from just below it
   vec2 shift = vec2((b - 0.5) * ${SWAY_PX.toFixed(1)} * gust,
                     laid * ${LEAN_PX.toFixed(1)} + (a - 0.5) * ${FLUTTER_PX.toFixed(1)} * gust) * uPx;
-  vec3 c = texture2D(uPhoto, clamp(vUv + shift, uPx, 1.0 - uPx)).rgb;
+  vec4 photo = texture2D(uPhoto, clamp(vUv + shift, uPx, 1.0 - uPx));
+  vec3 c = photo.rgb;
 
   // the front of the gust: more wind just below than just above
   float front = texture2D(uWind, vUv + vec2(0.0, uCell.y * 1.5)).g - texture2D(uWind, vUv - vec2(0.0, uCell.y * 1.5)).g;
@@ -280,7 +281,8 @@ void main() {
              + ${WIND_SHIMMER.toFixed(3)} * (b - 0.5) * 2.0 * gust;
   float grey = dot(c, vec3(0.3, 0.59, 0.11));
   c = mix(vec3(grey), c, 1.0 + ${WIND_RICH.toFixed(3)} * laid);
-  gl_FragColor = vec4(c * tone, 1.0);
+  // the cut-out rug's soft edge and shadow stay see-through, as in the photo
+  gl_FragColor = vec4(c * tone * photo.a, photo.a);
 }`;
 
 let gl = null;
@@ -307,7 +309,7 @@ function makeTexture() {
 }
 
 function setupGl() {
-  gl = windCanvas.getContext("webgl", { alpha: false, antialias: false, preserveDrawingBuffer: true });
+  gl = windCanvas.getContext("webgl", { antialias: false, preserveDrawingBuffer: true });
   if (!gl) return false;
   const program = gl.createProgram();
   gl.attachShader(program, makeShader(gl.VERTEX_SHADER, VERTEX));
@@ -343,7 +345,8 @@ function loadPhoto() {
   gl.viewport(0, 0, windCanvas.width, windCanvas.height);
   gl.activeTexture(gl.TEXTURE0);
   gl.bindTexture(gl.TEXTURE_2D, photoTexture);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, img);
+  gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
   sizeWind();
   gl.uniform2f(glUniforms.px, 1 / img.naturalWidth, 1 / img.naturalHeight);
   gl.uniform2f(glUniforms.cell, 1 / gw, 1 / gh);

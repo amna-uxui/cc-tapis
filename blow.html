@@ -20,10 +20,9 @@
   <!-- data-brush="off": here one finger doesn't draw, you blow instead (js/carpet-blow.js) -->
   <main class="stage" data-viewer data-brush="off">
     <div class="carpet">
-      <img src="images/carpet-05-shag.jpg" alt="Shaggy wool rug in ochre, cream and turquoise" draggable="false">
+      <img src="images/grandma-mustardgreen-cut.png" alt="GrandMa Patterns shag rug by Rop van Mierlo" draggable="false">
       <canvas class="carpet__brush"></canvas>
       <canvas class="carpet__wind" aria-hidden="true"></canvas> <!-- the pile moving in the wind (js/carpet-blow.js) -->
-      <div class="carpet__light" aria-hidden="true"></div> <!-- the lamp's light (js/carpet-lamp.js) -->
     </div>
 
     <!-- Arrows, taken out for now (their styles are still in css/main.css):
@@ -41,30 +40,13 @@
     <a class="bar__side bar__side--right mono" href="https://cc-tapis.com/shop" target="_blank" rel="noopener">Shop</a>
   </header>
 
-  <!-- While the whole rug is in view, under the top bar: the lamp (left); collection name, size
-       and price (centre) -->
+  <!-- While the whole rug is in view, under the top bar: name, designer, size and price (centre),
+       filled in by js/carpet-rugs.js -->
   <div class="rug-info" data-rug-info>
-    <!-- The lamp: turn it to light the rug from any side -->
-    <div class="lamp-dial" role="slider" tabindex="0" aria-label="Lamp direction" aria-valuemin="0" aria-valuemax="359" data-lamp>
-      <span class="lamp-dial__lamp"></span>
-      <!-- the light in the room: tap the lamp to switch (js/carpet-lamp.js) -->
-      <svg class="mood-icon mood-icon--evening" viewBox="0 0 16 16" aria-hidden="true">
-        <path d="M3.5 11a4.5 4.5 0 0 1 9 0M1.5 11h13M8 3.5v1.5M3.2 5.6l1 1M12.8 5.6l-1 1" />
-      </svg>
-      <svg class="mood-icon mood-icon--daylight" viewBox="0 0 16 16" aria-hidden="true">
-        <circle cx="8" cy="8" r="3" />
-        <path d="M8 1.5v1.8M8 12.7v1.8M1.5 8h1.8M12.7 8h1.8M3.4 3.4l1.3 1.3M11.3 11.3l1.3 1.3M3.4 12.6l1.3-1.3M11.3 4.7l1.3-1.3" />
-      </svg>
-      <svg class="mood-icon mood-icon--night" viewBox="0 0 16 16" aria-hidden="true">
-        <path d="M12.5 10.2A5.2 5.2 0 0 1 5.8 3.5a5.2 5.2 0 1 0 6.7 6.7z" />
-      </svg>
-      <span class="lamp-dial__status mono" aria-live="polite" data-lamp-status></span>
-    </div>
     <div class="rug-info__text" aria-live="polite">
-      <!-- placeholders: this rug's real name, designer, size and price still to come -->
-      <p class="rug-info__name" data-rug-name>Shag Rectangle</p>
-      <p class="rug-info__designer" data-rug-designer>by cc-tapis</p>
-      <p class="rug-info__size mono" data-rug-size>200 × 300 cm | <span class="rug-info__currency">€</span> 6.999</p>
+      <p class="rug-info__name" data-rug-name></p>
+      <p class="rug-info__designer" data-rug-designer></p>
+      <p class="rug-info__size mono" data-rug-size></p>
     </div>
     <!-- Save your rug as an image (js/carpet-save.js) -->
     <button class="save-rug" aria-label="Save your rug" data-save>
@@ -72,8 +54,9 @@
     </button>
   </div>
 
-  <!-- While the whole rug is in view, under it, above Buy: the shapes to choose from -->
-  <div class="rug-shapes" data-shape-options></div>
+  <!-- While the whole rug is in view, under it, above Buy: the other rugs of the collection
+       (js/carpet-rugs.js). data-shape-options: js/carpet-viewer.js keeps the full rug above it -->
+  <div class="rug-shapes" data-shape-options data-rug-options></div>
 
   <!-- Bottom, floating over the carpet: zoom (left), buy (centre), colour (right) -->
   <nav class="bar bar--bottom" data-fit-bottom>
@@ -103,8 +86,8 @@
   </nav>
 
   <script src="js/carpet-viewer.js"></script>
-  <script src="js/carpet-lamp.js"></script>
   <script src="js/carpet-save.js"></script>
   <script src="js/carpet-blow.js"></script>
+  <script src="js/carpet-rugs.js"></script>
 </body>
 </html>

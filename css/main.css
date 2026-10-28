@@ -680,6 +680,11 @@ body {
   opacity: 1;
 }
 
+/* ... and the photo under it steps aside, so the soft edge doesn't show twice */
+.is-blowing .carpet img {
+  visibility: hidden;
+}
+
 .is-zoomed-out.mood-night .carpet__wind {
   filter: brightness(0.72);
 }
@@ -760,4 +765,27 @@ body {
   color: #fff;
   font: 10px/1.4 var(--font-mono);
   pointer-events: none;
+}
+
+/* The rugs of the collection, as small pictures under the rug (blow.html, js/carpet-rugs.js):
+   each whole rug, never cropped, so its edge and depth show. The chosen one sits in a light grey
+   rounded frame, like the shapes. */
+.rug-option {
+  width: 34px;
+  height: 34px;
+  padding: 2px;
+  border: 1.5px solid transparent;
+  border-radius: 6px;
+  transition: border-color var(--duration) var(--ease);
+}
+
+.rug-option[aria-pressed="true"] {
+  border-color: var(--color-muted);
+}
+
+.rug-option img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
