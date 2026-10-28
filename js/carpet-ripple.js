@@ -40,11 +40,12 @@ const PAINTS = COLOURWAYS.flatMap((c) => [
   { name: `${c.name} leaf`, rgb: c.leaf },
 ]);
 
-const PAINT_BRUSH = 26;      // brush radius, in screen pixels (so it feels the same at any zoom)
+const PAINT_BRUSH = 36;      // A, B: brush radius, in pixels of the rug photo (the same on the rug at any zoom)
 const PAINT_FUZZ = 0.25;     // how ragged the brush's edge is, like tufts of wool (share of its radius)
 const RIPPLE_TIME = 1300;    // ms for a ripple to cross the whole rug
 const RIPPLE_WAVE = 0.05;    // how wavy the ripple's edge is (share of its radius)
-const RIPPLE_BAND = 90;      // D: how wide the band of leaves is, in screen pixels (about the rug's own leaves)
+const RIPPLE_BAND = 128;     // D: how wide the band of leaves is, in pixels of the rug photo (about the
+                             // height of the rug's own rows of leaves; the same on the rug at any zoom)
 // D's brush, from Ripple_01.svg (its units): a band 87 high, a leaf every 24.33 along it, each leaf
 // an ellipse 12.16 wide and 43.5 tall (half sizes), standing across the band
 const BAND = { height: 87, every: 24.33, rx: 12.16, ry: 43.5 };
@@ -190,7 +191,7 @@ let stroke = null; // { last, part: "leaf" | "ground" (B) }
 
 // One dab of the brush at (cx, cy): colour the spots under it
 function dab(cx, cy) {
-  const r = PAINT_BRUSH / view.scale;
+  const r = PAINT_BRUSH;
   const left = Math.max(0, Math.floor(cx - r));
   const right = Math.min(rug.w - 1, Math.ceil(cx + r));
   const top = Math.max(0, Math.floor(cy - r));
@@ -236,7 +237,7 @@ function ownStart(p) {
 
 // The brush moved: the band runs on along the finger, with a leaf standing across it at every step
 function ownTo(p) {
-  const size = RIPPLE_BAND / BAND.height / view.scale; // photo pixels per unit of the brush
+  const size = RIPPLE_BAND / BAND.height; // photo pixels per unit of the brush
   const from = stroke.last;
   const dx = p.x - from.x;
   const dy = p.y - from.y;
@@ -328,7 +329,7 @@ const ripplePaint = {
     if (!stroke) return;
     if (rippleVersion === "D") return ownTo(p);
     // dabs close enough together to make one smooth line
-    const step = PAINT_BRUSH / view.scale / 3;
+    const step = PAINT_BRUSH / 3;
     const dist = Math.hypot(p.x - stroke.last.x, p.y - stroke.last.y);
     const count = Math.max(1, Math.ceil(dist / step));
     for (let k = 1; k <= count; k++) {
