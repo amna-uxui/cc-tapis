@@ -42,7 +42,7 @@ const COLOURWAYS = [
   { name: "Dune Shadow", ground: [70, 50, 40], leaf: [219, 202, 176] },
 ];
 
-const RIPPLE_BAND = 150;     // how wide the band is, in pixels of the 1500 px canvas (about 20 cm)
+const RIPPLE_BAND = 110;     // how wide the band is, in pixels of the 1500 px canvas (about 15 cm)
 // The ovals, as measured on the real rug (shares of the band's width): half as wide as `wide`,
 // half as tall as `tall`, one every `every` along the band (so they just touch)
 const ARCH = { wide: 0.17, tall: 0.93, every: 0.32 };
