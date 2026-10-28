@@ -1,48 +1,41 @@
 /*
   The sound of the wind on GrandMa Patterns: the rug answers your breath. While you blow it stays
-  quiet, and when you stop, a short, soft wind made from a recording of a breath (sounds/blow.m4a)
-  answers: a little airier after a strong or long blow, softer after a puff, and gone within
-  about a second. It is never the same twice: it's woven from short,
-  overlapping pieces of the recording, each from a different moment in it, at a slightly different
-  speed, drifting a little left or right.
+  quiet; when you stop, one short, soft rustle of carpet fibres plays (sounds/fibres.m4a, a
+  recording of three soft swells: each answer is one of them, in turn, cut short and faded), a
+  little louder after a strong or long blow, softer after a puff, and gone in about a second and
+  a half.
 
   js/carpet-blow.js calls windSound.start() on a tap or key press (browsers only allow sound after
   one), windSound.start(micSound) once the microphone listens, windSound.follow(strength, seconds)
-  every frame, and reads windSound.level() so the microphone doesn't take the rug's own wind for a
-  breath.
+  every frame, and reads windSound.level() so the microphone doesn't take the rug's own rustle for
+  a breath (it never moves the rug).
 
   iPhone: switching the microphone on interrupts any sound the page had set up before, and leaves
-  it silent. So once the microphone listens, the wind plays through the microphone's own sound
+  it silent. So once the microphone listens, the sound plays through the microphone's own sound
   (which is surely running), and a paused sound is nudged back on every frame.
 */
 
-const WIND_FILE = "sounds/blow.m4a";
-const WIND_VOLUME = 0.6;      // loudest the wind gets (0..1): a soft answer, not a storm
-const WIND_BOOST = 18;        // the recording is soft: this much louder (a limiter keeps it clean)
-const WIND_PIECE = 0.7;       // seconds each piece of the recording plays
-const WIND_EVERY = [0.55, 0.25]; // seconds between new pieces: soft breath .. strong breath
-const WIND_SPEED = [0.85, 1.15]; // how fast the pieces play: soft .. strong (faster sounds higher, airier)
-const WIND_DULL = 1200;       // Hz: after a soft breath it sounds this muffled ..
-const WIND_AIRY = 9000;       // .. after a strong one this open
-const WIND_SWELL = 0.12;      // seconds the wind takes to swell once the breath stops
-const WIND_TAIL = 0.45;       // seconds for it to fall to a third: a short breath of wind, quickly gone
+const WIND_FILE = "sounds/fibres.m4a";
+const WIND_SWELLS = [1.6, 6.3, 10.9]; // seconds into the recording where each swell is at its fullest
+const WIND_PLAYS = 1.4;       // seconds of it that play: short
+const WIND_IN = 0.12;         // seconds it takes to come in ..
+const WIND_OUT = 0.8;         // .. and to fade away at the end
+const WIND_VOLUME = 0.5;      // loudest it gets (0..1): soft
 const WIND_LONG = 1.2;        // seconds of blowing for the fullest answer (a shorter puff answers softer)
 
 const windSound = (() => {
   let ctx = null;
-  let master = null;   // the overall volume, following the breath
-  let tone = null;     // how muffled or open
+  let master = null;
   let recording = null;
   let file = null;     // the recording as fetched, kept to unpack again for another sound
-  let level = 0;       // the volume now, 0..1
-  let untilNext = 0;   // seconds until the next piece
-  let pieces = 0;      // how many pieces have played (for ?debug)
   let gathered = 0;    // how hard the breath now blowing has been, at most
   let blownFor = 0;    // and how long it has gone on
-  let answer = 0;      // how loud the wind sets out after the breath
-  let ownSound = false; // ctx is the wind's own (not the microphone's)
+  let next = 0;        // which swell answers next
+  let playing = null;  // { start (ctx time), volume } while an answer plays
+  let answers = 0;     // how many have played (for ?debug)
+  let ownSound = false; // ctx is the sound's own (not the microphone's)
 
-  // Play through `onto` (the microphone's sound), or the wind's own sound made here
+  // Play through `onto` (the microphone's sound), or the sound's own, made here
   function start(onto) {
     const AudioContext = window.AudioContext || window.webkitAudioContext;
     if (!AudioContext) return;
@@ -50,25 +43,13 @@ const windSound = (() => {
       if (ctx.state !== "running") ctx.resume().catch(() => {});
       return;
     }
-    if (ctx && ctx.state !== "closed" && ownSound) ctx.close(); // the wind's own sound isn't needed now
+    if (ctx && ctx.state !== "closed" && ownSound) ctx.close(); // its own sound isn't needed now
     ownSound = !onto;
     ctx = onto || new AudioContext();
     if (ctx.state !== "running") ctx.resume().catch(() => {});
-    tone = ctx.createBiquadFilter();
-    tone.type = "lowpass";
-    tone.frequency.value = WIND_DULL;
     master = ctx.createGain();
-    master.gain.value = 0;
-    // a gentle limiter: loud without breaking up
-    const limit = ctx.createDynamicsCompressor();
-    limit.threshold.value = -14;
-    limit.knee.value = 8;
-    limit.ratio.value = 6;
-    limit.attack.value = 0.005;
-    limit.release.value = 0.2;
-    tone.connect(master);
-    master.connect(limit);
-    limit.connect(ctx.destination);
+    master.gain.value = 1;
+    master.connect(ctx.destination);
     recording = null;
     const using = ctx;
     (file ? Promise.resolve(file) : fetch(WIND_FILE).then((response) => response.arrayBuffer()).then((data) => (file = data)))
@@ -79,32 +60,27 @@ const windSound = (() => {
       .catch(() => {});
   }
 
-  // One piece of the recording: from a different moment each time, swelling in and fading out
-  function piece(strength) {
-    const at = 0.15 + Math.random() * Math.max(0, recording.duration - WIND_PIECE - 0.2);
+  // One answer: a swell of the recording, coming in softly and fading away, cut short
+  function answer(volume) {
+    const at = WIND_SWELLS[next] - WIND_PLAYS / 2;
+    next = (next + 1) % WIND_SWELLS.length;
     const source = ctx.createBufferSource();
     source.buffer = recording;
-    source.playbackRate.value = WIND_SPEED[0] + (WIND_SPEED[1] - WIND_SPEED[0]) * strength + (Math.random() - 0.5) * 0.08;
-    const swell = ctx.createGain();
+    const fade = ctx.createGain();
     const now = ctx.currentTime;
-    swell.gain.setValueAtTime(0, now);
-    swell.gain.linearRampToValueAtTime(WIND_BOOST, now + WIND_PIECE * 0.35);
-    swell.gain.linearRampToValueAtTime(0, now + WIND_PIECE);
-    let out = swell;
-    if (ctx.createStereoPanner) {
-      const side = ctx.createStereoPanner();
-      side.pan.value = (Math.random() - 0.5) * 0.7;
-      swell.connect(side);
-      out = side;
-    }
-    source.connect(swell);
-    out.connect(tone);
-    source.start(now, at, WIND_PIECE + 0.05);
-    pieces++;
+    fade.gain.setValueAtTime(0, now);
+    fade.gain.linearRampToValueAtTime(volume, now + WIND_IN);
+    fade.gain.setValueAtTime(volume, now + WIND_PLAYS - WIND_OUT);
+    fade.gain.linearRampToValueAtTime(0, now + WIND_PLAYS);
+    source.connect(fade);
+    fade.connect(master);
+    source.start(now, Math.max(0, at), WIND_PLAYS);
+    playing = { start: now, volume };
+    answers++;
   }
 
-  // Every frame: the breath now (0..1), and the seconds since the last frame. While it blows, the
-  // wind only gathers; when it stops, the wind answers and fades out.
+  // Every frame: the breath now (0..1), and the seconds since the last frame. While it blows,
+  // nothing plays; when it stops, one short answer
   function follow(strength, seconds) {
     if (!ctx || !recording) return;
     if (ctx.state !== "running" && strength > 0.02) ctx.resume().catch(() => {}); // paused by the phone: on again
@@ -112,39 +88,38 @@ const windSound = (() => {
       gathered = Math.max(gathered, strength);
       blownFor += seconds;
     } else if (gathered > 0) {
-      answer = Math.min(1, gathered * (0.45 + 0.55 * Math.min(1, blownFor / WIND_LONG)));
+      answer(WIND_VOLUME * Math.min(1, gathered * (0.45 + 0.55 * Math.min(1, blownFor / WIND_LONG))));
       gathered = 0;
       blownFor = 0;
     }
-    if (answer > level) level += (answer - level) * Math.min(1, seconds / WIND_SWELL);
-    else level *= Math.exp(-seconds / WIND_TAIL);
-    if (level >= answer * 0.98) answer = 0; // swelled up: from here it fades
-    if (level < 0.005) level = 0;
-    const now = ctx.currentTime;
-    master.gain.setTargetAtTime(level * WIND_VOLUME, now, 0.03);
-    tone.frequency.setTargetAtTime(WIND_DULL + (WIND_AIRY - WIND_DULL) * Math.pow(level, 0.7), now, 0.05);
+  }
 
-    untilNext -= seconds;
-    if (level > 0.02 && untilNext <= 0) {
-      piece(level);
-      untilNext = WIND_EVERY[0] + (WIND_EVERY[1] - WIND_EVERY[0]) * level;
+  // How loud the answer is now, 0..1 (the microphone allows for it)
+  function level() {
+    if (!playing || !ctx) return 0;
+    const t = ctx.currentTime - playing.start;
+    if (t >= WIND_PLAYS) {
+      playing = null;
+      return 0;
     }
+    const shape = t < WIND_IN ? t / WIND_IN : t > WIND_PLAYS - WIND_OUT ? (WIND_PLAYS - t) / WIND_OUT : 1;
+    return (playing.volume / WIND_VOLUME) * shape;
   }
 
   // Quiet at once (another collection, or the page hidden)
   function hush() {
-    level = 0;
-    answer = 0;
     gathered = 0;
     blownFor = 0;
+    playing = null;
     if (master) master.gain.setTargetAtTime(0, ctx.currentTime, 0.05);
+    if (master) master.gain.setTargetAtTime(1, ctx.currentTime + 0.3, 0.05);
   }
 
   // For ?debug: is the sound running, loaded, and how much has played
   function state() {
     if (!ctx) return "not started (tap the wind button)";
-    return `${ctx.state}, ${recording ? "loaded" : "loading"}, ${pieces} pieces, volume ${level.toFixed(2)}`;
+    return `${ctx.state}, ${recording ? "loaded" : "loading"}, ${answers} answers, volume ${level().toFixed(2)}`;
   }
 
-  return { start, follow, hush, state, level: () => level };
+  return { start, follow, hush, state, level };
 })();
