@@ -1,9 +1,10 @@
 /*
-  Carpet shapes: while zoomed out, three small shapes sit under the rug, above Buy. Each shape is cut from the current colour's rug photo, so every colour comes in
-  every shape. Picking one shows the rug in its new shape, with its size.
+  Carpet shapes: while zoomed out, the shapes go round an endless strip under the rug, above Buy
+  (js/carpet-strip.js). Each shape is cut from the current colour's rug photo, so every colour
+  comes in every shape. The shape that settles in the middle is shown, with its size.
 
-  Needs js/carpet-viewer.js (changeRug, setBrushTone, rugInfo) and js/carpet-colors.js
-  (current) to be loaded first.
+  Needs js/carpet-viewer.js (changeRug, setBrushTone, rugInfo), js/carpet-colors.js (current) and
+  js/carpet-strip.js (makeStrip) to be loaded first.
 */
 
 // The rug's name is the collection plus its shape: "Hypercode Rectangle", "Hypercode Square", ...
@@ -126,12 +127,19 @@ async function renderRug(zoomOut = false) {
 
 let reshaping = false;
 
+// A new shape in the middle of the strip. Swiped past several quickly, the rug catches up with the
+// last one once the one before has finished.
 async function chooseShape(shape) {
-  if (shape === currentShape || reshaping) return;
-  reshaping = true;
+  if (shape === currentShape) return;
   currentShape = shape;
   markShape();
-  await renderRug(true);
+  if (reshaping) return;
+  reshaping = true;
+  let shown;
+  do {
+    shown = currentShape;
+    await renderRug(true);
+  } while (shown !== currentShape);
   reshaping = false;
 }
 
@@ -141,11 +149,8 @@ function shapeIcon(shape) {
   return icon;
 }
 
-// Mark the chosen shape and show its name, size and price
+// Show the chosen shape's name, size and price
 function markShape() {
-  shapeRow.querySelectorAll(".shape-option").forEach((option) => {
-    option.setAttribute("aria-pressed", option.dataset.name === currentShape.name);
-  });
   infoName.textContent = `${COLLECTION} ${currentShape.name}`;
   infoDesigner.textContent = `by ${DESIGNER}`;
   // Italian style, "€ 8.999"; the € in the plain font (in the mono font it looks crooked)
@@ -159,15 +164,7 @@ function markShape() {
 // ---------- The shapes ----------
 
 function buildShapes() {
-  SHAPES.forEach((shape) => {
-    const option = document.createElement("button");
-    option.className = "shape-option";
-    option.dataset.name = shape.name;
-    option.setAttribute("aria-label", shape.name);
-    option.append(shapeIcon(shape));
-    option.addEventListener("click", () => chooseShape(shape));
-    shapeRow.append(option);
-  });
+  makeStrip(shapeRow, SHAPES, { draw: shapeIcon, choose: chooseShape, start: SHAPES.indexOf(currentShape) });
   markShape();
 }
 

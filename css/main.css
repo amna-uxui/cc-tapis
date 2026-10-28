@@ -456,26 +456,40 @@ body {
   pointer-events: auto;
 }
 
-/* The three shapes, filled with the current rug colour (--rug-color, set by js/carpet-colors.js).
-   The chosen one sits in a light grey rounded frame, like cc-tapis's colour picker. */
-.rug-shapes {
-  gap: var(--space-2);
+/* The endless strip (js/carpet-strip.js): the shapes, or the rugs, go round under the rug. The
+   middle one is bigger, in a light grey rounded frame like cc-tapis's colour picker; the others
+   fade out towards the ends. Swipe it with a finger. */
+.rug-shapes.strip {
+  display: block;
+  width: min(100% - var(--space-4) * 2, var(--page-max-width) - var(--space-4) * 2);
+  height: 44px; /* fixed, so the full carpet fits above it (js/carpet-viewer.js measures it) */
+  touch-action: none;
+  cursor: grab;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
-.shape-option {
+.strip__item {
+  position: absolute;
+  left: 50%;
+  top: 5px;
   width: 34px;
   height: 34px;
+  margin-left: -17px;
+  padding: 2px;
   display: grid;
   place-items: center;
   border: 1.5px solid transparent;
   border-radius: 6px;
   transition: border-color var(--duration) var(--ease);
+  will-change: transform, opacity;
 }
 
-.shape-option[aria-pressed="true"] {
+.strip__item.is-middle {
   border-color: var(--color-muted);
 }
 
+/* The shapes, filled with the current rug colour (--rug-color, set by js/carpet-colors.js) */
 .shape-icon {
   display: block;
   background: var(--rug-color, var(--color-muted));
@@ -769,27 +783,14 @@ body {
   pointer-events: none;
 }
 
-/* The rugs of the collection, as small pictures under the rug (blow.html, js/carpet-rugs.js):
-   each whole rug, never cropped, so its edge and depth show. The chosen one sits in a light grey
-   rounded frame, like the shapes. */
-.rug-option {
-  width: 34px;
-  height: 34px;
-  padding: 2px;
-  border: 1.5px solid transparent;
-  border-radius: 6px;
-  transition: border-color var(--duration) var(--ease);
-}
-
-.rug-option[aria-pressed="true"] {
-  border-color: var(--color-muted);
-}
-
-.rug-option img {
+/* The rugs of the collection, as small pictures in the strip (blow.html, js/carpet-rugs.js):
+   each whole rug, never cropped, so its edge and depth show */
+.rug-thumb {
   display: block;
   width: 100%;
   height: 100%;
   object-fit: contain;
+  pointer-events: none;
 }
 
 /* ---------- The menu: a paper receipt printing out of the top bar (js/carpet-menu.js) ---------- */

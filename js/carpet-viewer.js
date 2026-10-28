@@ -7,8 +7,10 @@
   - Move and pinch with two fingers to move around and zoom. Flicks keep gliding.
   - On a computer: scroll to move, trackpad pinch / ctrl + scroll to zoom.
   - Double-tap to wipe the drawing, back to the plain carpet.
-  - On the whole rug, one finger swipes left or right to the next collection (the rug follows the
-    finger; let go far enough, or flick, and the next one slides in: js/carpet-menu.js).
+  - With the whole rug in view, one finger on the white page around it swipes left or right to the
+    next collection (the rug follows the finger; let go far enough, or flick, and the next one
+    slides in: js/carpet-menu.js). On a rug you draw on, the finger on the rug draws as always; on
+    one you don't (data-brush="off"), the rug swipes too.
   - You can zoom out until the whole carpet fits, but never lose it off screen.
 */
 
@@ -731,8 +733,9 @@ stage.addEventListener("pointermove", (e) => {
   pointers.set(e.pointerId, p);
 
   if (gesture.type === "draw" && pointers.size === 1) {
-    // On the whole rug, one finger swipes between collections (it doesn't draw)
-    if (gesture.swipe || (!moved && isWhole())) {
+    // With the whole rug in view, a finger on the white page around it swipes between collections
+    // (on a rug you draw on, the finger on the rug draws; on one you don't, the rug swipes too)
+    if (gesture.swipe || (!moved && isWhole() && (!BRUSHING || !onCarpet(gesture.start.x, gesture.start.y)))) {
       const dx = p.x - gesture.start.x;
       if (!gesture.swipe) {
         if (Math.hypot(dx, p.y - gesture.start.y) <= 6) return;

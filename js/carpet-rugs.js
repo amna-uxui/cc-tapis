@@ -1,9 +1,10 @@
 /*
-  The rugs of the collection: while zoomed out, a small picture of each rug sits under the rug,
-  above Buy. Picking one shows that rug, with its name, designer, size and price, and you can
-  blow on it like the others.
+  The rugs of the collection: while zoomed out, small pictures of the rugs go round an endless
+  strip under the rug, above Buy (js/carpet-strip.js). The rug that settles in the middle is shown,
+  with its name, designer, size and price, and you can blow on it like the others.
 
-  Needs js/carpet-viewer.js (changeRug, rugInfo) and js/carpet-blow.js (loadPhoto) to be loaded first.
+  Needs js/carpet-viewer.js (changeRug, rugInfo), js/carpet-blow.js (loadPhoto) and
+  js/carpet-strip.js (makeStrip) to be loaded first.
 */
 
 // The collection: Rop van Mierlo's GrandMa Patterns. Each photo is the rug cut out with its real
@@ -26,11 +27,8 @@ const rugRow = document.querySelector("[data-rug-options]");
 let currentRug = RUGS[0];
 let switching = false;
 
-// Show the chosen rug's name, designer, size and price, and mark its picture
+// Show the chosen rug's name, designer, size and price
 function markRug() {
-  rugRow.querySelectorAll(".rug-option").forEach((option) => {
-    option.setAttribute("aria-pressed", option.dataset.name === currentRug.name);
-  });
   rugInfo.querySelector("[data-rug-name]").textContent = `${COLLECTION} ${currentRug.name}`;
   rugInfo.querySelector("[data-rug-designer]").textContent = `by ${DESIGNER}`;
   // Italian style, "€ 6.999"; the € in the plain font (in the mono font it looks crooked)
@@ -41,30 +39,35 @@ function markRug() {
   rugInfo.querySelector("[data-rug-size]").replaceChildren(`${currentRug.size} | `, euro, ` ${amount}`);
 }
 
+// A new rug in the middle of the strip. Swiped past several quickly, the rug catches up with the
+// last one once the one before has finished.
 async function chooseRug(rug) {
-  if (rug === currentRug || switching) return;
-  switching = true;
+  if (rug === currentRug) return;
   currentRug = rug;
   markRug();
-  await changeRug(rug.src, { zoomOut: true });
-  loadPhoto(); // the wind layer takes the new photo (js/carpet-blow.js)
+  if (switching) return;
+  switching = true;
+  let shown;
+  do {
+    shown = currentRug;
+    await changeRug(shown.src, { zoomOut: true });
+    loadPhoto(); // the wind layer takes the new photo (js/carpet-blow.js)
+  } while (shown !== currentRug);
   switching = false;
 }
 
+// A small picture of a rug, for the strip
+function rugThumb(rug) {
+  const picture = document.createElement("img");
+  picture.className = "rug-thumb";
+  picture.src = rug.thumb;
+  picture.alt = "";
+  picture.draggable = false;
+  return picture;
+}
+
 function buildRugs() {
-  RUGS.forEach((rug) => {
-    const option = document.createElement("button");
-    option.className = "rug-option";
-    option.dataset.name = rug.name;
-    option.setAttribute("aria-label", rug.name);
-    const picture = document.createElement("img");
-    picture.src = rug.thumb;
-    picture.alt = "";
-    picture.draggable = false;
-    option.append(picture);
-    option.addEventListener("click", () => chooseRug(rug));
-    rugRow.append(option);
-  });
+  makeStrip(rugRow, RUGS, { draw: rugThumb, choose: chooseRug, start: 0 });
   markRug();
 }
 
