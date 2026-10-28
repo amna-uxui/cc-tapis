@@ -10,7 +10,7 @@ Live: https://amna-uxui.github.io/cc-tapis/
 
 - **Hypercode** by Roberto Sironi: to touch, brush the velvet pile with your finger.
 - **GrandMa Patterns** by Rop van Mierlo (`#grandma-patterns`): to blow, tap the wind button and blow on the bottom of the phone. Add `?debug` to see what the microphone hears.
-- **Ripple Square** by Patricia Urquiola (`#ripple-square`): to paint, make your own rug: start from a blank 200 × 200 cm canvas, with the real rug's outline showing faintly and one ripple down the middle, and draw more with a brush made of Ripple's leaves, in its four colourways. The strokes look like wool, not paint: soft edges, hand-knotted leaves with a carved line, and the pile's texture.
+- **Ripple Square** by Patricia Urquiola (`#ripple-square`): to paint, make your own rug: start from a blank 200 × 200 cm canvas, with the real rug's outline as a fine faint line and one ripple down the middle, and draw more with a brush made of Ripple's leaves, in its four colourways. The strokes look like carpet, not paint: thick pile rounding into carved grooves, the real rug's wool texture (made from its photo by `tools/ripple-pile.py`), pile rows, fibrous edges and a soft shadow on the floor.
 
 ## Run it
 
