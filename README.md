@@ -11,7 +11,7 @@ Live: https://amna-uxui.github.io/cc-tapis/
 - **Hypercode** by Roberto Sironi: to touch, brush the velvet pile with your finger.
 - **GrandMa Patterns** by Rop van Mierlo (`#grandma-patterns`): to blow, tap the wind button and blow on the bottom of the phone. Add `?debug` to see what the microphone hears.
 - **Ripple Square** by Patricia Urquiola (`#ripple-square`): to paint, make your own rug: start from a blank 200 × 200 cm canvas with one ripple and draw more with a brush made of Ripple's leaves, in its four colourways.
-- **Stroke** by Sabine Marcelis (`#stroke`): to shape. Drag to bend the strokes, circle to twist them into a knot; the rug relaxes back. Tap for the next shape (1.0, 2.0, Runner); two colours each in the row.
+- **Stroke** by Sabine Marcelis (`#stroke`): to shape. Put a finger on a piece (a strip of 1.0, the sash or panel of 2.0, the runner) and drag to bend it, circle to twist it; it comes to the top and stays as you leave it. Double-tap to put the rug back. Tap for the next shape; two colours each in the row.
 
 ## Run it
 
