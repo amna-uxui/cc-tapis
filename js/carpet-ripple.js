@@ -48,8 +48,9 @@ let chosenWay = 0; // the colourway picked in the row
 // ---------- The layers ----------
 
 // done: the strokes so far. band and leaves: the stroke being drawn, apart, so its band never
-// covers its own leaves where it curves. mix: all of them put together. wool: a tile of woolly
-// texture laid over the strokes.
+// covers its own leaves where it curves. stroke: the two put together, the leaves cut to the band
+// (so the stroke ends in a straight cut, like the rug's own bands). mix: everything together.
+// wool: a tile of woolly texture laid over the strokes.
 let own = null;
 
 function setUpOwn() {
@@ -60,7 +61,7 @@ function setUpOwn() {
     c.height = img.naturalHeight;
     return c;
   };
-  own = { w: size, h: img.naturalHeight, done: layer(), band: layer(), leaves: layer(), mix: layer(), wool: woolTile() };
+  own = { w: size, h: img.naturalHeight, done: layer(), band: layer(), leaves: layer(), stroke: layer(), mix: layer(), wool: woolTile() };
   rippleCanvas.width = own.w;
   rippleCanvas.height = own.h;
 }
@@ -107,11 +108,11 @@ function drawOwn(left, top, right, bottom) {
   const w = right - left;
   const h = bottom - top;
   if (w <= 0 || h <= 0) return;
+  joinStroke(left, top, w, h);
   const mix = own.mix.getContext("2d");
   mix.clearRect(left, top, w, h);
   mix.drawImage(own.done, left, top, w, h, left, top, w, h);
-  mix.drawImage(own.band, left, top, w, h, left, top, w, h);
-  mix.drawImage(own.leaves, left, top, w, h, left, top, w, h);
+  mix.drawImage(own.stroke, left, top, w, h, left, top, w, h);
   const ctx = rippleCtx;
   ctx.save();
   // only this part: cutting the wool to the strokes' shape would otherwise clear the whole canvas
@@ -130,6 +131,17 @@ function drawOwn(left, top, right, bottom) {
 
 function drawAll() {
   drawOwn(0, 0, own.w, own.h);
+}
+
+// The stroke being drawn, in a part of the canvas: its band, with its leaves only where the band is
+function joinStroke(left, top, w, h) {
+  const stroke = own.stroke.getContext("2d");
+  stroke.save();
+  stroke.clearRect(left, top, w, h);
+  stroke.drawImage(own.band, left, top, w, h, left, top, w, h);
+  stroke.globalCompositeOperation = "source-atop";
+  stroke.drawImage(own.leaves, left, top, w, h, left, top, w, h);
+  stroke.restore();
 }
 
 // Redrawn once per frame, however much the finger moved
@@ -198,13 +210,11 @@ function ownTo(p) {
   markDirtyRug(Math.min(from.x, p.x) - reach, Math.min(from.y, p.y) - reach, Math.max(from.x, p.x) + reach, Math.max(from.y, p.y) + reach);
 }
 
-// The stroke is finished: it joins the ones before (band first, its leaves on top)
+// The stroke is finished: it joins the ones before (its leaves cut to its band)
 function ownEnd() {
-  const done = own.done.getContext("2d");
-  done.drawImage(own.band, 0, 0);
-  done.drawImage(own.leaves, 0, 0);
-  own.band.getContext("2d").clearRect(0, 0, own.w, own.h);
-  own.leaves.getContext("2d").clearRect(0, 0, own.w, own.h);
+  joinStroke(0, 0, own.w, own.h);
+  own.done.getContext("2d").drawImage(own.stroke, 0, 0);
+  ["band", "leaves", "stroke"].forEach((layer) => own[layer].getContext("2d").clearRect(0, 0, own.w, own.h));
 }
 
 // The single ripple the blank canvas starts with: a gentle curve, drawn like a stroke
@@ -223,7 +233,7 @@ function firstRipple() {
 
 // Back to the blank canvas with its single ripple
 function startOver() {
-  ["done", "band", "leaves"].forEach((layer) => own[layer].getContext("2d").clearRect(0, 0, own.w, own.h));
+  ["done", "band", "leaves", "stroke"].forEach((layer) => own[layer].getContext("2d").clearRect(0, 0, own.w, own.h));
   firstRipple();
   drawAll();
 }
