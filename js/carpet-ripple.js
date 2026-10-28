@@ -10,8 +10,8 @@
   - The brush is always the same width on the rug, zoomed in or out. Its ovals widen with the
     finger's speed, as they vary on the real rug: slowly, slim and close; faster, broad.
   - The blank canvas starts with one ripple along the rug's top edge, showing how a band runs.
-  - The rug's outline (the real Ripple's, in the 200 × 200 cm square) shows as a soft, faint haze
-    along its edge, so you see where to draw; strokes only show inside it.
+  - The rug's outline (the real Ripple's, in the 200 × 200 cm square) shows as a crisp, very faint
+    hairline, so you see where to draw; strokes only show inside it.
   - The strokes are carpet, not paint, like the real rug close up: each leaf is thick pile, its
     edge rounding down into a carved groove that throws a little shadow on the ground; the pile
     runs in fine rows across the whole rug; the wool has the real rug's own texture (taken from its
@@ -50,8 +50,8 @@ const ARCH = { wide: 0.17, tall: 0.93, every: 0.32 };
 // (points on the 1500 px canvas), its ovals pointing up to the edge; they broaden towards the
 // middle and slim again
 const FIRST_RIPPLE = { from: [330, 140], bend: [655, 190], to: [990, 118] };
-// The rug's outline: no line, a soft haze along its edge, fading away both sides
-const RUG_EDGE = { rgb: [60, 45, 35], strength: 0.08, blur: 12 }; // colour, how dark at most, how many px of blur
+// The rug's outline: a crisp hairline round it, very faint
+const RUG_LINE = { colour: "rgba(60, 45, 35, 0.13)", width: 2 }; // colour, and how wide (canvas pixels)
 // Sizes in pixels of the 1500 px canvas (7.5 to a centimetre)
 const WOOL_FUZZ = 3;         // how far the pile spills over a stroke's outer edges
 const FIBRES = 1;            // how ragged the fibres make every edge
@@ -86,7 +86,7 @@ let chosenWay = 0; // the colourway picked in the row
 // ends cut straight). stroke: the two put together, the leaves cut to the reach (so
 // the stroke ends in a straight cut, like the rug's own bands). mix: everything together, cut
 // to the rug's shape. woven: mix with the wool laid over it. fibres: woven with ragged edges, as
-// shown. shape: the rug's outline; line: the soft haze along it. floor: the rug's shadow on the
+// shown. shape: the rug's outline; line: the hairline round it. floor: the rug's shadow on the
 // floor. pile, rows, drift: tiles of wool texture (the real wool, its rows, its colour drifting).
 let own = null;
 
@@ -119,47 +119,19 @@ function setUpOwn() {
   const shape = own.shape.getContext("2d");
   if (rugShape.naturalWidth) shape.drawImage(rugShape, 0, 0, own.w, own.h);
   else shape.fillRect(0, 0, own.w, own.h); // (no outline to hand: the whole square)
-  // and the soft haze along it: the outline blurred (at a third of the size, smoothly), darkest
-  // where it's half there, so just on the edge
-  const small = document.createElement("canvas");
-  const sw = (small.width = Math.round(own.w / 3));
-  const sh = (small.height = Math.round(own.h / 3));
-  const sctx = small.getContext("2d");
-  sctx.drawImage(own.shape, 0, 0, sw, sh);
-  const edge = sctx.getImageData(0, 0, sw, sh);
-  let there = Float32Array.from({ length: sw * sh }, (_, i) => edge.data[i * 4 + 3] / 255);
-  const reach = Math.round(RUG_EDGE.blur / 3);
-  for (let pass = 0; pass < 4; pass++) there = boxBlur(there, sw, sh, reach, pass % 2 === 0);
-  const [r, g, b] = RUG_EDGE.rgb;
-  for (let i = 0; i < sw * sh; i++) {
-    edge.data[i * 4] = r;
-    edge.data[i * 4 + 1] = g;
-    edge.data[i * 4 + 2] = b;
-    edge.data[i * 4 + 3] = 255 * RUG_EDGE.strength * 4 * there[i] * (1 - there[i]);
-  }
-  sctx.putImageData(edge, 0, 0);
+  // and the hairline round it: the outline a little larger all round, less the outline itself
   const line = own.line.getContext("2d");
-  line.imageSmoothingQuality = "high";
-  line.drawImage(small, 0, 0, own.w, own.h);
+  for (let k = 0; k < 24; k++) {
+    const a = (k / 24) * Math.PI * 2;
+    line.drawImage(own.shape, Math.cos(a) * RUG_LINE.width, Math.sin(a) * RUG_LINE.width);
+  }
+  line.globalCompositeOperation = "destination-out";
+  line.drawImage(own.shape, 0, 0);
+  line.globalCompositeOperation = "source-in";
+  line.fillStyle = RUG_LINE.colour;
+  line.fillRect(0, 0, own.w, own.h);
   rippleCanvas.width = own.w;
   rippleCanvas.height = own.h;
-}
-
-// Values on a w × h grid, each the average of those up to `reach` away, across (or down)
-function boxBlur(values, w, h, reach, across) {
-  const out = new Float32Array(values.length);
-  const lines = across ? h : w;
-  const length = across ? w : h;
-  const at = (line, k) => (across ? line * w + k : k * w + line);
-  for (let line = 0; line < lines; line++) {
-    let sum = 0;
-    for (let k = -reach; k <= reach; k++) sum += values[at(line, Math.min(length - 1, Math.max(0, k)))];
-    for (let k = 0; k < length; k++) {
-      out[at(line, k)] = sum / (2 * reach + 1);
-      sum += values[at(line, Math.min(length - 1, k + reach + 1))] - values[at(line, Math.max(0, k - reach))];
-    }
-  }
-  return out;
 }
 
 // A square of grey that repeats seamlessly, from a value per pixel (128 = leaves the colour as it is;
