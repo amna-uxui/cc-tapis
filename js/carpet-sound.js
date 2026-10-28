@@ -7,8 +7,10 @@
 
   js/carpet-viewer.js calls brushSound.move(speed) while drawing and brushSound.stop() after;
   js/carpet-shapes.js calls brushSound.prepare() when Hypercode comes on, so the recording is
-  loaded before the first stroke (no tap is needed first: the touch that starts the first
-  stroke lets the sound play).
+  loaded before the first stroke. It's the page's one sound (brushSound.context(): Ripple
+  Square's plays through it too), so a single touch lets it play for the whole visit.
+  iPhone: a finger touching down doesn't count as permission for sound, only lifting it (or a
+  tap), so on each visit the very first stroke may be silent; from the first lift on, it plays.
 */
 
 const SOUND_FILE = "sounds/brush.m4a";
@@ -108,5 +110,12 @@ const brushSound = (() => {
     gain.gain.setTargetAtTime(0, audio.currentTime, SOUND_FADE * 1.5);
   }
 
-  return { prepare, move, stop };
+  // The page's one sound (js/carpet-ripple-sound.js plays through it too): one touch unlocks it
+  // for the whole visit, and its brushing loop, silent while you don't brush, keeps it awake
+  function context() {
+    prepare();
+    return audio;
+  }
+
+  return { prepare, move, stop, context };
 })();

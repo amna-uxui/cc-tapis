@@ -22,6 +22,8 @@
 const ROLL_UP = 1100;        // ms the rug takes to roll up (and to unroll again)
 const ROLL_FLY = 750;        // ms the roll takes to fly into the bag
 const ROLL_THICKEST = 68;    // px: the roll's thickness once the whole rug is on it: a heavy rug
+const BACK_MUTE = 0.4;       // the back of the rug: its colours this much nearer grey ..
+const BACK_DARK = 0.82;      // .. and this much darker
 const ROLL_GRAIN = "images/ripple-pile.jpg"; // real wool pile (tools/ripple-pile.py), laid over the roll so it reads as dense pile
 const ROLL_BACK_AFTER = 350; // ms in the bag before the rug unrolls back into place
 const CART_RULE = "°~*~"; // the rule along the top and bottom of the pink notes, as on cc-tapis.com
@@ -99,8 +101,9 @@ function showBag() {
 
 // ---------- Rolling the rug up, and into the bag ----------
 
-// What the roll is wrapped in: the rug itself, without the white (or see-through) round it in its
-// photo, and its colour (for the ends, where you see it wound round)
+// What the roll is wrapped in: the back of the rug, as a rug rolled up from its edge shows it (its
+// pattern upside down, flatter, muted and a little darker, a fine woven grid across it), without
+// the white (or see-through) round it in its photo; and its colour (for the ends, wound round)
 function rollSkin(src, ground) {
   return new Promise((done) => {
     const photo = new Image();
@@ -134,13 +137,30 @@ function rollSkin(src, ground) {
       skin.width = Math.round(right - left - inX * 2);
       skin.height = Math.round(bottom - top - inY * 2);
       const s = skin.getContext("2d");
-      if (ground) {
-        s.fillStyle = ground; // your own design: drawn on its ground
-        s.fillRect(0, 0, skin.width, skin.height);
-      }
-      s.drawImage(c, left + inX, top + inY, skin.width, skin.height, 0, 0, skin.width, skin.height);
       const colour = sum.map((v) => Math.round(v / count));
-      done({ src: skin.toDataURL("image/jpeg", 0.85), colour });
+      // solid all over: the rug's colour (or your design's ground) under it
+      s.fillStyle = ground || `rgb(${colour})`;
+      s.fillRect(0, 0, skin.width, skin.height);
+      // upside down, as the back is
+      s.save();
+      s.translate(0, skin.height);
+      s.scale(1, -1);
+      s.drawImage(c, left + inX, top + inY, skin.width, skin.height, 0, 0, skin.width, skin.height);
+      s.restore();
+      // the back of a hand-made rug: the pattern flatter and muted, a little darker, woven
+      const back = s.getImageData(0, 0, skin.width, skin.height);
+      const d = back.data;
+      for (let y = 0; y < skin.height; y++) {
+        for (let x = 0; x < skin.width; x++) {
+          const i = (y * skin.width + x) * 4;
+          const grey = 0.3 * d[i] + 0.59 * d[i + 1] + 0.11 * d[i + 2];
+          const weave = x % 3 === 0 || y % 3 === 0 ? 0.88 : 1;
+          for (let k = 0; k < 3; k++) d[i + k] = (d[i + k] + (grey - d[i + k]) * BACK_MUTE) * BACK_DARK * weave;
+          d[i + 3] = 255;
+        }
+      }
+      s.putImageData(back, 0, 0);
+      done({ src: skin.toDataURL("image/jpeg", 0.88), colour });
     };
     photo.onerror = () => done(null);
     photo.src = src;
@@ -154,7 +174,7 @@ function rollTo(state, rolled) {
   overlay.style.clipPath = `inset(0 0 ${gone}px 0)`;
   const thick = 14 + (ROLL_THICKEST - 14) * Math.sqrt(rolled);
   const top = box.top + box.height - gone - thick / 2;
-  const turned = -(box.height - gone); // the part just rolled on, turning
+  const turned = gone * 0.8; // turning as it gathers the rug (the back, not lined up with the front)
   Object.assign(roll.style, {
     top: `${top}px`,
     height: `${thick}px`,
@@ -201,7 +221,7 @@ async function buy() {
     width: `${box.width - inset * 2}px`,
     // the rug itself, with real wool pile laid over it (soft light), so it reads dense
     backgroundImage: `url("${ROLL_GRAIN}"), ${skin ? `url("${skin.src}")` : "none"}`,
-    backgroundSize: `200px 200px, 100% ${box.height}px`,
+    backgroundSize: `200px 200px, 100% ${box.height * 0.6}px`,
     backgroundRepeat: "repeat, repeat-y",
   });
   Object.assign(lift.style, { left: `${box.left + inset}px`, width: `${box.width - inset * 2}px` }); // as wide as the roll

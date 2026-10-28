@@ -12,9 +12,9 @@
   rippleSound.move(fast) as it goes on (fast: 0 slow .. 1 fast) and rippleSound.end() when the
   finger lifts.
 
-  No tap is needed first: browsers only let sound play after a touch, and the touch that starts
-  the first stroke is one (every touch makes sure the sound is running; the silent switch on an
-  iPhone is taken care of by js/carpet-sound.js, which also listens to every touch).
+  It plays through the page's one sound (js/carpet-sound.js), which every touch keeps running and
+  which takes care of the iPhone's silent switch. iPhone: only a finger lifting (or a tap) lets
+  sound start, so on each visit the very first stroke may be silent; after that, every one plays.
 */
 
 const STROKES_FILE = "sounds/strokes.m4a";
@@ -31,10 +31,11 @@ const rippleSound = (() => {
   let drawing = false;
   let nextAt = 0;     // when the next swish may start, while drawing on (audio time)
 
+  // through the page's one sound (js/carpet-sound.js), so one touch unlocks both
   function setUp() {
     const AudioContext = window.AudioContext || window.webkitAudioContext;
     if (!AudioContext) return false;
-    audio = new AudioContext();
+    audio = (typeof brushSound !== "undefined" && brushSound.context()) || new AudioContext();
     fetch(STROKES_FILE)
       .then((response) => response.arrayBuffer())
       .then((data) => new Promise((done, fail) => audio.decodeAudioData(data, done, fail)))
