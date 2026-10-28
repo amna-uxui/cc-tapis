@@ -1,19 +1,29 @@
 /*
   Stroke by Sabine Marcelis: rugs made of broad, brushed strokes, and you reshape them for good.
-  Each rug is made of pieces: Stroke 1.0 of four strips, Stroke 2.0 of a straight panel with a sash
-  folded across it, the runner of one long strip. Put your finger on a piece and pull: the piece
-  bends as one thick, heavy band, like a strip of real rug dragged across the floor. Its width and
-  its lines stay as they are (only its course bends), it moves less than your finger and trails
-  behind, and it can't fold up tighter than wool would. The piece you move comes to the top, lying
-  over the others with a soft shadow, and stays as you leave it. Double-tap to put the rug back.
+  Stroke 1.0, four strips side by side: swipe sideways and you sweep the pile, like a hand brushed
+  across the wool. At that height the strips bend into one smooth wave, wide across and low, with
+  light on one side of it and shade on the other; the rug's outline hardly moves. Each swipe is one
+  clean wave (from where it started to where the finger is), heavy and only so deep, and it stays;
+  more swipes, more waves.
+
+  Stroke 2.0 (a straight panel with a sash folded across it) and the runner (one long strip): put
+  your finger on a piece and pull. The piece bends as one thick, heavy band, like a strip of real
+  rug dragged across the floor. Its width and its lines stay as they are (only its course bends), it
+  moves less than your finger and glides after it, small shakes of the finger smoothed away, and it
+  can't fold up tighter than wool would. The piece you move comes to the top, lying over the others
+  with a soft shadow, and stays as you leave it.
+
+  Double-tap to put the rug back.
 
   - Tap the rug for the next shape: Stroke 1.0, Stroke 2.0, the runner, and round again.
   - The row under the rug: the two colours of the shape on show.
 
-  How: every piece has a spine, a line down its middle. Pulling moves the spine like a heavy rope
+  How (2.0, the runner): every piece has a spine, a line down its middle. Pulling moves the spine like a heavy rope
   (each stretch of it keeps its length, and it stays smoothly curved); every point of the piece
-  keeps its place across the spine, so the band follows the spine without smearing. It's drawn
-  with WebGL, each piece as a fine mesh over the photo cut to the piece's outline.
+  keeps its place across the spine, so the band follows the spine without smearing. How (1.0): the
+  whole rug is one mesh, and each swipe moves its points sideways, most at the finger's height and
+  less further up, down and out. All drawn with WebGL, each piece as a fine mesh over the photo cut
+  to the piece's outline.
 
   Needs js/carpet-viewer.js (changeRug, img, carpet, fingerPaint, isWhole), js/carpet-strip.js and
   js/carpet-menu.js to be loaded first.
@@ -67,12 +77,24 @@ const STIFF = 0.25;          // how stiffly a piece keeps its curve smooth (high
 const GRIP = 7;              // the floor holds a piece: parts further than this many spine points from the
                              // finger barely move, so the piece bends near the hand instead of sliding whole
 const SLIDE = 0.04;          // ... though even the far end gives a little, so a long pull drags it along
-const SPINE = 32;            // points along each piece's spine
+const STEADY = 0.5;          // the finger's small shakes smoothed away (lower = smoother, slower)
+const GLIDE = 0.22;          // each frame a piece glides this share of the way to where it's pulled
+const SPINE = 48;            // points along each piece's spine
 const SOLVE = 24;            // rounds of keeping the spine's length and smoothness each move
-const MESH = 80;             // mesh points along the rug's longer side (more = smoother bends)
+const MESH = 110;            // mesh points along the rug's longer side (more = smoother bends)
 const ROOM = 0.3;            // room round the rug for its moved pieces (share of its longer side)
-const SHADOW = 0.008;        // how far a moved piece's shadow falls (share of the rug's longer side)
+const SHADOW = 0.01;         // how far a moved piece's shadow falls (share of the rug's longer side)
+const SHADE = 0.16;          // how dark that shadow is at most (it's soft: several faint layers)
 const LABELS = 1024;         // the map of which piece is where: this many points along its longer side
+
+// Stroke 1.0's sweep
+const SWEEP = 0.4;           // how far the pile moves for the finger's travel (lower = heavier)
+const SWEEP_MOST = 0.045;    // the furthest one swipe moves it (share of the rug's longer side)
+const SWEEP_ALL = 0.08;      // ... and all swipes together
+const SWEEP_TALL = 0.04;     // how tall the wave is (share of the rug's height): narrow
+const SWEEP_WIDE = 0.5;      // how wide (share of its width): right across the strips
+const SWEEP_EDGE = 0.1;      // how much the rug's sides move, next to the middle (the outline stays)
+const SWEEP_LIGHT = 0.9;     // how strongly the wave catches the light
 
 const warpCanvas = carpet.querySelector(".carpet__warp");
 
@@ -190,7 +212,15 @@ function makeMesh(colour) {
     for (let x = 0; x < lw; x++) labels[(y * lw + x) * 4 + pieceAt(colour, (x + 0.5) / lw, (y + 0.5) / lh)] = 255;
   }
   warp = { w, h, room: Math.max(w, h) * ROOM, cols, rows, rest, order: [], labels: { w: lw, h: lh, data: labels } };
-  warp.pieces = Array.from({ length: count }, (_, k) => makePiece(spineLine(colour, k).map(([u, v]) => [u * w, v * h])));
+  warp.shade = new Float32Array(rest.length / 2);
+  if (colour.strips) {
+    // 1.0: the strips move together, as one rug: one set of mesh points for all of them
+    const positions = rest.slice();
+    warp.sweep = { done: new Float32Array(rest.length / 2), now: new Float32Array(rest.length / 2), positions };
+    warp.pieces = Array.from({ length: count }, () => ({ positions, moved: false }));
+  } else {
+    warp.pieces = Array.from({ length: count }, (_, k) => makePiece(spineLine(colour, k).map(([u, v]) => [u * w, v * h])));
+  }
   warp.order = warp.pieces.map((_, k) => k);
   // the canvas reaches past the rug on every side, so moved pieces still show
   warpCanvas.width = Math.round(w + warp.room * 2);
@@ -235,13 +265,14 @@ function makePiece(line) {
     const ny = across[i * 2 + 1] + (across[i * 2 + 3] - across[i * 2 + 1]) * f;
     bind[p + 1] = (rest[p] - sx) * nx + (rest[p + 1] - sy) * ny;
   }
-  const piece = { spine: restSpine.slice(), restSpine, gaps, bind, positions: rest.slice(), moved: false };
+  // spine: where it's pulled to; shown: where it is now, gliding after it
+  const piece = { spine: restSpine.slice(), shown: restSpine.slice(), restSpine, gaps, bind, positions: rest.slice(), moved: false };
   return piece;
 }
 
 // Where every mesh point of a piece is now: at its place along the spine, as far across as before
 function skin(piece) {
-  const { spine, bind, positions } = piece;
+  const { shown: spine, bind, positions } = piece;
   const across = acrossSpine(spine);
   for (let p = 0; p < bind.length; p += 2) {
     const i = Math.min(SPINE - 2, Math.max(0, Math.floor(bind[p])));
@@ -259,12 +290,15 @@ function skin(piece) {
 const WARP_VERTEX = `
 attribute vec2 aPos;
 attribute vec2 aUv;
+attribute float aShade;
 uniform vec2 uCanvas;
 uniform float uRoom;
 uniform vec2 uShift;
 varying vec2 vUv;
+varying float vShade;
 void main() {
   vUv = aUv;
+  vShade = aShade;
   vec2 p = (aPos + uShift + uRoom) / uCanvas;
   gl_Position = vec4(p.x * 2.0 - 1.0, 1.0 - p.y * 2.0, 0.0, 1.0);
 }`;
@@ -276,6 +310,7 @@ uniform sampler2D uLabels;
 uniform vec4 uPiece;
 uniform float uShadow;
 varying vec2 vUv;
+varying float vShade;
 void main() {
   // only this piece's part of the photo, with a smooth edge
   float mine = dot(texture2D(uLabels, vUv), uPiece);
@@ -284,7 +319,8 @@ void main() {
   vec4 c = texture2D(uPhoto, vUv);
   float a = clamp((0.975 - (c.r + c.g + c.b) / 3.0) / 0.03, 0.0, 1.0) * mine;
   if (uShadow > 0.0) gl_FragColor = vec4(0.0, 0.0, 0.0, a * uShadow);
-  else gl_FragColor = vec4(c.rgb * a, a);
+  // where the pile is swept, one side of the wave catches the light and the other falls in shade
+  else gl_FragColor = vec4(clamp(c.rgb * (1.0 + clamp(vShade, -0.5, 0.5)), 0.0, 1.0) * a, a);
 }`;
 
 function setUpWarpGl() {
@@ -320,6 +356,7 @@ function setUpWarpGl() {
     labels: texture(),
     positionBuffer: gl.createBuffer(),
     uvBuffer: gl.createBuffer(),
+    shadeBuffer: gl.createBuffer(),
     indexBuffer: gl.createBuffer(),
     uniforms: { canvas: u("uCanvas"), room: u("uRoom"), shift: u("uShift"), piece: u("uPiece"), shadow: u("uShadow"), photo: u("uPhoto"), labelMap: u("uLabels") },
   };
@@ -370,6 +407,9 @@ function loadWarp(colour) {
   drawWarp();
 }
 
+// The soft shadow's layers: how far out (share of SHADOW), how dark (shares of SHADE, adding up)
+const SHADOW_LAYERS = [[0.35, 0.35], [0.8, 0.3], [1.4, 0.2], [2.1, 0.15]];
+
 // All the pieces, bottom to top; a moved piece with its soft shadow under it
 function drawWarp() {
   if (!warpGl || !warp) return;
@@ -377,6 +417,11 @@ function drawWarp() {
   gl.clearColor(0, 0, 0, 0);
   gl.clear(gl.COLOR_BUFFER_BIT);
   const aPos = gl.getAttribLocation(program, "aPos");
+  const aShade = gl.getAttribLocation(program, "aShade");
+  gl.bindBuffer(gl.ARRAY_BUFFER, warpGl.shadeBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, warp.shade, gl.DYNAMIC_DRAW);
+  gl.enableVertexAttribArray(aShade);
+  gl.vertexAttribPointer(aShade, 1, gl.FLOAT, false, 0, 0);
   const shadow = Math.max(warp.w, warp.h) * SHADOW;
   for (const k of warp.order) {
     const piece = warp.pieces[k];
@@ -386,9 +431,12 @@ function drawWarp() {
     gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
     gl.uniform4f(uniforms.piece, k === 0 ? 1 : 0, k === 1 ? 1 : 0, k === 2 ? 1 : 0, k === 3 ? 1 : 0);
     if (piece.moved) {
-      gl.uniform2f(uniforms.shift, shadow * 0.6, shadow);
-      gl.uniform1f(uniforms.shadow, 0.22);
-      gl.drawElements(gl.TRIANGLES, warpGl.count, gl.UNSIGNED_SHORT, 0);
+      // a soft shadow: faint layers, each a little further out
+      for (const [f, a] of SHADOW_LAYERS) {
+        gl.uniform2f(uniforms.shift, shadow * 0.6 * f, shadow * f);
+        gl.uniform1f(uniforms.shadow, SHADE * a);
+        gl.drawElements(gl.TRIANGLES, warpGl.count, gl.UNSIGNED_SHORT, 0);
+      }
     }
     gl.uniform2f(uniforms.shift, 0, 0);
     gl.uniform1f(uniforms.shadow, 0);
@@ -427,18 +475,25 @@ function pieceUnder(p) {
   return null;
 }
 
-// ---------- Pulling a piece ----------
+// ---------- Pulling a piece (2.0, the runner) ----------
 
-let shaping = null; // { piece, held (the spine point held), last } while the finger is down
+let shaping = null; // { piece, held (the spine point held), last, aim (the finger, steadied) } while the finger is down
+                    // or, on 1.0: { sweep: true, from (where the swipe started) }
 
 // The finger moved: the held point of the spine follows (less far: the piece is heavy), and the
-// rest of the spine follows it like a heavy rope, keeping its length and a smooth curve
+// rest of the spine follows it like a heavy rope, keeping its length and a smooth curve. The
+// piece then glides there (glidePieces()), frame by frame.
 function pull(p) {
   const piece = warp.pieces[shaping.piece];
   const spine = piece.spine;
   const g = shaping.held;
-  const tx = spine[g * 2] + (p.x - shaping.last.x) * HEAVY;
-  const ty = spine[g * 2 + 1] + (p.y - shaping.last.y) * HEAVY;
+  // the finger, with its small shakes smoothed away
+  const aim = shaping.aim;
+  aim.x += (p.x - aim.x) * STEADY;
+  aim.y += (p.y - aim.y) * STEADY;
+  const tx = spine[g * 2] + (aim.x - shaping.last.x) * HEAVY;
+  const ty = spine[g * 2 + 1] + (aim.y - shaping.last.y) * HEAVY;
+  shaping.last = { x: aim.x, y: aim.y };
   // how freely each spine point moves: freely near the finger, held by the floor further away
   const give = (i) => (i === g ? 0 : SLIDE + Math.exp(-Math.abs(i - g) / GRIP));
   for (let round = 0; round < SOLVE; round++) {
@@ -466,9 +521,77 @@ function pull(p) {
       spine[i * 2 + 1] += ((spine[i * 2 - 1] + spine[i * 2 + 3]) / 2 - spine[i * 2 + 1]) * STIFF;
     }
   }
-  skin(piece);
   piece.moved = true;
-  shaping.last = p;
+  glidePieces();
+}
+
+// Every frame, each piece glides a little nearer to where it's pulled, until it's there
+let piecesGliding = null;
+function glidePieces() {
+  if (piecesGliding) return;
+  piecesGliding = requestAnimationFrame(() => {
+    piecesGliding = null;
+    if (!warp || warp.sweep) return;
+    let still = true;
+    for (const piece of warp.pieces) {
+      if (!piece.moved) continue;
+      let far = 0;
+      for (let i = 0; i < piece.spine.length; i++) far = Math.max(far, Math.abs(piece.spine[i] - piece.shown[i]));
+      if (!far) continue;
+      // nearly there: the rest of the way at once
+      if (far < 0.3) piece.shown.set(piece.spine);
+      else {
+        for (let i = 0; i < piece.spine.length; i++) piece.shown[i] += (piece.spine[i] - piece.shown[i]) * GLIDE;
+        still = false;
+      }
+      skin(piece);
+    }
+    drawWarp();
+    if (!still) glidePieces();
+  });
+}
+
+// ---------- Sweeping the pile (1.0) ----------
+
+// One swipe's wave, from where it started to the finger now: the pile moved sideways, most at the
+// swipe's height and middle, fading smoothly up, down and out (a bell curve each way), heavy and
+// only so deep
+function sweepWave(from, to) {
+  const { rest, w, h, sweep } = warp;
+  const most = Math.max(w, h) * SWEEP_MOST;
+  const depth = most * Math.tanh(((to.x - from.x) * SWEEP) / most);
+  const midX = (from.x + to.x) / 2;
+  const tall = h * SWEEP_TALL;
+  const wide = w * SWEEP_WIDE;
+  for (let i = 0; i < sweep.now.length; i++) {
+    const x = rest[i * 2];
+    const y = rest[i * 2 + 1];
+    const u = x / w;
+    // the sides of the rug move least, so its outline stays
+    const side = Math.min(1, Math.min(u, 1 - u) / 0.35);
+    const edge = SWEEP_EDGE + (1 - SWEEP_EDGE) * side * side * (3 - 2 * side);
+    sweep.now[i] = depth * edge * Math.exp(-0.5 * ((y - from.y) / tall) ** 2) * Math.exp(-0.5 * ((x - midX) / wide) ** 2);
+  }
+  laySweep();
+}
+
+// The mesh where the swipes have moved it (never further than SWEEP_ALL), and its light and shade:
+// where the pile slopes one way down the rug it's lit, the other way, in shade
+function laySweep() {
+  const { rest, cols, rows, w, h, sweep, shade } = warp;
+  const all = Math.max(w, h) * SWEEP_ALL;
+  const moved = sweep.positions;
+  for (let i = 0; i < sweep.now.length; i++) moved[i * 2] = rest[i * 2] + all * Math.tanh((sweep.done[i] + sweep.now[i]) / all);
+  for (let r = 0; r < rows; r++) {
+    const up = Math.max(0, r - 1);
+    const down = Math.min(rows - 1, r + 1);
+    for (let c = 0; c < cols; c++) {
+      const a = (up * cols + c) * 2;
+      const b = (down * cols + c) * 2;
+      const slope = (moved[b] - rest[b] - (moved[a] - rest[a])) / (rest[b + 1] - rest[a + 1] || 1);
+      shade[r * cols + c] = -slope * SWEEP_LIGHT;
+    }
+  }
   redrawWarp();
 }
 
@@ -485,6 +608,10 @@ function redrawWarp() {
 const strokeShaping = {
   start(p) {
     if (!warp) return;
+    if (warp.sweep) {
+      shaping = { sweep: true, from: p };
+      return;
+    }
     const k = pieceUnder(p);
     if (k === null) return;
     // the piece picked up comes to the top; it's held at the spine point nearest the finger
@@ -494,18 +621,34 @@ const strokeShaping = {
     for (let i = 1; i < SPINE; i++) {
       if (Math.hypot(spine[i * 2] - p.x, spine[i * 2 + 1] - p.y) < Math.hypot(spine[held * 2] - p.x, spine[held * 2 + 1] - p.y)) held = i;
     }
-    shaping = { piece: k, held, last: p };
+    shaping = { piece: k, held, last: { x: p.x, y: p.y }, aim: { x: p.x, y: p.y } };
   },
   to(p) {
-    if (shaping) pull(p);
+    if (!shaping) return;
+    if (shaping.sweep) sweepWave(shaping.from, p);
+    else pull(p);
   },
   end() {
+    // a swipe's wave stays
+    if (shaping && shaping.sweep && warp && warp.sweep) {
+      const { done, now } = warp.sweep;
+      for (let i = 0; i < done.length; i++) done[i] += now[i];
+      now.fill(0);
+    }
     shaping = null;
   },
   wipe() {
     if (!warp) return;
+    shaping = null;
+    if (warp.sweep) {
+      warp.sweep.done.fill(0);
+      warp.sweep.now.fill(0);
+      laySweep();
+      return;
+    }
     warp.pieces.forEach((piece) => {
       piece.spine.set(piece.restSpine);
+      piece.shown.set(piece.restSpine);
       skin(piece);
       piece.moved = false;
     });
