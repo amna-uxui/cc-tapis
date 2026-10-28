@@ -1,7 +1,8 @@
 /*
   The collections on the one page: Hypercode (to draw) and GrandMa Patterns (to blow). Going from
-  one to the next, only the rug moves: it slides off to the side, with its name and its row,
-  and the next collection's rug slides in from the other side. The top bar and the buttons at the
+  one to the next, only the rug moves: it slides off to the side (its bottom trailing a little
+  behind, like fabric pulled across a floor) and the next collection's rug slides in from the other
+  side and settles; its name above and its row below just fade over. The top bar and the buttons at the
   bottom stay where they are, and nothing reloads.
 
   - Swiping on the white page around the whole rug (js/carpet-viewer.js) calls switchCollection:
@@ -15,8 +16,12 @@
   collection's enter / leave in js/carpet-shapes.js and js/carpet-rugs.js).
 */
 
-const SLIDE_OUT = 260;  // ms for the rug to slide off screen (speeding up as it goes)
-const SLIDE_IN = 560;   // ms for the next one to slide in (slowing down as it arrives)
+const SLIDE_OUT = 380;  // ms for the rug to slide off screen
+const SLIDE_IN = 780;   // ms for the next one to slide in, coming to rest slowly like a heavy rug
+
+const easeOut = (t) => 1 - Math.pow(1 - t, 2);              // already moving (let go of a swipe): carries on, then off
+const easeInOut = (t) => 0.5 - Math.cos(Math.PI * t) / 2;   // from rest (the menu): sets off gently
+const settle = (t) => 1 - Math.pow(1 - t, 4);               // arriving: glides in and settles softly
 
 // What each collection brings: whether one finger draws on its rug, and how it comes on and goes
 const COLLECTION_PARTS = {
@@ -58,15 +63,18 @@ async function showCollection(index, dir = index > collectionIndex ? 1 : -1) {
   const width = stage.clientWidth;
   const leaving = MENU_COLLECTIONS[collectionIndex].id;
 
-  await slideRug(-dir * width, SLIDE_OUT, (t) => t * t);
+  // the name and the row fade out (css/main.css) while the rug slides away
+  document.body.classList.add("is-switching");
+  await slideRug(-dir * width, SLIDE_OUT, swipeShift !== 0 ? easeOut : easeInOut);
   COLLECTION_PARTS[leaving].leave();
   if (pile) wipeDrawing(); // the drawing stays with its rug
   applyCollection(index);
   await COLLECTION_PARTS[MENU_COLLECTIONS[index].id].enter(whole);
 
-  swipeShift = dir * width;
-  render();
-  await slideRug(0, SLIDE_IN);
+  // the next rug comes in from the other side, its name and row fading in
+  placeRug(dir * width);
+  document.body.classList.remove("is-switching");
+  await slideRug(0, SLIDE_IN, settle);
   sliding = false;
   preloadNeighbours();
 }

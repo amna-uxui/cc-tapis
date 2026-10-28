@@ -457,20 +457,26 @@ body {
 }
 
 /* The row under the rug (js/carpet-strip.js): the shapes, or the rugs, side by side. The one on
-   show sits in a light grey rounded frame, like cc-tapis's colour picker. */
+   show sits in a light grey frame, like cc-tapis's colour picker, that follows its own shape:
+   tall around a tall rug, square around the square, round around the circle. */
 .rug-shapes.strip {
+  height: 46px; /* fixed, so the full carpet fits above it (js/carpet-viewer.js measures it) */
+  align-items: center;
   gap: var(--space-2);
 }
 
 .strip__item {
-  width: 34px;
-  height: 34px;
-  padding: 2px;
+  padding: 3px;
   display: grid;
   place-items: center;
+  line-height: 0;
   border: 1.5px solid transparent;
-  border-radius: 6px;
+  border-radius: 5px;
   transition: border-color var(--duration) var(--ease);
+}
+
+.strip__item:has(.shape-icon--circle) {
+  border-radius: 50%;
 }
 
 .strip__item[aria-pressed="true"] {
@@ -775,9 +781,8 @@ body {
    each whole rug, never cropped, so its edge and depth show */
 .rug-thumb {
   display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
+  width: auto;
+  height: 34px;
   pointer-events: none;
 }
 
@@ -923,10 +928,12 @@ body {
 
 /* ---------- Swiping between collections (js/carpet-viewer.js, js/carpet-menu.js) ---------- */
 
-/* While the whole rug is swiped sideways (--swipe), its name and its row under it move along */
-.rug-info,
-.rug-shapes {
-  translate: var(--swipe, 0px) 0;
+/* Going to another collection only the rug moves: its name above and its row below fade out
+   while it slides away, and fade back in with the next collection's as the next rug arrives */
+.is-zoomed-out.is-switching .rug-info,
+.is-zoomed-out.is-switching .rug-shapes {
+  opacity: 0;
+  transition-duration: 180ms;
 }
 
 /* ---------- One page, two collections (js/carpet-collections.js) ---------- */

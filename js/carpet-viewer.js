@@ -40,6 +40,10 @@ const PILE_RECOVER = 25;     // seconds for brushed pile to spring halfway back 
 const SWIPE_FAR = 0.22;      // on the whole rug: drag this share of the screen's width to go to the next collection
 const SWIPE_FLICK = 0.5;     // or flick at least this fast (screen pixels per ms)
 const SWIPE_BACK = 380;      // ms for the rug to spring back when the swipe wasn't far enough
+const SWIPE_DRAG = 0.3;      // moving sideways, the rug's bottom trails behind its top like fabric pulled
+                             // across a floor: degrees of lean per screen pixel per frame of speed
+const SWIPE_DRAG_MAX = 5;    // ... never more than this many degrees
+const SWIPE_DRAG_EASE = 0.12; // how softly the lean follows the speed (lower = the fabric lags more)
 const BRUSH_LIGHT = [218, 170, 125]; // the colour of brushed wool catching the light (r, g, b)
 const BRUSH_SHADE = [196, 146, 104]; // a slightly deeper wool tone, mixed in for depth
 
@@ -70,10 +74,13 @@ const verb = stage.querySelector(".verb"); // "To Draw", kept on the middle of t
 const OUT_ZOOM = 1.02; // zoomed out to (almost exactly) the full carpet: arrows, name, size and shapes show
 
 let swipeShift = 0; // how far the whole rug is being swiped sideways, in screen pixels
+let swipeLean = 0;  // degrees its bottom trails behind its top while it moves (see dragFabric)
+let lastShift = 0;
+let leaning = null;
 
 function render() {
-  carpet.style.transform = `translate3d(${view.x + swipeShift}px, ${view.y}px, 0) scale(${view.scale})`;
-  document.body.style.setProperty("--swipe", `${swipeShift}px`); // its name and row move along (css/main.css)
+  carpet.style.transform = `translate3d(${view.x + swipeShift}px, ${view.y}px, 0) scale(${view.scale}) skewX(${swipeLean}deg)`;
+  if (swipeShift !== lastShift && !leaning) leaning = requestAnimationFrame(dragFabric);
   if (verb) {
     verb.style.setProperty("--rug-x", `${view.x + (img.naturalWidth * view.scale) / 2}px`);
     verb.style.setProperty("--rug-y", `${view.y + (img.naturalHeight * view.scale) / 2}px`);
@@ -645,8 +652,28 @@ function isWhole() {
   return view.scale < fitScale * 1.05;
 }
 
-// Slide the rug (and its name and strip) sideways to `target` screen pixels from the middle;
-// resolves when it's there
+// Every frame while the rug moves sideways: its bottom leans back against the way it goes, more the
+// faster it goes, and straightens as it comes to rest
+function dragFabric() {
+  const speed = swipeShift - lastShift;
+  lastShift = swipeShift;
+  const want = Math.max(-SWIPE_DRAG_MAX, Math.min(SWIPE_DRAG_MAX, -speed * SWIPE_DRAG));
+  swipeLean += (want - swipeLean) * SWIPE_DRAG_EASE;
+  const still = speed === 0 && Math.abs(swipeLean) < 0.02;
+  if (still) swipeLean = 0;
+  leaning = null;
+  render();
+  if (!still) leaning = requestAnimationFrame(dragFabric);
+}
+
+// Put the rug somewhere sideways at once (off screen, ready to slide in), keeping its lean
+function placeRug(shift) {
+  swipeShift = shift;
+  lastShift = shift;
+  render();
+}
+
+// Slide the rug sideways to `target` screen pixels from the middle; resolves when it's there
 function slideRug(target, duration, ease = (t) => 1 - Math.pow(1 - t, 3)) {
   const from = swipeShift;
   const start = performance.now();
