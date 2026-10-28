@@ -64,9 +64,9 @@ const RUG_STORIES = {
   },
 };
 
-const ROLL_TIME = 900;       // ms to unroll it all (rolling back up takes as long for the same way)
-const ROLL_THICK = 46;       // the roll's thickness (px) while it's all rolled up ..
-const ROLL_THIN = 12;        // .. and with the last of it unrolling
+const ROLL_TIME = 1100;      // ms to unroll it all (rolling back up takes as long for the same way)
+const ROLL_THICK = 64;       // the roll's thickness (px) while it's all rolled up ..
+const ROLL_THIN = 16;        // .. and with the last of it unrolling
 const ROLL_AWAY = 1 / 3;     // pulled down further than this share, it rolls away when let go
 
 const infoButton = document.querySelector("[data-info]");
@@ -163,20 +163,22 @@ function fillSheet() {
 
 // ---------- Unrolling it, and rolling it back up ----------
 
-// unrolled: how much of the sheet is unrolled, 0 (all rolled up at the bottom) .. 1; the roll
-// travels up its unrolled edge, thinner the less is left in it
+// unrolled: how much of the sheet is unrolled, 0 (all rolled up at the bottom) .. 1; the roll travels up its unrolled edge, thinner the less is
+// left in it, its picture turning as it goes
 function setUnrolled(u) {
   unrolled = u;
   const box = infoSheet.getBoundingClientRect();
-  const edge = (1 - u) * box.height;
+  const edge = Math.max(0, (1 - u) * box.height);
   infoSheet.style.clipPath = `inset(${edge}px 0 0 0)`;
-  const thick = ROLL_THIN + (ROLL_THICK - ROLL_THIN) * (1 - u);
+  const left = Math.max(0, 1 - u);
+  const thick = ROLL_THIN + (ROLL_THICK - ROLL_THIN) * left;
   Object.assign(infoRoll.style, {
-    left: `${box.left - 2}px`,
-    width: `${box.width + 4}px`,
+    left: `${box.left - 3}px`,
+    width: `${box.width + 6}px`,
     top: `${box.top + edge - thick / 2}px`,
     height: `${thick}px`,
-    opacity: Math.min(1, (1 - u) * 12), // gone once it's all unrolled
+    backgroundPositionY: `${-u * box.height}px`, // turning: as much rug goes by as unrolls
+    opacity: Math.min(1, left * 14), // gone once it's all unrolled
   });
 }
 
@@ -189,6 +191,7 @@ function rollTo(target, then) {
   const start = performance.now();
   const step = (now) => {
     const t = Math.min(1, (now - start) / (time || 1));
+    // unrolling: off quickly, slowing as it runs out; rolling up: easing in and out
     const eased = target > from ? 1 - Math.pow(1 - t, 3) : t * t * (3 - 2 * t);
     setUnrolled(from + (target - from) * eased);
     if (t < 1) rolling = requestAnimationFrame(step);
@@ -199,13 +202,21 @@ function rollTo(target, then) {
 
 function openInfo() {
   fillSheet();
+  // the roll is this rug
+  const picture = infoScroll.querySelector(".info-picture img");
+  infoRoll.style.backgroundImage = picture ? `url("${picture.src}")` : "";
   infoSheet.classList.add("is-open");
   infoRoll.classList.add("is-open");
   infoSheet.setAttribute("aria-hidden", "false");
   infoButton.setAttribute("aria-expanded", "true");
   document.body.classList.add("is-reading");
   setUnrolled(0);
-  rollTo(1);
+  // ... and once it's all out, its top edge lifts a little and lands, like a rug flopping flat
+  rollTo(1, () => {
+    infoSheet.classList.remove("is-landing");
+    infoSheet.getBoundingClientRect();
+    infoSheet.classList.add("is-landing");
+  });
 }
 
 function closeInfo() {
