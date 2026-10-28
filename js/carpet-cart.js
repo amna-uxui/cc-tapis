@@ -21,7 +21,8 @@
 
 const ROLL_UP = 1100;        // ms the rug takes to roll up (and to unroll again)
 const ROLL_FLY = 750;        // ms the roll takes to fly into the bag
-const ROLL_THICKEST = 52;    // px: the roll's thickness once the whole rug is on it
+const ROLL_THICKEST = 68;    // px: the roll's thickness once the whole rug is on it: a heavy rug
+const ROLL_GRAIN = "images/ripple-pile.jpg"; // real wool pile (tools/ripple-pile.py), laid over the roll so it reads as dense pile
 const ROLL_BACK_AFTER = 350; // ms in the bag before the rug unrolls back into place
 const CART_RULE = "°~*~"; // the rule along the top and bottom of the pink notes, as on cc-tapis.com
 
@@ -148,16 +149,20 @@ function rollSkin(src, ground) {
 
 // One step of the rolling: rolled 0 (flat) .. 1 (all rolled up), from its bottom edge
 function rollTo(state, rolled) {
-  const { overlay, roll, box } = state;
+  const { overlay, roll, lift, box } = state;
   const gone = rolled * box.height;
   overlay.style.clipPath = `inset(0 0 ${gone}px 0)`;
-  const thick = 10 + (ROLL_THICKEST - 10) * Math.sqrt(rolled);
+  const thick = 14 + (ROLL_THICKEST - 14) * Math.sqrt(rolled);
+  const top = box.top + box.height - gone - thick / 2;
+  const turned = -(box.height - gone); // the part just rolled on, turning
   Object.assign(roll.style, {
-    top: `${box.top + box.height - gone - thick / 2}px`,
+    top: `${top}px`,
     height: `${thick}px`,
     opacity: rolled > 0.004 ? 1 : 0,
-    backgroundPositionY: `${-(box.height - gone)}px`, // the part just rolled on, turning
+    backgroundPositionY: `${turned}px, ${turned}px`,
   });
+  // where the rug lifts off the floor onto the roll: a soft shadow on the flat rug just above it
+  Object.assign(lift.style, { top: `${top - 16}px`, opacity: rolled > 0.004 && rolled < 0.995 ? 1 : 0 });
 }
 
 function animate(ms, step) {
@@ -188,22 +193,26 @@ async function buy() {
   // the rug, as a picture over the page, and its roll, wrapped in the rug itself
   const overlay = tag("div", "roll-rug");
   const roll = tag("div", "roll-rug__roll");
+  const lift = tag("div", "roll-rug__lift");
   Object.assign(overlay.style, { left: `${box.left}px`, top: `${box.top}px`, width: `${box.width}px`, height: `${box.height}px`, backgroundImage: `url("${item.picture}")` });
   const inset = box.width * 0.04;
   Object.assign(roll.style, {
     left: `${box.left + inset}px`,
     width: `${box.width - inset * 2}px`,
-    backgroundImage: skin ? `url("${skin.src}")` : "none",
-    backgroundSize: `100% ${box.height}px`,
+    // the rug itself, with real wool pile laid over it (soft light), so it reads dense
+    backgroundImage: `url("${ROLL_GRAIN}"), ${skin ? `url("${skin.src}")` : "none"}`,
+    backgroundSize: `200px 200px, 100% ${box.height}px`,
+    backgroundRepeat: "repeat, repeat-y",
   });
+  Object.assign(lift.style, { left: `${box.left + inset}px`, width: `${box.width - inset * 2}px` }); // as wide as the roll
   if (skin) {
     const [r, g, b] = skin.colour;
     roll.style.setProperty("--roll-colour", `rgb(${r}, ${g}, ${b})`);
     roll.style.setProperty("--roll-deep", `rgb(${Math.round(r * 0.62)}, ${Math.round(g * 0.62)}, ${Math.round(b * 0.62)})`);
   }
   roll.append(tag("span", "roll-rug__shade"));
-  document.body.append(overlay, roll);
-  const state = { overlay, roll, box };
+  document.body.append(overlay, lift, roll);
+  const state = { overlay, roll, lift, box };
   rollTo(state, 0);
   carpet.style.visibility = "hidden";
 
@@ -222,7 +231,7 @@ async function buy() {
     [
       { transform: "translate(0, 0) scale(1)", opacity: 1 },
       { transform: `translate(${dx * 0.45}px, ${dy * 0.35 - 70}px) scale(${(1 + small) / 2.4})`, opacity: 1, offset: 0.5 },
-      { transform: `translate(${dx}px, ${dy}px) scale(${small})`, opacity: 0.2 },
+      { transform: `translate(${dx}px, ${dy}px) scale(${small})`, opacity: 1 },
     ],
     { duration: ROLL_FLY, easing: "cubic-bezier(0.45, 0, 0.25, 1)", fill: "forwards" }
   );
@@ -251,6 +260,7 @@ async function unroll() {
   carpet.style.visibility = "";
   state.overlay.remove();
   state.roll.remove();
+  state.lift.remove();
   document.body.classList.remove("is-buying");
 }
 
