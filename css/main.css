@@ -1073,9 +1073,8 @@ body {
   display: block;
 }
 
-/* The sheet: the grey of the top bar, floating with its margins; as tall as the screen less
-   them, slid down so it shows three quarters at first (js/carpet-info.js moves it). Full, its top
-   lines up with the top bar's. One font throughout, headings in capitals, as on cc-tapis.com. */
+/* The sheet: the grey of the top bar, floating with its margins, as tall as the screen less them
+   (its top lines up with the top bar's); it unrolls from the bottom (js/carpet-info.js). One font throughout, headings in capitals, as on cc-tapis.com. */
 .info-sheet {
   position: fixed;
   left: 0;
@@ -1090,17 +1089,46 @@ body {
   flex-direction: column;
   background: var(--color-panel);
   font-family: var(--font-sans);
-  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.18);
-  transform: translateY(100vh);
-  transition: transform 420ms var(--ease);
+  clip-path: inset(100% 0 0 0); /* rolled up (js/carpet-info.js unrolls it) */
 }
 
 .info-sheet.is-open {
   display: flex;
 }
 
-.info-sheet.is-dragging {
-  transition: none;
+/* The roll: the sheet still rolled up, a grey cylinder lit from above, its ends showing the turns
+   of the rug wound round */
+.info-roll {
+  position: fixed;
+  z-index: 7;
+  display: none;
+  border-radius: 999px;
+  background: linear-gradient(to bottom, #f7f7f7 0%, #ececec 28%, #dadada 62%, #bcbcbc 100%);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  pointer-events: none;
+}
+
+.info-roll.is-open {
+  display: block;
+}
+
+.info-roll::before,
+.info-roll::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  aspect-ratio: 0.45;
+  border-radius: 50%;
+  background: repeating-radial-gradient(ellipse at center, #c4c4c4 0 1px, #e3e3e3 1px 3.5px);
+}
+
+.info-roll::before {
+  left: 0;
+}
+
+.info-roll::after {
+  right: 0;
 }
 
 /* Its top, like the top bar: the title in the middle, [–] on the right; stays put while what's

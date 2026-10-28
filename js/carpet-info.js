@@ -5,9 +5,10 @@
   folded away, its description, its product details and how it can be
   made to order ([+] opens one at a time).
 
-  - The sheet opens over three quarters of the screen, the rug still showing above it. Swiping up
-    on it takes it to the full screen; from then on it scrolls. Swiping down at its top brings it
-    back, and further down closes it; so do [–] and a tap on the rug above it.
+  - It comes like a rug being unrolled: a grey roll lying at the bottom of the screen rolls up the
+    screen, thinner as it goes, laying the sheet out behind it. [–], a tap outside it, or pulling
+    it down from its top rolls it back up again (pulled only a little, it unrolls again). What's
+    on it scrolls.
   - While it's open, the rug can't be zoomed, swiped to the next collection or drawn on.
   - The words follow each collection's page on cc-tapis.com (its details as they are, its
     description in our own words); the rest (name, size, price, colour) is the rug on show.
@@ -63,15 +64,19 @@ const RUG_STORIES = {
   },
 };
 
-const OPEN_SHOWS = 0.75;     // how much of the screen the sheet covers when it opens
-const CLOSE_BELOW = 0.55;    // let go with its top lower than this share of the screen, it closes
+const ROLL_TIME = 900;       // ms to unroll it all (rolling back up takes as long for the same way)
+const ROLL_THICK = 46;       // the roll's thickness (px) while it's all rolled up ..
+const ROLL_THIN = 12;        // .. and with the last of it unrolling
+const ROLL_AWAY = 1 / 3;     // pulled down further than this share, it rolls away when let go
 
 const infoButton = document.querySelector("[data-info]");
 const infoSheet = document.querySelector("[data-info-sheet]");
 const infoScroll = infoSheet.querySelector("[data-info-scroll]");
 const infoBackdrop = document.querySelector("[data-info-backdrop]");
 
-let sheetAt = null; // where its top is now (px from the top of the screen), or null while closed
+const infoRoll = document.querySelector("[data-info-roll]");
+
+let unrolled = null; // how much of the sheet is unrolled (0..1), or null while it's put away
 
 // ---------- What's on the sheet ----------
 
@@ -122,7 +127,6 @@ function foldedPart(title, body) {
     if (!opening) return;
     head.setAttribute("aria-expanded", "true");
     head.textContent = `[–] ${title}`;
-    moveSheet(fullAt()); // more to read: the whole screen
   });
   part.append(head, wrap);
   return part;
@@ -157,71 +161,89 @@ function fillSheet() {
   infoScroll.scrollTop = 0;
 }
 
-// ---------- Opening, moving and closing the sheet ----------
+// ---------- Unrolling it, and rolling it back up ----------
 
-const openAt = () => window.innerHeight * (1 - OPEN_SHOWS);
-const fullAt = () => 0; // (its top then lines up with the top bar's)
-const closedAt = () => window.innerHeight;
+// unrolled: how much of the sheet is unrolled, 0 (all rolled up at the bottom) .. 1; the roll
+// travels up its unrolled edge, thinner the less is left in it
+function setUnrolled(u) {
+  unrolled = u;
+  const box = infoSheet.getBoundingClientRect();
+  const edge = (1 - u) * box.height;
+  infoSheet.style.clipPath = `inset(${edge}px 0 0 0)`;
+  const thick = ROLL_THIN + (ROLL_THICK - ROLL_THIN) * (1 - u);
+  Object.assign(infoRoll.style, {
+    left: `${box.left - 2}px`,
+    width: `${box.width + 4}px`,
+    top: `${box.top + edge - thick / 2}px`,
+    height: `${thick}px`,
+    opacity: Math.min(1, (1 - u) * 12), // gone once it's all unrolled
+  });
+}
 
-function moveSheet(y, { now = false } = {}) {
-  sheetAt = y;
-  infoSheet.classList.toggle("is-dragging", now);
-  infoSheet.style.transform = `translateY(${y}px)`;
-  infoSheet.classList.toggle("is-full", y <= fullAt() + 1);
+// Unroll (to 1) or roll up (to 0), easing as a heavy rug does
+let rolling = null;
+function rollTo(target, then) {
+  cancelAnimationFrame(rolling);
+  const from = unrolled;
+  const time = ROLL_TIME * Math.abs(target - from);
+  const start = performance.now();
+  const step = (now) => {
+    const t = Math.min(1, (now - start) / (time || 1));
+    const eased = target > from ? 1 - Math.pow(1 - t, 3) : t * t * (3 - 2 * t);
+    setUnrolled(from + (target - from) * eased);
+    if (t < 1) rolling = requestAnimationFrame(step);
+    else if (then) then();
+  };
+  rolling = requestAnimationFrame(step);
 }
 
 function openInfo() {
   fillSheet();
   infoSheet.classList.add("is-open");
+  infoRoll.classList.add("is-open");
   infoSheet.setAttribute("aria-hidden", "false");
   infoButton.setAttribute("aria-expanded", "true");
   document.body.classList.add("is-reading");
-  moveSheet(closedAt(), { now: true });
-  infoSheet.getBoundingClientRect(); // (start from below)
-  moveSheet(openAt());
+  setUnrolled(0);
+  rollTo(1);
 }
 
 function closeInfo() {
-  if (sheetAt === null) return;
-  moveSheet(closedAt());
-  sheetAt = null;
+  if (unrolled === null || !document.body.classList.contains("is-reading")) return;
   infoSheet.setAttribute("aria-hidden", "true");
   infoButton.setAttribute("aria-expanded", "false");
   document.body.classList.remove("is-reading");
-  setTimeout(() => sheetAt === null && infoSheet.classList.remove("is-open"), 450);
+  rollTo(0, () => {
+    unrolled = null;
+    infoSheet.classList.remove("is-open");
+    infoRoll.classList.remove("is-open");
+  });
 }
 
 infoButton.addEventListener("click", openInfo);
 infoSheet.querySelector("[data-info-close]").addEventListener("click", closeInfo);
 infoBackdrop.addEventListener("click", closeInfo);
 
-// The handle: tap to go between three quarters and the full screen
-infoSheet.querySelector(".info-sheet__top").addEventListener("click", (e) => {
-  if (e.target.closest("[data-info-close]")) return;
-  moveSheet(sheetAt <= fullAt() + 1 ? openAt() : fullAt());
-});
-
-// Swiping on the sheet: up, it first goes to the full screen and then scrolls; down at the top of
-// what's on it, it comes down, and closes if let go low enough
+// Pulling it down (from its top, or from what's on it once that's scrolled to the top) rolls it
+// back up as far as the finger goes; let go past a third, or with a flick, and it rolls away
 let drag = null;
 infoSheet.addEventListener(
   "touchstart",
   (e) => {
-    drag = { y: e.touches[0].clientY, from: sheetAt, moving: null, last: e.touches[0].clientY, time: performance.now(), speed: 0 };
+    drag = { y: e.touches[0].clientY, moving: null, last: e.touches[0].clientY, time: performance.now(), speed: 0 };
   },
   { passive: true }
 );
 infoSheet.addEventListener(
   "touchmove",
   (e) => {
-    if (!drag || sheetAt === null) return;
+    if (!drag || unrolled === null) return;
     const y = e.touches[0].clientY;
     const dy = y - drag.y;
     if (drag.moving === null) {
       if (Math.abs(dy) < 4) return;
-      const full = drag.from <= fullAt() + 1;
       const atTop = infoScroll.scrollTop <= 0 || !infoScroll.contains(e.target);
-      drag.moving = (!full && dy < 0) || (atTop && dy > 0);
+      drag.moving = atTop && dy > 0;
     }
     if (!drag.moving) return;
     e.preventDefault();
@@ -229,7 +251,8 @@ infoSheet.addEventListener(
     drag.speed = (y - drag.last) / Math.max(1, now - drag.time);
     drag.last = y;
     drag.time = now;
-    moveSheet(Math.max(fullAt(), drag.from + dy), { now: true });
+    cancelAnimationFrame(rolling);
+    setUnrolled(Math.max(0, Math.min(1, 1 - dy / infoSheet.offsetHeight)));
   },
   { passive: false }
 );
@@ -238,25 +261,10 @@ infoSheet.addEventListener("touchend", () => {
   const { moving, speed } = drag;
   drag = null;
   if (!moving) return;
-  // where it settles: a flick carries on the way it was going
-  const y = sheetAt + speed * 180;
-  if (y > window.innerHeight * CLOSE_BELOW) closeInfo();
-  else if (y > (openAt() + fullAt()) / 2) moveSheet(openAt());
-  else moveSheet(fullAt());
+  if (unrolled < 1 - ROLL_AWAY || speed > 0.6) closeInfo();
+  else rollTo(1);
 });
 
-// A mouse wheel (on a computer): down first takes it to the full screen, then scrolls
-infoSheet.addEventListener(
-  "wheel",
-  (e) => {
-    if (sheetAt !== null && sheetAt > fullAt() + 1 && e.deltaY > 0) {
-      e.preventDefault();
-      moveSheet(fullAt());
-    }
-  },
-  { passive: false }
-);
-
 window.addEventListener("resize", () => {
-  if (sheetAt !== null) moveSheet(sheetAt <= fullAt() + 1 ? fullAt() : openAt(), { now: true });
+  if (unrolled !== null) setUnrolled(unrolled);
 });
