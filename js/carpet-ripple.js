@@ -1,16 +1,18 @@
 /*
   Ripple Square by Patricia Urquiola: make your own rug. It starts as a blank 200 × 200 cm
   canvas with a single ripple on it; you add more, stroke by stroke, with a brush made from
-  Ripple's own band of leaves, as on the real rug: a band of ground, and on it a row of tall,
-  slightly pointed arches side by side, their feet on one edge of the band (touching each other)
-  and their tips nearly reaching the other, so the ground shows only as narrow V's between them.
-  The band follows the curve you draw, in the colourway picked in the row under the rug.
+  Ripple's own band of leaves, as on the real rug: a band of ground, and on it a row of tall ovals
+  side by side, their middles on one edge of the band (touching each other there) and their tips
+  nearly reaching the other edge, so the ground shows only as narrow V's between them. Each oval
+  is whole: its other half reaches out past the band, and the next band drawn over it hides it,
+  so the ovals look like arches, as on the rug. The band follows the curve you draw, in the
+  colourway picked in the row under the rug.
 
-  - The brush is always the same width on the rug, zoomed in or out. Its arches widen with the
+  - The brush is always the same width on the rug, zoomed in or out. Its ovals widen with the
     finger's speed, as they vary on the real rug: slowly, slim and close; faster, broad.
   - The blank canvas starts with one ripple along the rug's top edge, showing how a band runs.
-  - The rug's outline (the real Ripple's, in the 200 × 200 cm square) shows as a fine, faint line,
-    so you see where to draw; strokes only show inside it.
+  - The rug's outline (the real Ripple's, in the 200 × 200 cm square) shows as a soft, faint haze
+    along its edge, so you see where to draw; strokes only show inside it.
   - The strokes are carpet, not paint, like the real rug close up: each leaf is thick pile, its
     edge rounding down into a carved groove that throws a little shadow on the ground; the pile
     runs in fine rows across the whole rug; the wool has the real rug's own texture (taken from its
@@ -42,25 +44,26 @@ const COLOURWAYS = [
 ];
 
 const RIPPLE_BAND = 180;     // how wide the band is, in pixels of the 1500 px canvas (about 24 cm, as on the rug)
-// The arches, as measured on the real rug (shares of the band's width): half as wide at their feet
-// as `wide`, as tall as `tall`, one every `every` along the band (so their feet just touch)
+// The ovals, as measured on the real rug (shares of the band's width): half as wide as `wide`,
+// half as tall as `tall`, one every `every` along the band (so they just touch)
 const ARCH = { wide: 0.17, tall: 0.93, every: 0.32 };
 // The first ripple on the blank canvas: along the rug's top edge, as the real rug's first band runs
-// (points on the 1500 px canvas), its arches pointing up to the edge; they broaden towards the
+// (points on the 1500 px canvas), its ovals pointing up to the edge; they broaden towards the
 // middle and slim again
 const FIRST_RIPPLE = { from: [330, 140], bend: [655, 190], to: [990, 118] };
-const RUG_LINE = "rgba(60, 45, 35, 0.1)"; // the rug's outline: a fine, very faint line round it
+// The rug's outline: no line, a soft haze along its edge, fading away both sides
+const RUG_EDGE = { rgb: [60, 45, 35], strength: 0.08, blur: 12 }; // colour, how dark at most, how many px of blur
 // Sizes in pixels of the 1500 px canvas (7.5 to a centimetre)
 const WOOL_FUZZ = 3;         // how far the pile spills over a stroke's outer edges
 const FIBRES = 1;            // how ragged the fibres make every edge
-const GROOVE = 1.5;          // the carved groove round each arch: how wide ..
+const GROOVE = 1.5;          // the carved groove round each oval: how wide ..
 const GROOVE_DARK = 0.05;    // .. and how dark (barely there)
-const BEVEL = 7;             // how far in from its edge an arch's pile rounds down ..
+const BEVEL = 7;             // how far in from its edge an oval's pile rounds down ..
 const BEVEL_DARK = 0.12;     // .. and how much darker it gets there
-const LEAF_SHADOW = 0.06;    // the shadow an arch throws on the ground round it
-// The arches broaden, as they vary on the real rug: drawn slowly they're slim; the faster the
+const LEAF_SHADOW = 0.06;    // the shadow an oval throws on the ground round it
+// The ovals broaden, as they vary on the real rug: drawn slowly they're slim; the faster the
 // finger, the broader they grow and the further apart
-const STRETCH_MOST = 1.7;    // the broadest an arch grows (times its slim width)
+const STRETCH_MOST = 1.7;    // the broadest an oval grows (times its slim width)
 const STRETCH_SPEED = [0.35, 2.2]; // finger speed (canvas pixels a millisecond): no stretch .. the most
 const STRETCH_EASE = 0.3;    // each leaf goes only this share of the way to the new stretch: gradual
 const ROWS = { across: 69, down: -25, strength: 36 }; // the pile's rows: about every 3.5 px, slanting a little
@@ -80,10 +83,11 @@ let chosenWay = 0; // the colourway picked in the row
 // ---------- The layers ----------
 
 // done: the strokes so far. band and leaves: the stroke being drawn, apart, so its band never
-// covers its own leaves where it curves. stroke: the two put together, the leaves cut to the band
-// (so the stroke ends in a straight cut, like the rug's own bands). mix: everything together, cut
+// covers its own leaves where it curves. reach: where the stroke's ovals may show (the band, and
+// as far again past its one edge). stroke: the two put together, the leaves cut to the reach (so
+// the stroke ends in a straight cut, like the rug's own bands). mix: everything together, cut
 // to the rug's shape. woven: mix with the wool laid over it. fibres: woven with ragged edges, as
-// shown. shape: the rug's outline; line: the fine line round it. floor: the rug's shadow on the
+// shown. shape: the rug's outline; line: the soft haze along it. floor: the rug's shadow on the
 // floor. pile, rows, drift: tiles of wool texture (the real wool, its rows, its colour drifting).
 let own = null;
 
@@ -107,7 +111,7 @@ function setUpOwn() {
     c.height = img.naturalHeight;
     return c;
   };
-  own = { w: size, h: img.naturalHeight, strokes: [], done: layer(), band: layer(), leaves: layer(), stroke: layer(), mix: layer(), woven: layer(), fibres: layer(), shape: layer(), line: layer(), floor: layer() };
+  own = { w: size, h: img.naturalHeight, strokes: [], done: layer(), band: layer(), leaves: layer(), reach: layer(), stroke: layer(), mix: layer(), woven: layer(), fibres: layer(), shape: layer(), line: layer(), floor: layer() };
   own.pile = rugPile.naturalWidth ? rugPile : greyTile(4);
   own.rows = rowsTile();
   own.drift = driftTile();
@@ -116,19 +120,47 @@ function setUpOwn() {
   const shape = own.shape.getContext("2d");
   if (rugShape.naturalWidth) shape.drawImage(rugShape, 0, 0, own.w, own.h);
   else shape.fillRect(0, 0, own.w, own.h); // (no outline to hand: the whole square)
-  // and the fine line round it: the outline a little larger all round, less the outline itself
-  const line = own.line.getContext("2d");
-  for (let k = 0; k < 16; k++) {
-    const a = (k / 16) * Math.PI * 2;
-    line.drawImage(own.shape, Math.cos(a) * 2.5, Math.sin(a) * 2.5);
+  // and the soft haze along it: the outline blurred (at a third of the size, smoothly), darkest
+  // where it's half there, so just on the edge
+  const small = document.createElement("canvas");
+  const sw = (small.width = Math.round(own.w / 3));
+  const sh = (small.height = Math.round(own.h / 3));
+  const sctx = small.getContext("2d");
+  sctx.drawImage(own.shape, 0, 0, sw, sh);
+  const edge = sctx.getImageData(0, 0, sw, sh);
+  let there = Float32Array.from({ length: sw * sh }, (_, i) => edge.data[i * 4 + 3] / 255);
+  const reach = Math.round(RUG_EDGE.blur / 3);
+  for (let pass = 0; pass < 4; pass++) there = boxBlur(there, sw, sh, reach, pass % 2 === 0);
+  const [r, g, b] = RUG_EDGE.rgb;
+  for (let i = 0; i < sw * sh; i++) {
+    edge.data[i * 4] = r;
+    edge.data[i * 4 + 1] = g;
+    edge.data[i * 4 + 2] = b;
+    edge.data[i * 4 + 3] = 255 * RUG_EDGE.strength * 4 * there[i] * (1 - there[i]);
   }
-  line.globalCompositeOperation = "destination-out";
-  line.drawImage(own.shape, 0, 0);
-  line.globalCompositeOperation = "source-in";
-  line.fillStyle = RUG_LINE;
-  line.fillRect(0, 0, own.w, own.h);
+  sctx.putImageData(edge, 0, 0);
+  const line = own.line.getContext("2d");
+  line.imageSmoothingQuality = "high";
+  line.drawImage(small, 0, 0, own.w, own.h);
   rippleCanvas.width = own.w;
   rippleCanvas.height = own.h;
+}
+
+// Values on a w × h grid, each the average of those up to `reach` away, across (or down)
+function boxBlur(values, w, h, reach, across) {
+  const out = new Float32Array(values.length);
+  const lines = across ? h : w;
+  const length = across ? w : h;
+  const at = (line, k) => (across ? line * w + k : k * w + line);
+  for (let line = 0; line < lines; line++) {
+    let sum = 0;
+    for (let k = -reach; k <= reach; k++) sum += values[at(line, Math.min(length - 1, Math.max(0, k)))];
+    for (let k = 0; k < length; k++) {
+      out[at(line, k)] = sum / (2 * reach + 1);
+      sum += values[at(line, Math.min(length - 1, k + reach + 1))] - values[at(line, Math.max(0, k - reach))];
+    }
+  }
+  return out;
 }
 
 // A square of grey that repeats seamlessly, from a value per pixel (128 = leaves the colour as it is;
@@ -287,14 +319,17 @@ function drawAll() {
   drawOwn(0, 0, own.w, own.h);
 }
 
-// The stroke being drawn, in a part of the canvas: its band, with its leaves only where the band is
+// The stroke being drawn, in a part of the canvas: its ovals (only within its reach, so its ends
+// are straight cuts), over its band
 function joinStroke(left, top, w, h) {
   const stroke = own.stroke.getContext("2d");
   stroke.save();
   stroke.clearRect(left, top, w, h);
-  stroke.drawImage(own.band, left, top, w, h, left, top, w, h);
-  stroke.globalCompositeOperation = "source-atop";
+  stroke.drawImage(own.reach, left, top, w, h, left, top, w, h);
+  stroke.globalCompositeOperation = "source-in";
   stroke.drawImage(own.leaves, left, top, w, h, left, top, w, h);
+  stroke.globalCompositeOperation = "destination-over";
+  stroke.drawImage(own.band, left, top, w, h, left, top, w, h);
   stroke.restore();
 }
 
@@ -346,7 +381,7 @@ function ownTo(p, aim) {
   drawBand(stroke.points, way.ground);
   const leaves = own.leaves.getContext("2d");
   const angle = Math.atan2(dy, dx);
-  // the arches' feet: on the band's edge to the right of the way it's drawn
+  // the ovals' middles: on the band's edge to the right of the way it's drawn
   const footX = (-dy / length) * (RIPPLE_BAND / 2);
   const footY = (dx / length) * (RIPPLE_BAND / 2);
   let at = stroke.next;
@@ -356,12 +391,12 @@ function ownTo(p, aim) {
     const leaf = { x: from.x + dx * t + footX, y: from.y + dy * t + footY, angle, look: leafLook(stroke.stretch) };
     stroke.leaves.push(leaf);
     knotLeaf(leaves, leaf, way.leaf);
-    // broader arches, further apart, so their feet still just touch
+    // broader ovals, further apart, so they still just touch
     at += RIPPLE_BAND * ARCH.every * stroke.stretch;
   }
   stroke.next = at - length;
   stroke.last = p;
-  const reach = RIPPLE_BAND * 1.2;
+  const reach = RIPPLE_BAND * 1.6;
   markDirtyRug(Math.min(from.x, p.x) - reach, Math.min(from.y, p.y) - reach, Math.max(from.x, p.x) + reach, Math.max(from.y, p.y) + reach);
 }
 
@@ -383,9 +418,32 @@ function drawBand(points, ground) {
     band.stroke();
   }
   band.globalAlpha = 1;
+  // the reach: the band, and past its ovals' edge as far as the ovals go, its ends cut straight
+  const reach = own.reach.getContext("2d");
+  reach.clearRect(0, 0, own.w, own.h);
+  reach.lineCap = "butt";
+  reach.lineJoin = "round";
+  reach.strokeStyle = "black";
+  reach.lineWidth = width + 2 * WOOL_FUZZ;
+  reach.stroke(new Path2D(linePath(points, 0)));
+  reach.lineWidth = width * 2.2;
+  reach.stroke(new Path2D(linePath(points, width / 2)));
 }
 
-// An arch knotted by hand: a little broader or slimmer, taller or shorter and tilted than the last,
+// A line through the points as SVG path data, moved this far to its right (to the right of the way
+// it's drawn: the ovals' side)
+function linePath(points, aside) {
+  return points
+    .map((p, k) => {
+      const a = points[Math.max(0, k - 1)];
+      const b = points[Math.min(points.length - 1, k + 1)];
+      const l = Math.hypot(b.x - a.x, b.y - a.y) || 1;
+      return `${k ? "L" : "M"}${p.x + (-(b.y - a.y) / l) * aside} ${p.y + ((b.x - a.x) / l) * aside}`;
+    })
+    .join("");
+}
+
+// An oval knotted by hand: a little broader or slimmer, taller or shorter and tilted than the last,
 // its outline not quite a perfect curve, its wool a touch lighter or darker
 function leafLook(stretch) {
   const vary = () => (Math.random() * 2 - 1) * LEAF_VARY;
@@ -399,9 +457,9 @@ function leafLook(stretch) {
   };
 }
 
-// One arch, as thick pile, standing on its feet (leaf.x, leaf.y) with its tip across the band: it
+// One oval, as thick pile, its middle (leaf.x, leaf.y) on the band's edge, its tip across the band: it
 // throws a faint shadow on the ground round it, its edge is a faint carved groove, and inside the
-// groove the pile rounds down a little. (Its lower half, below its feet, is cut off by the band.)
+// groove the pile rounds down a little. It's whole: its lower half reaches out past the band.
 function knotLeaf(ctx, leaf, rgb) {
   const { rx, ry, tilt, w1, w2, shade } = leaf.look;
   const outline = (grow) => {
@@ -409,9 +467,7 @@ function knotLeaf(ctx, leaf, rgb) {
     for (let k = 0; k <= 64; k++) {
       const a = (k / 64) * Math.PI * 2;
       const wobble = 1 + 0.02 * Math.sin(3 * a + w1) + 0.012 * Math.sin(5 * a + w2);
-      // slimmer towards the tip, so it comes to a soft point
-      const up = Math.max(0, -Math.sin(a));
-      const px = Math.cos(a) * (rx * wobble * (1 - 0.15 * up ** 4) + grow);
+      const px = Math.cos(a) * (rx * wobble + grow);
       const py = Math.sin(a) * (ry * wobble + grow);
       if (k) ctx.lineTo(px, py);
       else ctx.moveTo(px, py);
@@ -452,11 +508,11 @@ function knotLeaf(ctx, leaf, rgb) {
   ctx.restore();
 }
 
-// A stroke joins the ones before (its leaves cut to its band)
+// A stroke joins the ones before (its leaves cut to its reach)
 function layStroke() {
   joinStroke(0, 0, own.w, own.h);
   own.done.getContext("2d").drawImage(own.stroke, 0, 0);
-  ["band", "leaves", "stroke"].forEach((layer) => own[layer].getContext("2d").clearRect(0, 0, own.w, own.h));
+  ["band", "leaves", "reach", "stroke"].forEach((layer) => own[layer].getContext("2d").clearRect(0, 0, own.w, own.h));
 }
 
 // The stroke is finished: it's kept, and joins the ones before
@@ -497,7 +553,7 @@ function firstRipple() {
 // Back to the blank canvas with its single ripple
 function startOver() {
   own.strokes = [];
-  ["done", "band", "leaves", "stroke"].forEach((layer) => own[layer].getContext("2d").clearRect(0, 0, own.w, own.h));
+  ["done", "band", "leaves", "reach", "stroke"].forEach((layer) => own[layer].getContext("2d").clearRect(0, 0, own.w, own.h));
   firstRipple();
 }
 
