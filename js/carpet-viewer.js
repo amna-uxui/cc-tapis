@@ -24,7 +24,7 @@ const ZOOM_STRETCH = 0.35;   // how far you can pinch past the limits before it 
 const ZOOM_SNAP = 0.1;       // pinch at least this much (10%) to switch between full carpet and close-up
 const ZOOM_DURATION = 650;   // ms for the double-tap / snap zoom animation
 const FIT_GAP = 16;     // space around the full carpet, between the bars
-const FIT_SIDE = 24;    // space left and right of the full carpet (the arrows sit in it)
+const FIT_SIDE = 36;    // space left and right of the full carpet (the arrows sit in it)
 const FIT_LOW = 0.5;    // where the full carpet sits in the space it has, top (0) to bottom (1): centred
 const BRUSH_WIDTH = 56;      // how wide the brush is, in carpet pixels: between a fingertip and a palm
 const PILE_PUSH = 1.4;       // how far one stroke pushes the pile (1 = fully pushed after a brush width)
