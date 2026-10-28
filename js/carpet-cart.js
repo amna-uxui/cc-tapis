@@ -1,7 +1,8 @@
 /*
   Buying, and the end of the journey. Tap Buy on any rug, at any zoom: the rug is rolled up from
-  its bottom edge, as a rug is for delivery (the roll is the rug itself, its own wool round it,
-  its ends showing its colour wound round), and the roll flies up into the bag at the top right
+  its bottom edge, slowly, as a rug is for delivery (for real, in 3D: the rug wraps round a roll
+  that grows with every turn, lit by its own curve, its back showing where it turns over), and
+  the roll flies up into the bag at the top right
   (Shop gives way to the bag at the first rug; the number in it counts the rugs). Then the rug
   unrolls back into place, to play on or buy another.
 
@@ -19,12 +20,13 @@
   js/carpet-colors.js (current) and js/carpet-ripple.js (rippleCanvas) to be loaded first.
 */
 
-const ROLL_UP = 1100;        // ms the rug takes to roll up (and to unroll again)
+const ROLL_UP = 2000;        // ms the rug takes to roll up (and to unroll again): slowly, as a heavy rug
 const ROLL_FLY = 750;        // ms the roll takes to fly into the bag
-const ROLL_THICKEST = 68;    // px: the roll's thickness once the whole rug is on it: a heavy rug
-const BACK_MUTE = 0.4;       // the back of the rug: its colours this much nearer grey ..
+const ROLL_CORE = 7;         // px: the roll's radius as it starts
+const ROLL_THICKNESS = 3.6;  // px: the rug's thickness (the roll grows by this every turn): a thick, heavy rug
+const BACK_MUTE = 0.4;       // the back of the rug (where it's turned over): its colours this much nearer grey ..
 const BACK_DARK = 0.82;      // .. and this much darker
-const ROLL_GRAIN = "images/ripple-pile.jpg"; // real wool pile (tools/ripple-pile.py), laid over the roll so it reads as dense pile
+const ROLL_GRAIN = "images/ripple-pile.jpg"; // real wool pile (tools/ripple-pile.py), all over the rolling rug
 const ROLL_BACK_AFTER = 350; // ms in the bag before the rug unrolls back into place
 const CART_RULE = "°~*~"; // the rule along the top and bottom of the pink notes, as on cc-tapis.com
 
@@ -39,7 +41,7 @@ const cartThanks = document.querySelector("[data-cart-thanks]");
 
 const cart = []; // { name, designer, size, price, picture }
 let buying = false;
-let rolledAway = null; // the rolled-up rug, until it unrolls back: { overlay, roll, box }
+let rolledAway = null; // the rolled-up rug, until it unrolls back: { box }
 
 // ---------- Helpers ----------
 
@@ -101,88 +103,237 @@ function showBag() {
 
 // ---------- Rolling the rug up, and into the bag ----------
 
-// What the roll is wrapped in: the back of the rug, as a rug rolled up from its edge shows it (its
-// pattern upside down, flatter, muted and a little darker, a fine woven grid across it), without
-// the white (or see-through) round it in its photo; and its colour (for the ends, wound round)
-function rollSkin(src, ground) {
+// The rug is rolled for real, in 3D (WebGL): it's a fine mesh of the rug's own picture, and from
+// its bottom edge up every part of it that's been gathered wraps round a roll (a spiral, a little
+// fatter with every turn, as the rug's thickness winds on). Each bit is lit by which way it faces,
+// so the roll is shaded by its own curve; where the rug has turned over you see its back (muted,
+// a little darker); real wool pile all over. Solid, never see-through.
+const ROLL_VERTEX = `
+attribute vec2 aUV;          // across 0..1, down 0..1
+uniform vec4 uBox;           // the rug on the screen: left, top, width, height (px)
+uniform vec2 uView;          // the screen (px)
+uniform float uGone;         // how much of it, from its bottom edge, is on the roll (px)
+uniform float uCore;         // the roll's radius with nothing on it (px)
+uniform float uThick;        // the rug's thickness (px): the roll grows by this each turn
+varying vec2 vUV;
+varying vec3 vNormal;
+void main() {
+  vUV = aUV;
+  float x = uBox.x + aUV.x * uBox.z;
+  float y = uBox.y + aUV.y * uBox.w;
+  float fromBottom = (1.0 - aUV.y) * uBox.w;
+  vec3 p = vec3(x, y, 0.0);
+  vec3 n = vec3(0.0, 0.0, 1.0);
+  if (fromBottom < uGone) {
+    // gathered: wound round the roll, which rests on the floor where the flat rug meets it
+    float radius = sqrt(uCore * uCore + uThick * uGone / 3.14159);
+    float contact = uBox.y + uBox.w - uGone;
+    float turn = (uGone - fromBottom) / radius;
+    p = vec3(x, contact + radius * sin(turn), radius - radius * cos(turn));
+    n = vec3(0.0, -sin(turn), cos(turn));
+  }
+  // a touch of perspective: what's nearer (the roll) spreads a little wider
+  float middle = uBox.x + uBox.z * 0.5;
+  p.x = middle + (p.x - middle) * (1.0 + p.z / 900.0);
+  vNormal = n;
+  gl_Position = vec4(p.x / uView.x * 2.0 - 1.0, 1.0 - p.y / uView.y * 2.0, -p.z / 2000.0, 1.0);
+}`;
+
+const ROLL_FRAGMENT = `
+precision mediump float;
+uniform sampler2D uRug;
+uniform sampler2D uGrain;
+uniform float uOnWhite;      // the photo is on white (GrandMa Patterns): its white is not rug
+varying vec2 vUV;
+varying vec3 vNormal;
+void main() {
+  vec4 c = texture2D(uRug, vUV);
+  if (c.a < 0.5) discard;
+  if (uOnWhite > 0.5 && min(c.r, min(c.g, c.b)) > 0.95) discard;
+  vec3 colour = c.rgb / c.a;
+  vec3 n = normalize(vNormal);
+  if (n.z < 0.0) {
+    // turned over: we see its back, flatter and darker
+    n = -n;
+    float grey = dot(colour, vec3(0.3, 0.59, 0.11));
+    colour = mix(colour, vec3(grey), ${BACK_MUTE.toFixed(2)}) * ${BACK_DARK.toFixed(2)};
+    // the back is woven: a fine grid of warp and weft
+    float weave = 0.5 + 0.5 * sin(vUV.x * 900.0) * sin(vUV.y * 1300.0);
+    colour *= 0.9 + 0.1 * weave;
+  }
+  // wool pile
+  colour *= 0.86 + 0.28 * texture2D(uGrain, gl_FragCoord.xy / 180.0).r;
+  // lit from the top of the screen, a little in front: flat rug as it was, the roll shaded by its curve
+  float light = max(dot(n, normalize(vec3(-0.15, -0.55, 0.82))), 0.0);
+  colour *= (0.38 + 0.62 * light) / (0.38 + 0.62 * 0.82);
+  gl_FragColor = vec4(colour, 1.0);
+}`;
+
+let rollGl = null; // { gl, canvas, program, uniforms, rug, grain, count }
+
+function setUpRollGl() {
+  const stage = tag("div", "roll-rug");
+  const shadow = tag("div", "roll-rug__shadow");
+  const canvas = tag("canvas", "roll-rug__canvas");
+  const ends = [tag("div", "roll-rug__end"), tag("div", "roll-rug__end")];
+  stage.append(shadow, canvas, ...ends);
+  document.body.append(stage);
+  const gl = canvas.getContext("webgl", { premultipliedAlpha: true, alpha: true, antialias: true });
+  if (!gl) return null;
+  const shader = (type, source) => {
+    const sh = gl.createShader(type);
+    gl.shaderSource(sh, source);
+    gl.compileShader(sh);
+    return sh;
+  };
+  const program = gl.createProgram();
+  gl.attachShader(program, shader(gl.VERTEX_SHADER, ROLL_VERTEX));
+  gl.attachShader(program, shader(gl.FRAGMENT_SHADER, ROLL_FRAGMENT));
+  gl.linkProgram(program);
+  gl.useProgram(program);
+  // the mesh: two points across, many down (the roll's curve is smooth)
+  const rows = 480;
+  const points = [];
+  for (let r = 0; r <= rows; r++) points.push(0, r / rows, 1, r / rows);
+  const index = [];
+  for (let r = 0; r < rows; r++) index.push(r * 2, r * 2 + 1, r * 2 + 2, r * 2 + 1, r * 2 + 3, r * 2 + 2);
+  gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(points), gl.STATIC_DRAW);
+  const aUV = gl.getAttribLocation(program, "aUV");
+  gl.enableVertexAttribArray(aUV);
+  gl.vertexAttribPointer(aUV, 2, gl.FLOAT, false, 0, 0);
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, gl.createBuffer());
+  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(index), gl.STATIC_DRAW);
+  const texture = (unit) => {
+    const t = gl.createTexture();
+    gl.activeTexture(gl.TEXTURE0 + unit);
+    gl.bindTexture(gl.TEXTURE_2D, t);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    return t;
+  };
+  const u = (name) => gl.getUniformLocation(program, name);
+  const state = {
+    gl,
+    stage,
+    canvas,
+    shadow,
+    ends,
+    count: index.length,
+    rug: texture(0),
+    grain: texture(1),
+    uniforms: { box: u("uBox"), view: u("uView"), gone: u("uGone"), core: u("uCore"), thick: u("uThick"), onWhite: u("uOnWhite") },
+  };
+  gl.uniform1i(u("uRug"), 0);
+  gl.uniform1i(u("uGrain"), 1);
+  gl.enable(gl.DEPTH_TEST);
+  gl.depthFunc(gl.LESS);
+  // the wool's grain (it's grey round the middle: no need to wait for it)
+  const grain = new Image();
+  grain.onload = () => {
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, state.grain);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE, gl.LUMINANCE, gl.UNSIGNED_BYTE, grain);
+  };
+  grain.src = ROLL_GRAIN;
+  gl.activeTexture(gl.TEXTURE1);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE, 1, 1, 0, gl.LUMINANCE, gl.UNSIGNED_BYTE, new Uint8Array([128]));
+  return state;
+}
+
+function loadImage(src) {
   return new Promise((done) => {
-    const photo = new Image();
-    photo.onload = () => {
-      const size = 240;
-      const c = document.createElement("canvas");
-      c.width = size;
-      c.height = Math.round((size * photo.naturalHeight) / photo.naturalWidth);
-      const ctx = c.getContext("2d");
-      ctx.drawImage(photo, 0, 0, c.width, c.height);
-      const px = ctx.getImageData(0, 0, c.width, c.height).data;
-      // where the rug is: not see-through, not the photo's white
-      let left = c.width, right = 0, top = c.height, bottom = 0;
-      const sum = [0, 0, 0];
-      let count = 0;
-      for (let y = 0; y < c.height; y++) {
-        for (let x = 0; x < c.width; x++) {
-          const i = (y * c.width + x) * 4;
-          if (px[i + 3] < 200 || Math.min(px[i], px[i + 1], px[i + 2]) > 238) continue;
-          left = Math.min(left, x); right = Math.max(right, x);
-          top = Math.min(top, y); bottom = Math.max(bottom, y);
-          sum[0] += px[i]; sum[1] += px[i + 1]; sum[2] += px[i + 2];
-          count++;
-        }
-      }
-      if (!count) return done(null);
-      // a little inside its edge, so none of the white comes along
-      const inX = (right - left) * 0.06;
-      const inY = (bottom - top) * 0.06;
-      const skin = document.createElement("canvas");
-      skin.width = Math.round(right - left - inX * 2);
-      skin.height = Math.round(bottom - top - inY * 2);
-      const s = skin.getContext("2d");
-      const colour = sum.map((v) => Math.round(v / count));
-      // solid all over: the rug's colour (or your design's ground) under it
-      s.fillStyle = ground || `rgb(${colour})`;
-      s.fillRect(0, 0, skin.width, skin.height);
-      // upside down, as the back is
-      s.save();
-      s.translate(0, skin.height);
-      s.scale(1, -1);
-      s.drawImage(c, left + inX, top + inY, skin.width, skin.height, 0, 0, skin.width, skin.height);
-      s.restore();
-      // the back of a hand-made rug: the pattern flatter and muted, a little darker, woven
-      const back = s.getImageData(0, 0, skin.width, skin.height);
-      const d = back.data;
-      for (let y = 0; y < skin.height; y++) {
-        for (let x = 0; x < skin.width; x++) {
-          const i = (y * skin.width + x) * 4;
-          const grey = 0.3 * d[i] + 0.59 * d[i + 1] + 0.11 * d[i + 2];
-          const weave = x % 3 === 0 || y % 3 === 0 ? 0.88 : 1;
-          for (let k = 0; k < 3; k++) d[i + k] = (d[i + k] + (grey - d[i + k]) * BACK_MUTE) * BACK_DARK * weave;
-          d[i + 3] = 255;
-        }
-      }
-      s.putImageData(back, 0, 0);
-      done({ src: skin.toDataURL("image/jpeg", 0.88), colour });
-    };
-    photo.onerror = () => done(null);
-    photo.src = src;
+    const picture = new Image();
+    picture.onload = () => done(picture);
+    picture.onerror = () => done(null);
+    picture.src = src;
   });
 }
 
-// One step of the rolling: rolled 0 (flat) .. 1 (all rolled up), from its bottom edge
+// Ready to roll this rug: its picture on the mesh, the canvas over the whole screen
+async function readyRoll(item, box) {
+  if (!rollGl) rollGl = setUpRollGl();
+  if (!rollGl) return null;
+  const picture = await loadImage(item.picture);
+  if (!picture) return null;
+  const { gl, stage, canvas, uniforms } = rollGl;
+  const scale = Math.min(2, window.devicePixelRatio || 1);
+  canvas.width = Math.round(window.innerWidth * scale);
+  canvas.height = Math.round(window.innerHeight * scale);
+  stage.style.transform = "";
+  stage.style.visibility = "visible";
+  // the roll's ends: the rug's own colour wound round
+  const [r, g, b] = averageColour(picture, document.body.dataset.collection === "grandma-patterns");
+  stage.style.setProperty("--roll-colour", `rgb(${r}, ${g}, ${b})`);
+  stage.style.setProperty("--roll-deep", `rgb(${Math.round(r * 0.6)}, ${Math.round(g * 0.6)}, ${Math.round(b * 0.6)})`);
+  gl.viewport(0, 0, canvas.width, canvas.height);
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, rollGl.rug);
+  gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, picture);
+  gl.uniform4f(uniforms.box, box.left, box.top, box.width, box.height);
+  gl.uniform2f(uniforms.view, window.innerWidth, window.innerHeight);
+  gl.uniform1f(uniforms.core, ROLL_CORE);
+  gl.uniform1f(uniforms.thick, ROLL_THICKNESS);
+  gl.uniform1f(uniforms.onWhite, document.body.dataset.collection === "grandma-patterns" ? 1 : 0);
+  return { box };
+}
+
+// The average colour of the rug's picture (not its see-through or white surroundings)
+function averageColour(picture, onWhite) {
+  const c = document.createElement("canvas");
+  c.width = c.height = 48;
+  const ctx = c.getContext("2d");
+  ctx.drawImage(picture, 0, 0, 48, 48);
+  const d = ctx.getImageData(0, 0, 48, 48).data;
+  const sum = [0, 0, 0];
+  let n = 0;
+  for (let i = 0; i < d.length; i += 4) {
+    if (d[i + 3] < 200 || (onWhite && Math.min(d[i], d[i + 1], d[i + 2]) > 240)) continue;
+    sum[0] += d[i]; sum[1] += d[i + 1]; sum[2] += d[i + 2];
+    n++;
+  }
+  return n ? sum.map((v) => Math.round(v / n)) : [180, 170, 160];
+}
+
+// Where the roll is with this much gathered (its middle on the screen, its radius)
+function rollSize(state, rolled = 1) {
+  const gone = rolled * state.box.height;
+  const radius = Math.sqrt(ROLL_CORE * ROLL_CORE + (ROLL_THICKNESS * gone) / Math.PI);
+  return { x: state.box.left + state.box.width / 2, y: state.box.top + state.box.height - gone, width: state.box.width, radius };
+}
+
+// One step of the rolling: rolled 0 (flat) .. 1 (all on the roll), from its bottom edge; the
+// roll's ends (a spiral of the rug's layers round a hollow middle) and its shadow on the floor
+// go along with it
 function rollTo(state, rolled) {
-  const { overlay, roll, lift, box } = state;
-  const gone = rolled * box.height;
-  overlay.style.clipPath = `inset(0 0 ${gone}px 0)`;
-  const thick = 14 + (ROLL_THICKEST - 14) * Math.sqrt(rolled);
-  const top = box.top + box.height - gone - thick / 2;
-  const turned = gone * 0.8; // turning as it gathers the rug (the back, not lined up with the front)
-  Object.assign(roll.style, {
-    top: `${top}px`,
-    height: `${thick}px`,
-    opacity: rolled > 0.004 ? 1 : 0,
-    backgroundPositionY: `${turned}px, ${turned}px`,
+  const { gl, uniforms, count, ends, shadow } = rollGl;
+  gl.uniform1f(uniforms.gone, rolled * state.box.height);
+  gl.clearColor(0, 0, 0, 0);
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  gl.drawElements(gl.TRIANGLES, count, gl.UNSIGNED_SHORT, 0);
+  const roll = rollSize(state, rolled);
+  const on = rolled > 0.01;
+  const reach = (roll.width / 2) * (1 + roll.radius / 900); // as wide as the roll is, at its middle
+  ends.forEach((end, k) => {
+    const x = roll.x + (k ? reach : -reach);
+    Object.assign(end.style, {
+      left: `${x - roll.radius * 0.42}px`,
+      top: `${roll.y - roll.radius}px`,
+      width: `${roll.radius * 0.84}px`,
+      height: `${roll.radius * 2}px`,
+      opacity: on ? 1 : 0,
+    });
   });
-  // where the rug lifts off the floor onto the roll: a soft shadow on the flat rug just above it
-  Object.assign(lift.style, { top: `${top - 16}px`, opacity: rolled > 0.004 && rolled < 0.995 ? 1 : 0 });
+  Object.assign(shadow.style, {
+    left: `${roll.x - reach}px`,
+    top: `${roll.y + roll.radius * 0.4}px`,
+    width: `${reach * 2}px`,
+    height: `${roll.radius * 1.3}px`,
+    opacity: on ? 1 : 0,
+  });
 }
 
 function animate(ms, step) {
@@ -208,55 +359,40 @@ async function buy() {
     await wait(ZOOM_DURATION + 60);
   }
   const item = rugNow();
-  const skin = await rollSkin(item.picture, item.ground);
-  const box = img.getBoundingClientRect();
-  // the rug, as a picture over the page, and its roll, wrapped in the rug itself
-  const overlay = tag("div", "roll-rug");
-  const roll = tag("div", "roll-rug__roll");
-  const lift = tag("div", "roll-rug__lift");
-  Object.assign(overlay.style, { left: `${box.left}px`, top: `${box.top}px`, width: `${box.width}px`, height: `${box.height}px`, backgroundImage: `url("${item.picture}")` });
-  const inset = box.width * 0.04;
-  Object.assign(roll.style, {
-    left: `${box.left + inset}px`,
-    width: `${box.width - inset * 2}px`,
-    // the rug itself, with real wool pile laid over it (soft light), so it reads dense
-    backgroundImage: `url("${ROLL_GRAIN}"), ${skin ? `url("${skin.src}")` : "none"}`,
-    backgroundSize: `200px 200px, 100% ${box.height * 0.6}px`,
-    backgroundRepeat: "repeat, repeat-y",
-  });
-  Object.assign(lift.style, { left: `${box.left + inset}px`, width: `${box.width - inset * 2}px` }); // as wide as the roll
-  if (skin) {
-    const [r, g, b] = skin.colour;
-    roll.style.setProperty("--roll-colour", `rgb(${r}, ${g}, ${b})`);
-    roll.style.setProperty("--roll-deep", `rgb(${Math.round(r * 0.62)}, ${Math.round(g * 0.62)}, ${Math.round(b * 0.62)})`);
+  const state = await readyRoll(item, img.getBoundingClientRect());
+  cart.push(item);
+  if (!state) {
+    // (no WebGL: straight into the bag)
+    showBag();
+    document.body.classList.remove("is-buying");
+    buying = false;
+    return;
   }
-  roll.append(tag("span", "roll-rug__shade"));
-  document.body.append(overlay, lift, roll);
-  const state = { overlay, roll, lift, box };
   rollTo(state, 0);
   carpet.style.visibility = "hidden";
 
   await animate(ROLL_UP, (t) => rollTo(state, t));
 
   // into the bag: the bag shows (Shop gives way to it), the roll flies to it in an arc
-  cart.push(item);
   bag.hidden = false;
   shopLink.hidden = true;
   const target = bag.getBoundingClientRect();
-  const from = roll.getBoundingClientRect();
-  const dx = target.left + target.width / 2 - (from.left + from.width / 2);
-  const dy = target.top + target.height / 2 - (from.top + from.height / 2);
-  const small = Math.min(0.12, 28 / from.width);
-  const flight = roll.animate(
+  const roll = rollSize(state);
+  const dx = target.left + target.width / 2 - roll.x;
+  const dy = target.top + target.height / 2 - roll.y;
+  const small = Math.min(0.12, 28 / roll.width);
+  const stage = rollGl.stage;
+  stage.style.transformOrigin = `${roll.x}px ${roll.y}px`;
+  const flight = stage.animate(
     [
-      { transform: "translate(0, 0) scale(1)", opacity: 1 },
-      { transform: `translate(${dx * 0.45}px, ${dy * 0.35 - 70}px) scale(${(1 + small) / 2.4})`, opacity: 1, offset: 0.5 },
-      { transform: `translate(${dx}px, ${dy}px) scale(${small})`, opacity: 1 },
+      { transform: "translate(0, 0) scale(1)" },
+      { transform: `translate(${dx * 0.45}px, ${dy * 0.35 - 70}px) scale(${(1 + small) / 2.4})`, offset: 0.5 },
+      { transform: `translate(${dx}px, ${dy}px) scale(${small})` },
     ],
     { duration: ROLL_FLY, easing: "cubic-bezier(0.45, 0, 0.25, 1)", fill: "forwards" }
   );
   await flight.finished;
-  roll.style.visibility = "hidden";
+  stage.style.visibility = "hidden";
   showBag();
   bag.classList.remove("is-landing");
   void bag.offsetWidth;
@@ -273,14 +409,13 @@ async function unroll() {
   const state = rolledAway;
   if (!state) return;
   rolledAway = null;
-  state.roll.getAnimations().forEach((a) => a.cancel());
-  state.roll.style.visibility = "";
+  const stage = rollGl.stage;
+  stage.getAnimations().forEach((a) => a.cancel());
+  stage.style.visibility = "visible";
   rollTo(state, 1);
   await animate(ROLL_UP, (t) => rollTo(state, 1 - t));
   carpet.style.visibility = "";
-  state.overlay.remove();
-  state.roll.remove();
-  state.lift.remove();
+  stage.style.visibility = "hidden";
   document.body.classList.remove("is-buying");
 }
 
