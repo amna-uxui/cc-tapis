@@ -29,7 +29,7 @@ Then open http://localhost:8000 (use the browser's phone view). The microphone o
 - `js/carpet-colors.js`, `js/carpet-shapes.js`, `js/carpet-lamp.js`, `js/carpet-sound.js`: Hypercode's colours, shapes, lamp and brushing sound
 - `js/carpet-blow.js`, `js/carpet-rugs.js`, `js/carpet-wind-sound.js`: GrandMa Patterns' blowing, its rugs and the wind's sound
 - `js/carpet-ripple.js`: Ripple Square's canvas and leaf brush
-- `js/carpet-info.js`: about this rug: `[+]` (bottom right, zoomed out) opens a sheet in the grey of the top bar with the whole rug cut out (images/sheet/, tools/cut-out-rug.py --solid), and its description, product details and customisation (from cc-tapis.com)
+- `js/carpet-info.js`: about this rug: `[+]` (bottom right, zoomed out) opens a sheet in the grey of the top bar with the whole rug cut out (images/sheet/, tools/cut-out-rug.py --on e6e6e6), and its description, product details and customisation (from cc-tapis.com)
 - `js/carpet-collections.js`: going from one collection to the next (only the rug slides)
 - `js/carpet-menu.js`: the collections menu
 - `js/carpet-strip.js`: the row under the rug

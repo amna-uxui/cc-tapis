@@ -12,6 +12,12 @@
 # than the PNG, so it loads at once on a phone):
 #   python3 tools/cut-out-rug.py photo.jpg images/grandma-pinkblue.jpg
 #
+# A rug that sits on a coloured panel (the sheet about the rug, js/carpet-info.js): --on and the
+# panel's colour, and it's the rug cut out and laid on that colour, as a JPEG. Here the background
+# is only the white that reaches the photo's edge (so the notches of a shaped rug come out clean,
+# and cream wool inside it stays solid); only the rug's outline fades, as its fibres do.
+#   python3 tools/cut-out-rug.py photo.jpg images/sheet/ripple-rose-garden.jpg --on e6e6e6
+#
 # Needs only the Mac's own tools (sips converts the photo to BMP first).
 import os
 import struct
@@ -61,7 +67,7 @@ def write_jpeg(path, w, h, px, left, top):
     with tempfile.TemporaryDirectory() as tmp:
         bmp = os.path.join(tmp, "crop.bmp")
         open(bmp, "wb").write(header + info + bytes(body))
-        subprocess.run(["sips", "-s", "format", "jpeg", "-s", "formatOptions", "72", bmp, "--out", path],
+        subprocess.run(["sips", "-s", "format", "jpeg", "-s", "formatOptions", "82", bmp, "--out", path],
                        check=True, capture_output=True)
 
 
@@ -76,11 +82,73 @@ def write_png(path, w, h, rows):
     open(path, "wb").write(png)
 
 
-def main(src, out, solid=False):
+EDGE_BAND = 3    # with --on: how many pixels in from the background the rug's outline fades
+BACKGROUND = 246  # with --on: brighter than this in every colour, and reaching the photo's edge: background
+
+
+def on_colour(w, h, px, out, colour):
+    # the background: near-white pixels joined to the photo's edge (a flood from all round it)
+    bg = bytearray(w * h)
+    near_white = lambda p: min(p) >= BACKGROUND
+    stack = [(x, y) for x in range(w) for y in (0, h - 1)] + [(x, y) for y in range(h) for x in (0, w - 1)]
+    while stack:
+        x, y = stack.pop()
+        i = y * w + x
+        if bg[i] or not near_white(px[y][x]):
+            continue
+        bg[i] = 1
+        if x > 0: stack.append((x - 1, y))
+        if x < w - 1: stack.append((x + 1, y))
+        if y > 0: stack.append((x, y - 1))
+        if y < h - 1: stack.append((x, y + 1))
+    # the outline: rug pixels within EDGE_BAND of the background
+    near = bytearray(bg)
+    for _ in range(EDGE_BAND):
+        grown = bytearray(near)
+        for y in range(1, h - 1):
+            o = y * w
+            for x in range(1, w - 1):
+                i = o + x
+                if not near[i] and (near[i - 1] or near[i + 1] or near[i - w] or near[i + w]):
+                    grown[i] = 1
+        near = grown
+    # the rug's extent, with a margin
+    rows = [y for y in range(h) if any(not bg[y * w + x] for x in range(0, w, 2))]
+    cols = [x for x in range(w) if any(not bg[y * w + x] for y in range(0, h, 2))]
+    left, right = max(0, cols[0] - MARGIN), min(w - 1, cols[-1] + MARGIN)
+    top, bottom = max(0, rows[0] - MARGIN), min(h - 1, rows[-1] + MARGIN)
+    under = tuple(int(colour[k:k + 2], 16) for k in (0, 2, 4))
+    laid = [[None] * w for _ in range(h)]
+    for y in range(top, bottom + 1):
+        for x in range(left, right + 1):
+            i = y * w + x
+            p = px[y][x]
+            if bg[i]:
+                laid[y][x] = under
+                continue
+            if not near[i]:
+                laid[y][x] = p
+                continue
+            # the outline: as see-through as it's near white, its colour without the white behind it
+            a = min(1.0, max(0.0, (WHITE - sum(p) / 3 - 1) / FADE))
+            if a <= 0:
+                laid[y][x] = under
+                continue
+            un = [min(255.0, max(0.0, (c - 255 * (1 - a)) / a)) for c in p]
+            laid[y][x] = tuple(int(un[k] * a + under[k] * (1 - a) + 0.5) for k in range(3))
+    write_jpeg(out, right - left + 1, bottom - top + 1, laid, left, top)
+    print(f"{out}: {right - left + 1} x {bottom - top + 1}")
+
+
+def main(src, out, solid=False, on=None):
     with tempfile.TemporaryDirectory() as tmp:
         bmp = os.path.join(tmp, "photo.bmp")
         subprocess.run(["sips", "-s", "format", "bmp", src, "--out", bmp], check=True, capture_output=True)
         w, h, px = read_bmp(bmp)
+
+    if on:
+        on_colour(w, h, px, out, on)
+        return
 
     # the rug: everything clearly darker than the background
     dark = lambda p: sum(p) / 3 < WHITE - 20
@@ -129,5 +197,6 @@ def main(src, out, solid=False):
 
 
 if __name__ == "__main__":
-    args = [a for a in sys.argv[1:] if a != "--solid"]
-    main(args[0], args[1], solid="--solid" in sys.argv)
+    on = sys.argv[sys.argv.index("--on") + 1] if "--on" in sys.argv else None
+    args = [a for a in sys.argv[1:] if a not in ("--solid", "--on", on)]
+    main(args[0], args[1], solid="--solid" in sys.argv, on=on)

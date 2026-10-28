@@ -18,7 +18,8 @@
 
 // Each collection: its description, its details (materials, technique, quality,
 // atelier: as on cc-tapis.com), how it can be made to order, and its pictures: each rug cut out of
-// its photo's white (tools/cut-out-rug.py --solid), by its name (GrandMa Patterns) or colourway
+// its photo's white and laid on the sheet's grey (tools/cut-out-rug.py --on e6e6e6), by its name
+// (GrandMa Patterns) or colourway
 // (Ripple Square, where the rug on show is your own: the real rug). Hypercode's photos are cut out
 // already: the rug on show.
 const RUG_STORIES = {
@@ -39,11 +40,11 @@ const RUG_STORIES = {
     details: [["Materials", "Wool"], ["Technique", "Moroccan weave"], ["Atelier", "Made by hand in India"]],
     custom: "Size",
     pictures: {
-      "Mustard Green": "images/sheet/grandma-mustardgreen.png",
-      "Green Red": "images/sheet/grandma-greenred.png",
-      "Mustard Red": "images/sheet/grandma-mustardred.png",
-      "Pink Blue": "images/sheet/grandma-pinkblue.png",
-      "Purple Brown": "images/sheet/grandma-purplebrown.png",
+      "Mustard Green": "images/sheet/grandma-mustardgreen.jpg",
+      "Green Red": "images/sheet/grandma-greenred.jpg",
+      "Mustard Red": "images/sheet/grandma-mustardred.jpg",
+      "Pink Blue": "images/sheet/grandma-pinkblue.jpg",
+      "Purple Brown": "images/sheet/grandma-purplebrown.jpg",
     },
   },
   "ripple-square": {
@@ -54,10 +55,10 @@ const RUG_STORIES = {
     details: [["Materials", "100% Himalayan wool"], ["Technique", "Hand-knotted"], ["Quality", "A+, about 152,000 knots a m²"], ["Atelier", "Made by hand in Nepal"]],
     custom: "Size and colour",
     pictures: {
-      "Rose Garden": "images/sheet/ripple-rose-garden.png",
-      "Earth Glow": "images/sheet/ripple-earth-glow.png",
-      "Lavender Root": "images/sheet/ripple-lavender-root.png",
-      "Dune Shadow": "images/sheet/ripple-dune-shadow.png",
+      "Rose Garden": "images/sheet/ripple-rose-garden.jpg",
+      "Earth Glow": "images/sheet/ripple-earth-glow.jpg",
+      "Lavender Root": "images/sheet/ripple-lavender-root.jpg",
+      "Dune Shadow": "images/sheet/ripple-dune-shadow.jpg",
     },
   },
 };
