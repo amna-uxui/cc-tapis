@@ -1,7 +1,7 @@
 /*
-  Carpet shapes: while zoomed out, the shapes go round an endless strip under the rug, above Buy
+  Carpet shapes: while zoomed out, the shapes sit in a row under the rug, above Buy
   (js/carpet-strip.js). Each shape is cut from the current colour's rug photo, so every colour
-  comes in every shape. The shape that settles in the middle is shown, with its size.
+  comes in every shape. Tapping one shows the rug in that shape, with its size.
 
   Needs js/carpet-viewer.js (changeRug, setBrushTone, rugInfo), js/carpet-colors.js (current) and
   js/carpet-strip.js (makeStrip) to be loaded first.
@@ -128,8 +128,8 @@ async function renderRug(zoomOut = false, fade = true) {
 
 let reshaping = false;
 
-// A new shape in the middle of the strip. Swiped past several quickly, the rug catches up with the
-// last one once the one before has finished.
+// A new shape tapped. Tapped several quickly, the rug catches up with the last one once the one
+// before has finished.
 async function chooseShape(shape) {
   if (shape === currentShape) return;
   currentShape = shape;
@@ -169,7 +169,7 @@ function buildShapes() {
   markShape();
 }
 
-// Hypercode comes on (js/carpet-collections.js): its shapes in the strip, its rug as you left it.
+// Hypercode comes on (js/carpet-collections.js): its shapes in the row, its rug as you left it.
 // whole: show the whole rug.
 async function enterHypercode(whole) {
   buildShapes();

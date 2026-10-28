@@ -1,15 +1,17 @@
 /*
   The collections on the one page: Hypercode (to draw) and GrandMa Patterns (to blow). Going from
-  one to the next, only the rug moves: it slides off to the side, with its name and its strip,
+  one to the next, only the rug moves: it slides off to the side, with its name and its row,
   and the next collection's rug slides in from the other side. The top bar and the buttons at the
   bottom stay where they are, and nothing reloads.
 
-  - Swiping on the white page around the whole rug (js/carpet-viewer.js) calls switchCollection,
-    round and round; the menu (js/carpet-menu.js) calls showCollection.
+  - Swiping on the white page around the whole rug (js/carpet-viewer.js) calls switchCollection:
+    one swipe, the next collection, in the menu's order. Past the first or the last there's
+    nothing more, so the rug resists the finger and springs back. The menu (js/carpet-menu.js)
+    calls showCollection.
   - The address remembers the collection (#grandma-patterns), so a reload, or an old link to the
     blow page, opens it.
 
-  Needs everything else loaded first (the menu's MENU_COLLECTIONS, the viewer, the strip, and each
+  Needs everything else loaded first (the menu's MENU_COLLECTIONS, the viewer, the row, and each
   collection's enter / leave in js/carpet-shapes.js and js/carpet-rugs.js).
 */
 
@@ -69,17 +71,22 @@ async function showCollection(index, dir = index > collectionIndex ? 1 : -1) {
   preloadNeighbours();
 }
 
-// The next (step 1) or previous (step -1) collection, round and round
+// Is there a collection that way? (step 1: the next one, -1: the one before)
+function canSwitch(step) {
+  const index = collectionIndex + step;
+  return index >= 0 && index < MENU_COLLECTIONS.length;
+}
+
+// The next (step 1) or previous (step -1) collection; at the ends, the rug springs back
 function switchCollection(step) {
-  const count = MENU_COLLECTIONS.length;
-  showCollection((collectionIndex + step + count) % count, step);
+  if (canSwitch(step)) showCollection(collectionIndex + step, step);
+  else slideRug(0, SLIDE_IN);
 }
 
 // The rugs either side are loaded ahead, so they're ready when they slide in
 function preloadNeighbours() {
   [1, -1].forEach((step) => {
-    const count = MENU_COLLECTIONS.length;
-    new Image().src = MENU_COLLECTIONS[(collectionIndex + step + count) % count].rug;
+    if (canSwitch(step)) new Image().src = MENU_COLLECTIONS[collectionIndex + step].rug;
   });
 }
 

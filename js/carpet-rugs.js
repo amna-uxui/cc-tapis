@@ -1,7 +1,7 @@
 /*
-  The rugs of the collection: while zoomed out, small pictures of the rugs go round an endless
-  strip under the rug, above Buy (js/carpet-strip.js). The rug that settles in the middle is shown,
-  with its name, designer, size and price, and you can blow on it like the others.
+  The rugs of the collection: while zoomed out, small pictures of the rugs sit in a row under the
+  rug, above Buy (js/carpet-strip.js). Tapping one shows that rug, with its name, designer, size
+  and price, and you can blow on it like the others.
 
   Needs js/carpet-viewer.js (changeRug, rugInfo), js/carpet-blow.js (loadPhoto) and
   js/carpet-strip.js (makeStrip) to be loaded first.
@@ -39,8 +39,8 @@ function markRug() {
   rugInfo.querySelector("[data-rug-size]").replaceChildren(`${currentRug.size} | `, euro, ` ${amount}`);
 }
 
-// A new rug in the middle of the strip. Swiped past several quickly, the rug catches up with the
-// last one once the one before has finished.
+// A new rug tapped. Tapped several quickly, the rug catches up with the last one once the one
+// before has finished.
 async function chooseRug(rug) {
   if (rug === currentRug) return;
   currentRug = rug;
@@ -56,7 +56,7 @@ async function chooseRug(rug) {
   switching = false;
 }
 
-// A small picture of a rug, for the strip
+// A small picture of a rug, for the row
 function rugThumb(rug) {
   const picture = document.createElement("img");
   picture.className = "rug-thumb";
@@ -71,7 +71,7 @@ function buildRugs() {
   markRug();
 }
 
-// GrandMa Patterns comes on (js/carpet-collections.js): its rugs in the strip, the rug you were on.
+// GrandMa Patterns comes on (js/carpet-collections.js): its rugs in the row, the rug you were on.
 // whole: show the whole rug.
 async function enterGrandma(whole) {
   buildRugs();

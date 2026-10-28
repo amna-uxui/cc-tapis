@@ -9,7 +9,7 @@
   - Double-tap to wipe the drawing, back to the plain carpet.
   - With the whole rug in view, one finger on the white page around it swipes left or right to the
     next collection (the rug follows the finger; let go far enough, or flick, and the next one
-    slides in: js/carpet-collections.js). On a rug you draw on, the finger on the rug draws as
+    slides in: js/carpet-collections.js; past the last one it springs back). On a rug you draw on, the finger on the rug draws as
     always; on one you don't, the rug swipes too.
   - You can zoom out until the whole carpet fits, but never lose it off screen.
 */
@@ -744,7 +744,9 @@ stage.addEventListener("pointermove", (e) => {
       gesture.swipe.velocity = (p.x - gesture.swipe.last) / Math.max(now - gesture.swipe.time, 1);
       gesture.swipe.last = p.x;
       gesture.swipe.time = now;
-      swipeShift = dx;
+      // nothing more that way (the first or last collection): the rug only gives a little
+      const more = typeof canSwitch !== "function" || canSwitch(dx < 0 ? 1 : -1);
+      swipeShift = more ? dx : dx * 0.25;
       render();
       return;
     }

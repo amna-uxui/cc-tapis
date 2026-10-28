@@ -456,41 +456,24 @@ body {
   pointer-events: auto;
 }
 
-/* The endless strip (js/carpet-strip.js): the shapes, or the rugs, go round under the rug. The
-   middle one is bigger, in a light grey rounded frame like cc-tapis's colour picker; the others
-   fade out towards the ends. Swipe it with a finger. */
+/* The row under the rug (js/carpet-strip.js): the shapes, or the rugs, side by side. The one on
+   show sits in a light grey rounded frame, like cc-tapis's colour picker. */
 .rug-shapes.strip {
-  display: block;
-  width: min(100% - var(--space-4) * 2, var(--page-max-width) - var(--space-4) * 2);
-  height: 44px; /* fixed, so the full carpet fits above it (js/carpet-viewer.js measures it) */
-  touch-action: none;
-  cursor: grab;
-  -webkit-user-select: none;
-  user-select: none;
-}
-
-.strip__track {
-  position: absolute;
-  inset: 0;
+  gap: var(--space-2);
 }
 
 .strip__item {
-  position: absolute;
-  left: 50%;
-  top: 5px;
   width: 34px;
   height: 34px;
-  margin-left: -17px;
   padding: 2px;
   display: grid;
   place-items: center;
   border: 1.5px solid transparent;
   border-radius: 6px;
   transition: border-color var(--duration) var(--ease);
-  will-change: transform, opacity;
 }
 
-.strip__item.is-middle {
+.strip__item[aria-pressed="true"] {
   border-color: var(--color-muted);
 }
 

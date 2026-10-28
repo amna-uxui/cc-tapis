@@ -5,7 +5,7 @@
   rolls back up.
 */
 
-// The collections, in the order swiping goes through them (and from the last back to the first).
+// The collections, in the order swiping goes through them.
 // id: its name in the address (#grandma-patterns); rug: the photo it opens with.
 const MENU_COLLECTIONS = [
   { id: "hypercode", name: "Hypercode", designer: "Roberto Sironi", verb: "To draw", rug: "images/carpet-02-cacao-cut.png" },
