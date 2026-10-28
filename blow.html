@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <!-- ?v=… on the files below: raise the number after changing them, so phones load the new version -->
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#ffffff">
+  <title>cc-tapis | Blow on the rug</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="css/tokens.css?v=40">
+  <link rel="stylesheet" href="css/main.css?v=40">
+</head>
+<body>
+
+  <!-- Full screen: the carpet you can zoom and move around, with an arrow on each side -->
+  <!-- data-brush="off": here one finger doesn't draw, you blow instead (js/carpet-blow.js) -->
+  <main class="stage" data-viewer data-brush="off">
+    <div class="carpet">
+      <img src="images/carpet-05-shag.jpg" alt="Shaggy wool rug in ochre, cream and turquoise" draggable="false">
+      <canvas class="carpet__brush"></canvas>
+      <canvas class="carpet__wind" aria-hidden="true"></canvas> <!-- the pile moving in the wind (js/carpet-blow.js) -->
+      <div class="carpet__light" aria-hidden="true"></div> <!-- the lamp's light (js/carpet-lamp.js) -->
+    </div>
+
+    <!-- Arrows, taken out for now (their styles are still in css/main.css):
+    <button class="arrow arrow--prev mono" aria-label="Previous carpet">←</button>
+    <button class="arrow arrow--next mono" aria-label="Next carpet">→</button>
+    -->
+    <!-- The verb: tells you what you can do with this carpet, shown for a few seconds when the page opens -->
+    <p class="verb" aria-live="polite">To blow</p>
+  </main>
+
+  <!-- Top: grey bar like cc-tapis.com -->
+  <header class="bar bar--top" data-fit-top>
+    <button class="bar__side bar__side--left" aria-label="Open menu"><span class="menu-icon"></span></button>
+    <span class="wordmark">cc-tapis</span>
+    <a class="bar__side bar__side--right mono" href="https://cc-tapis.com/shop" target="_blank" rel="noopener">Shop</a>
+  </header>
+
+  <!-- While the whole rug is in view, under the top bar: the lamp (left); collection name, size
+       and price (centre) -->
+  <div class="rug-info" data-rug-info>
+    <!-- The lamp: turn it to light the rug from any side -->
+    <div class="lamp-dial" role="slider" tabindex="0" aria-label="Lamp direction" aria-valuemin="0" aria-valuemax="359" data-lamp>
+      <span class="lamp-dial__lamp"></span>
+      <!-- the light in the room: tap the lamp to switch (js/carpet-lamp.js) -->
+      <svg class="mood-icon mood-icon--evening" viewBox="0 0 16 16" aria-hidden="true">
+        <path d="M3.5 11a4.5 4.5 0 0 1 9 0M1.5 11h13M8 3.5v1.5M3.2 5.6l1 1M12.8 5.6l-1 1" />
+      </svg>
+      <svg class="mood-icon mood-icon--daylight" viewBox="0 0 16 16" aria-hidden="true">
+        <circle cx="8" cy="8" r="3" />
+        <path d="M8 1.5v1.8M8 12.7v1.8M1.5 8h1.8M12.7 8h1.8M3.4 3.4l1.3 1.3M11.3 11.3l1.3 1.3M3.4 12.6l1.3-1.3M11.3 4.7l1.3-1.3" />
+      </svg>
+      <svg class="mood-icon mood-icon--night" viewBox="0 0 16 16" aria-hidden="true">
+        <path d="M12.5 10.2A5.2 5.2 0 0 1 5.8 3.5a5.2 5.2 0 1 0 6.7 6.7z" />
+      </svg>
+      <span class="lamp-dial__status mono" aria-live="polite" data-lamp-status></span>
+    </div>
+    <div class="rug-info__text" aria-live="polite">
+      <!-- placeholders: this rug's real name, designer, size and price still to come -->
+      <p class="rug-info__name" data-rug-name>Shag Rectangle</p>
+      <p class="rug-info__designer" data-rug-designer>by cc-tapis</p>
+      <p class="rug-info__size mono" data-rug-size>200 × 300 cm | <span class="rug-info__currency">€</span> 6.999</p>
+    </div>
+    <!-- Save your rug as an image (js/carpet-save.js) -->
+    <button class="save-rug" aria-label="Save your rug" data-save>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12v18l-6-4.5L6 21z" /></svg>
+    </button>
+  </div>
+
+  <!-- While the whole rug is in view, under it, above Buy: the shapes to choose from -->
+  <div class="rug-shapes" data-shape-options></div>
+
+  <!-- Bottom, floating over the carpet: zoom (left), buy (centre), colour (right) -->
+  <nav class="bar bar--bottom" data-fit-bottom>
+    <!-- Zoom: switch between the close-up and the whole rug. Arrows out when you can zoom out, in when you can zoom in -->
+    <button class="tool tool--zoom" aria-label="Zoom in or out" data-zoom>
+      <svg class="zoom-icon zoom-icon--out" viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="2" y="2" width="20" height="20" />
+        <path d="M10 10 6 6M6 10V6h4M14 10l4-4M14 6h4v4M10 14l-4 4M6 14v4h4M14 14l4 4M18 14v4h-4" />
+      </svg>
+      <svg class="zoom-icon zoom-icon--in" viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="2" y="2" width="20" height="20" />
+        <path d="M6 6l4 4M10 6v4H6M18 6l-4 4M14 6v4h4M6 18l4-4M6 14h4v4M18 18l-4-4M18 14h-4v4" />
+      </svg>
+    </button>
+
+    <button class="button button--wide mono">Buy</button>
+
+    <!-- Blow: tap to let the rug listen to your breath, hold for a breath without the microphone (js/carpet-blow.js) -->
+    <button class="tool tool--blow" aria-label="Blow on the rug" aria-pressed="false" data-blow>
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path class="blow-line blow-line--1" d="M3 8h10a3 3 0 1 0-3-3" />
+        <path class="blow-line blow-line--2" d="M3 12h15a3 3 0 1 1-3 3" />
+        <path class="blow-line blow-line--3" d="M3 16h6" />
+      </svg>
+      <span class="blow-status mono" aria-live="polite" data-blow-status></span>
+    </button>
+  </nav>
+
+  <script src="js/carpet-viewer.js"></script>
+  <script src="js/carpet-lamp.js"></script>
+  <script src="js/carpet-save.js"></script>
+  <script src="js/carpet-blow.js"></script>
+</body>
+</html>

@@ -21,3 +21,6 @@ build/
 node_modules/
 __pycache__/
 .venv/
+
+# Local https certificate (tools/serve.py --https)
+tools/.cert/
