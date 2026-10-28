@@ -2,13 +2,12 @@
   About this rug: [+] at the bottom right (only while the whole rug is in view) slides up a sheet
   from below, in the look of the grey top bar, like a page of a magazine about the rug on show.
   At the top the whole rug, cut out, on the grey; then its name, designer, size and price; then,
-  folded away, its description, its product details and how it can be
-  made to order ([+] opens one at a time).
+  folded away, its description, its product details and how it can be made to order ([+] opens
+  one at a time).
 
-  - It comes like a rug being unrolled: a grey roll lying at the bottom of the screen rolls up the
-    screen, thinner as it goes, laying the sheet out behind it. [–], a tap outside it, or pulling
-    it down from its top rolls it back up again (pulled only a little, it unrolls again). What's
-    on it scrolls.
+  - A simple page: it slides up from the bottom, and back down again with [–], a tap outside it,
+    or pulling it down from its top (pulled only a little, it slides back up). What's on it
+    scrolls.
   - While it's open, the rug can't be zoomed, swiped to the next collection or drawn on.
   - The words follow each collection's page on cc-tapis.com (its details as they are, its
     description in our own words); the rest (name, size, price, colour) is the rug on show.
@@ -64,19 +63,15 @@ const RUG_STORIES = {
   },
 };
 
-const ROLL_TIME = 1100;      // ms to unroll it all (rolling back up takes as long for the same way)
-const ROLL_THICK = 64;       // the roll's thickness (px) while it's all rolled up ..
-const ROLL_THIN = 16;        // .. and with the last of it unrolling
-const ROLL_AWAY = 1 / 3;     // pulled down further than this share, it rolls away when let go
+const SLIDE_TIME = 600;      // ms it takes to slide up or down (as in css/main.css)
+const CLOSE_PAST = 1 / 3;    // pulled down further than this share of it, it goes when let go
 
 const infoButton = document.querySelector("[data-info]");
 const infoSheet = document.querySelector("[data-info-sheet]");
 const infoScroll = infoSheet.querySelector("[data-info-scroll]");
 const infoBackdrop = document.querySelector("[data-info-backdrop]");
 
-const infoRoll = document.querySelector("[data-info-roll]");
-
-let unrolled = null; // how much of the sheet is unrolled (0..1), or null while it's put away
+let reading = false; // the sheet is open
 
 // ---------- What's on the sheet ----------
 
@@ -161,82 +156,42 @@ function fillSheet() {
   infoScroll.scrollTop = 0;
 }
 
-// ---------- Unrolling it, and rolling it back up ----------
+// ---------- Opening and closing it ----------
 
-// unrolled: how much of the sheet is unrolled, 0 (all rolled up at the bottom) .. 1; the roll travels up its unrolled edge, thinner the less is
-// left in it, its picture turning as it goes
-function setUnrolled(u) {
-  unrolled = u;
-  const box = infoSheet.getBoundingClientRect();
-  const edge = Math.max(0, (1 - u) * box.height);
-  infoSheet.style.clipPath = `inset(${edge}px 0 0 0)`;
-  const left = Math.max(0, 1 - u);
-  const thick = ROLL_THIN + (ROLL_THICK - ROLL_THIN) * left;
-  Object.assign(infoRoll.style, {
-    left: `${box.left - 3}px`,
-    width: `${box.width + 6}px`,
-    top: `${box.top + edge - thick / 2}px`,
-    height: `${thick}px`,
-    backgroundPositionY: `${-u * box.height}px`, // turning: as much rug goes by as unrolls
-    opacity: Math.min(1, left * 14), // gone once it's all unrolled
-  });
-}
-
-// Unroll (to 1) or roll up (to 0), easing as a heavy rug does
-let rolling = null;
-function rollTo(target, then) {
-  cancelAnimationFrame(rolling);
-  const from = unrolled;
-  const time = ROLL_TIME * Math.abs(target - from);
-  const start = performance.now();
-  const step = (now) => {
-    const t = Math.min(1, (now - start) / (time || 1));
-    // unrolling: off quickly, slowing as it runs out; rolling up: easing in and out
-    const eased = target > from ? 1 - Math.pow(1 - t, 3) : t * t * (3 - 2 * t);
-    setUnrolled(from + (target - from) * eased);
-    if (t < 1) rolling = requestAnimationFrame(step);
-    else if (then) then();
-  };
-  rolling = requestAnimationFrame(step);
+// Where the sheet is: 0 open, its own height below that put away (now: no gliding there)
+function placeSheet(y, now = false) {
+  infoSheet.classList.toggle("is-dragging", now);
+  infoSheet.style.transform = `translateY(${y}px)`;
 }
 
 function openInfo() {
   fillSheet();
-  // the roll is this rug
-  const picture = infoScroll.querySelector(".info-picture img");
-  infoRoll.style.backgroundImage = picture ? `url("${picture.src}")` : "";
   infoSheet.classList.add("is-open");
-  infoRoll.classList.add("is-open");
   infoSheet.setAttribute("aria-hidden", "false");
   infoButton.setAttribute("aria-expanded", "true");
   document.body.classList.add("is-reading");
-  setUnrolled(0);
-  // ... and once it's all out, its top edge lifts a little and lands, like a rug flopping flat
-  rollTo(1, () => {
-    infoSheet.classList.remove("is-landing");
-    infoSheet.getBoundingClientRect();
-    infoSheet.classList.add("is-landing");
-  });
+  placeSheet(window.innerHeight, true);
+  infoSheet.getBoundingClientRect(); // (start from below)
+  placeSheet(0);
+  reading = true;
 }
 
 function closeInfo() {
-  if (unrolled === null || !document.body.classList.contains("is-reading")) return;
+  if (!reading) return;
+  reading = false;
   infoSheet.setAttribute("aria-hidden", "true");
   infoButton.setAttribute("aria-expanded", "false");
   document.body.classList.remove("is-reading");
-  rollTo(0, () => {
-    unrolled = null;
-    infoSheet.classList.remove("is-open");
-    infoRoll.classList.remove("is-open");
-  });
+  placeSheet(window.innerHeight);
+  setTimeout(() => !reading && infoSheet.classList.remove("is-open"), SLIDE_TIME);
 }
 
 infoButton.addEventListener("click", openInfo);
 infoSheet.querySelector("[data-info-close]").addEventListener("click", closeInfo);
 infoBackdrop.addEventListener("click", closeInfo);
 
-// Pulling it down (from its top, or from what's on it once that's scrolled to the top) rolls it
-// back up as far as the finger goes; let go past a third, or with a flick, and it rolls away
+// Pulling it down (from its top, or from what's on it once that's scrolled to the top) takes it
+// down with the finger; let go past a third, or with a flick, and it goes
 let drag = null;
 infoSheet.addEventListener(
   "touchstart",
@@ -248,7 +203,7 @@ infoSheet.addEventListener(
 infoSheet.addEventListener(
   "touchmove",
   (e) => {
-    if (!drag || unrolled === null) return;
+    if (!drag || !reading) return;
     const y = e.touches[0].clientY;
     const dy = y - drag.y;
     if (drag.moving === null) {
@@ -262,20 +217,20 @@ infoSheet.addEventListener(
     drag.speed = (y - drag.last) / Math.max(1, now - drag.time);
     drag.last = y;
     drag.time = now;
-    cancelAnimationFrame(rolling);
-    setUnrolled(Math.max(0, Math.min(1, 1 - dy / infoSheet.offsetHeight)));
+    drag.down = Math.max(0, dy);
+    placeSheet(drag.down, true);
   },
   { passive: false }
 );
 infoSheet.addEventListener("touchend", () => {
   if (!drag) return;
-  const { moving, speed } = drag;
+  const { moving, speed, down = 0 } = drag;
   drag = null;
   if (!moving) return;
-  if (unrolled < 1 - ROLL_AWAY || speed > 0.6) closeInfo();
-  else rollTo(1);
+  if (down > infoSheet.offsetHeight * CLOSE_PAST || speed > 0.6) closeInfo();
+  else placeSheet(0);
 });
 
 window.addEventListener("resize", () => {
-  if (unrolled !== null) setUnrolled(unrolled);
+  if (!reading) placeSheet(window.innerHeight, true);
 });

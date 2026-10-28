@@ -1074,7 +1074,7 @@ body {
 }
 
 /* The sheet: the grey of the top bar, floating with its margins, as tall as the screen less them
-   (its top lines up with the top bar's); it unrolls from the bottom (js/carpet-info.js). One font throughout, headings in capitals, as on cc-tapis.com. */
+   (its top lines up with the top bar's); it slides up from the bottom (js/carpet-info.js). One font throughout, headings in capitals, as on cc-tapis.com. */
 .info-sheet {
   position: fixed;
   left: 0;
@@ -1091,86 +1091,19 @@ body {
   font-family: var(--font-sans);
   font-size: 13px; /* one font, one size, one weight for everything on it: headings only in capitals */
   font-weight: 400;
-  clip-path: inset(100% 0 0 0); /* rolled up (js/carpet-info.js unrolls it) */
+  transform: translateY(100vh);
+  /* smooth as butter: off quickly, gliding into place with a long, soft slowdown (js/carpet-info.js:
+     SLIDE_TIME), on the graphics chip so it never stutters */
+  transition: transform 600ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+
+.info-sheet.is-dragging {
+  transition: none;
 }
 
 .info-sheet.is-open {
   display: flex;
-}
-
-/* All unrolled: its top edge lifts a little and lands, like a rug flopping flat */
-.info-sheet.is-landing {
-  animation: land 420ms var(--ease);
-}
-
-@keyframes land {
-  0% {
-    transform: translateY(0);
-  }
-  35% {
-    transform: translateY(-7px);
-  }
-  70% {
-    transform: translateY(2px);
-  }
-  100% {
-    transform: translateY(0);
-  }
-}
-
-/* The roll: the rug on show, rolled up. Its picture wraps round a cylinder (js/carpet-info.js
-   turns it as it unrolls), lit from above and shaded below; its ends show the turns of the rug
-   wound round, and it throws a soft, curling shadow on the sheet it's laying out */
-.info-roll {
-  position: fixed;
-  z-index: 7;
-  display: none;
-  border-radius: 999px;
-  background-color: #cfc8bd;
-  background-size: 160% auto;
-  background-repeat: repeat-y;
-  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.28), 0 18px 28px -8px rgba(0, 0, 0, 0.18);
-  pointer-events: none;
-}
-
-.info-roll.is-open {
-  display: block;
-}
-
-/* the light on the cylinder: bright along its top, deep shade along its bottom */
-.info-roll__shade {
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: linear-gradient(
-    to bottom,
-    rgba(255, 255, 255, 0.35) 0%,
-    rgba(255, 255, 255, 0.08) 22%,
-    rgba(0, 0, 0, 0) 45%,
-    rgba(0, 0, 0, 0.22) 75%,
-    rgba(0, 0, 0, 0.5) 100%
-  );
-}
-
-.info-roll::before,
-.info-roll::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  z-index: 1;
-  aspect-ratio: 0.42;
-  border-radius: 50%;
-  background: repeating-radial-gradient(ellipse at center, #8f8578 0 1px, #d8d0c4 1px 3px);
-  box-shadow: inset 0 0 4px rgba(0, 0, 0, 0.35);
-}
-
-.info-roll::before {
-  left: 0;
-}
-
-.info-roll::after {
-  right: 0;
 }
 
 /* Its top: a black bar, the title in the middle, [–] on the right, in white, floating clear of
