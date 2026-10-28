@@ -1142,14 +1142,13 @@ body {
   display: none;
 }
 
-/* The whole rug, on white like a product photo */
+/* The whole rug, cut out, straight on the grey */
 .info-picture {
   margin: 0;
   aspect-ratio: 4 / 5;
-  padding: var(--space-5);
+  padding: var(--space-3) var(--space-4);
   display: grid;
   place-items: center;
-  background: var(--color-paper);
 }
 
 .info-picture img {

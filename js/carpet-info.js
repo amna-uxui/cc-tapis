@@ -1,7 +1,7 @@
 /*
   About this rug: [+] at the bottom right (only while the whole rug is in view) slides up a sheet
   from below, in the look of the grey top bar, like a page of a magazine about the rug on show.
-  At the top the whole rug, as in a product photo; then its name, designer, size and price; then,
+  At the top the whole rug, cut out, on the grey; then its name, designer, size and price; then,
   folded away, its description, its product details and how it can be
   made to order ([+] opens one at a time).
 
@@ -12,13 +12,15 @@
   - The words follow each collection's page on cc-tapis.com (its details as they are, its
     description in our own words); the rest (name, size, price, colour) is the rug on show.
 
-  Needs js/carpet-viewer.js (img, rugInfo), js/carpet-colors.js (current) and
-  js/carpet-ripple.js (COLOURWAYS, chosenWay) to be loaded first.
+  Needs js/carpet-viewer.js (img, rugInfo), js/carpet-colors.js (current), js/carpet-rugs.js
+  (currentRug) and js/carpet-ripple.js (COLOURWAYS, chosenWay) to be loaded first.
 */
 
 // Each collection: its description, its details (materials, technique, quality,
-// atelier: as on cc-tapis.com), how it can be made to order, and its picture: the rug on show, or
-// (Ripple Square, where the rug on show is your own) the real rug in each colourway
+// atelier: as on cc-tapis.com), how it can be made to order, and its pictures: each rug cut out of
+// its photo's white (tools/cut-out-rug.py --solid), by its name (GrandMa Patterns) or colourway
+// (Ripple Square, where the rug on show is your own: the real rug). Hypercode's photos are cut out
+// already: the rug on show.
 const RUG_STORIES = {
   hypercode: {
     description: [
@@ -36,6 +38,13 @@ const RUG_STORIES = {
     ],
     details: [["Materials", "Wool"], ["Technique", "Moroccan weave"], ["Atelier", "Made by hand in India"]],
     custom: "Size",
+    pictures: {
+      "Mustard Green": "images/sheet/grandma-mustardgreen.png",
+      "Green Red": "images/sheet/grandma-greenred.png",
+      "Mustard Red": "images/sheet/grandma-mustardred.png",
+      "Pink Blue": "images/sheet/grandma-pinkblue.png",
+      "Purple Brown": "images/sheet/grandma-purplebrown.png",
+    },
   },
   "ripple-square": {
     description: [
@@ -45,10 +54,10 @@ const RUG_STORIES = {
     details: [["Materials", "100% Himalayan wool"], ["Technique", "Hand-knotted"], ["Quality", "A+, about 152,000 knots a m²"], ["Atelier", "Made by hand in Nepal"]],
     custom: "Size and colour",
     pictures: {
-      "Rose Garden": "images/ripple-rose-garden.jpg",
-      "Earth Glow": "images/ripple-earth-glow.jpg",
-      "Lavender Root": "images/ripple-lavender-root.jpg",
-      "Dune Shadow": "images/ripple-dune-shadow.jpg",
+      "Rose Garden": "images/sheet/ripple-rose-garden.png",
+      "Earth Glow": "images/sheet/ripple-earth-glow.png",
+      "Lavender Root": "images/sheet/ripple-lavender-root.png",
+      "Dune Shadow": "images/sheet/ripple-dune-shadow.png",
     },
   },
 };
@@ -65,6 +74,11 @@ let sheetAt = null; // where its top is now (px from the top of the screen), or 
 
 // ---------- What's on the sheet ----------
 
+// Which rug is on show: its name (GrandMa Patterns) or its colour
+function rugKey(collection) {
+  return collection === "grandma-patterns" ? currentRug.name : rugColour(collection);
+}
+
 // The colour of the rug on show
 function rugColour(collection) {
   if (collection === "hypercode") return current.name;
@@ -72,11 +86,11 @@ function rugColour(collection) {
   return null; // GrandMa Patterns: the colour is in the rug's name
 }
 
-// The whole rug, on white like a product photo: the rug on show, or the colourway's own picture
+// The whole rug, cut out, straight on the grey
 function rugPicture(collection, story) {
   const box = element("figure", "info-picture");
   const picture = document.createElement("img");
-  picture.src = story.pictures ? story.pictures[rugColour(collection)] : img.src;
+  picture.src = story.pictures ? story.pictures[rugKey(collection)] : img.src;
   picture.alt = "";
   box.append(picture);
   return box;
