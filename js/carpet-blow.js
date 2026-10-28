@@ -112,6 +112,7 @@ async function startListening() {
   }
   micState = "asking";
   showBlowStatus("Allow the microphone");
+  if (micChannel) micChannel.postMessage("mine"); // other pages of this site: let go of it
   const tries = [];
   for (const soundFirst of [true, false]) {
     try {
@@ -141,7 +142,12 @@ async function startListening() {
 function failListening(why, short = why) {
   noMic = true;
   micState = why;
-  showBlowStatus(short === "NotAllowedError" ? "Microphone not allowed: hold to blow" : `No microphone (${short}): tap to try again`);
+  const busy = short === "InvalidStateError" || short === "NotReadableError" || short === "AbortError";
+  showBlowStatus(
+    short === "NotAllowedError" ? "Microphone not allowed: hold to blow"
+    : busy ? "Microphone busy: close other tabs using it, then tap again"
+    : `No microphone (${short}): tap to try again`
+  );
   wake();
 }
 
@@ -460,6 +466,22 @@ blowButton.addEventListener("pointerdown", () => {
   blowButton.addEventListener(type, () => (holding = false))
 );
 blowButton.addEventListener("contextmenu", (e) => e.preventDefault()); // long press: no menu
+
+// The phone gives the microphone to one page at a time. So leaving the page (another tab, another
+// app, closing it) lets go of it, and when this page starts listening, any other open page of
+// this site lets go too. Tap the wind button again when you come back.
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden && listening) stopListening();
+});
+window.addEventListener("pagehide", () => {
+  if (listening) stopListening();
+});
+const micChannel = "BroadcastChannel" in window ? new BroadcastChannel("cc-tapis-microphone") : null;
+if (micChannel) {
+  micChannel.onmessage = (e) => {
+    if (e.data === "mine" && listening) stopListening();
+  };
+}
 
 // On a computer: hold the space bar for a breath
 document.addEventListener("keydown", (e) => {
