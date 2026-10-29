@@ -8,7 +8,7 @@
   - On a computer: scroll to move, trackpad pinch / ctrl + scroll to zoom.
   - The marks stay, whatever you do (another shape, colour or collection), until you double-tap:
     that wipes the drawing, back to the plain carpet (in the close-up). A tap on the whole rug
-    zooms in there; shapes, colours and rugs change only from the row under it.
+    zooms in on its middle; shapes, colours and rugs change only from the row under it.
   - With the whole rug in view, one finger on the white page around it swipes left or right to the
     next collection (the rug follows the finger; let go far enough, or flick, and the next one
     slides in: js/carpet-collections.js; past the last one it springs back). On a rug you draw on, the finger on the rug draws as
@@ -909,11 +909,11 @@ function endPointer(e) {
   if (gesture.painting && fingerPaint) fingerPaint.end();
   if (typeof brushSound !== "undefined") brushSound.stop();
 
-  // A tap on the whole rug zooms in there (shapes, colours and rugs change only from the row
-  // under it). In the close-up, a double-tap wipes the drawing.
+  // A tap on the whole rug zooms in on its middle (shapes, colours and rugs change only from the
+  // row under it). In the close-up, a double-tap wipes the drawing.
   if (!moved) {
     if (isWhole()) {
-      if (onCarpet(p.x, p.y) && swipeShift === 0) animateTo(clampView(zoomAt(view, closeUpScale(), p.x, p.y)));
+      if (onCarpet(p.x, p.y) && swipeShift === 0) animateTo(centredView(closeUpScale()));
       lastTap = { time: 0, x: 0, y: 0 };
       return;
     }
