@@ -1606,3 +1606,51 @@ body {
   height: 84px;
   object-fit: contain;
 }
+
+/* ---------- Making the lamp and the wind button easy to notice ---------- */
+
+/* A word under each: what it does. Its own short messages (the lamp's "Tilt the rug", the wind's
+   hints) take its place while they show */
+.tool-label {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: var(--text-xs);
+  letter-spacing: 0.06em;
+  color: #6b6b6b;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.lamp-dial__status:not(:empty) ~ .tool-label,
+.blow-status:not(:empty) ~ .tool-label {
+  visibility: hidden;
+}
+
+/* Over the rug (the wind button in the close-up), the word is white like the button */
+.tool--blow .tool-label {
+  top: calc(100% + 8px);
+  color: var(--color-paper);
+}
+
+.is-zoomed-out .tool--blow .tool-label,
+.tool--blow.is-listening .tool-label {
+  color: #6b6b6b;
+}
+
+/* Until you've tapped it once, it gently calls: a soft ring keeps opening out from it */
+.lamp-dial.is-inviting,
+.tool--blow.is-inviting:not(.is-listening) {
+  animation: invite 2.6s var(--ease) infinite;
+}
+
+@keyframes invite {
+  0% {
+    box-shadow: 0 0 0 0 rgba(160, 160, 160, 0.55);
+  }
+  70%,
+  100% {
+    box-shadow: 0 0 0 12px rgba(160, 160, 160, 0);
+  }
+}

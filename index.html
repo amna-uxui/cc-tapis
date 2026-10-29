@@ -60,7 +60,7 @@
        rug's name, designer, size and price (centre) -->
   <div class="rug-info" data-rug-info>
     <!-- The lamp: turn it to light the rug from any side -->
-    <div class="lamp-dial" role="slider" tabindex="0" aria-label="Lamp direction" aria-valuemin="0" aria-valuemax="359" data-lamp>
+    <div class="lamp-dial is-inviting" role="slider" tabindex="0" aria-label="Lamp direction" aria-valuemin="0" aria-valuemax="359" data-lamp>
       <span class="lamp-dial__lamp"></span>
       <!-- the light in the room: tap the lamp to switch (js/carpet-lamp.js) -->
       <svg class="mood-icon mood-icon--evening" viewBox="0 0 16 16" aria-hidden="true">
@@ -74,6 +74,7 @@
         <path d="M12.5 10.2A5.2 5.2 0 0 1 5.8 3.5a5.2 5.2 0 1 0 6.7 6.7z" />
       </svg>
       <span class="lamp-dial__status mono" aria-live="polite" data-lamp-status></span>
+      <span class="tool-label mono" aria-hidden="true">Light</span>
     </div>
     <div class="rug-info__text" aria-live="polite">
       <p class="rug-info__name" data-rug-name></p>
@@ -89,13 +90,14 @@
   <!-- GrandMa Patterns' wind, where Hypercode has its lamp: tap to let the rug listen to your
        breath, hold for a breath without the microphone (js/carpet-blow.js). While it listens, a
        ring round it breathes, and swells with your breath. -->
-  <button class="tool tool--blow" aria-label="Blow on the rug" aria-pressed="false" data-blow>
+  <button class="tool tool--blow is-inviting" aria-label="Blow on the rug" aria-pressed="false" data-blow>
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <path class="blow-line blow-line--1" d="M3 8h10a3 3 0 1 0-3-3" />
       <path class="blow-line blow-line--2" d="M3 12h15a3 3 0 1 1-3 3" />
       <path class="blow-line blow-line--3" d="M3 16h6" />
     </svg>
     <span class="blow-status mono" aria-live="polite" data-blow-status></span>
+    <span class="tool-label mono" aria-hidden="true">Blow</span>
   </button>
 
   <!-- While the whole rug is in view, under it, above Buy: the row (js/carpet-strip.js),

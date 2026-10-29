@@ -188,6 +188,7 @@ let downAt = null;
 // A finished tap (a click): switch the mood. iPhone also only accepts the motion permission
 // request here, so the first tap asks for it too
 lampDial.addEventListener("click", () => {
+  lampDial.classList.remove("is-inviting"); // found it: it stops calling
   if (dragged) return;
   nextMood();
   askForTilt(true);

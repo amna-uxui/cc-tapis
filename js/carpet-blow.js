@@ -663,6 +663,7 @@ blowButton.addEventListener("click", () => {
 
 // Without a microphone, holding the button blows instead
 blowButton.addEventListener("pointerdown", () => {
+  blowButton.classList.remove("is-inviting"); // found it: it stops calling
   if (!noMic) return;
   if (typeof windSound !== "undefined") windSound.start();
   holding = true;
