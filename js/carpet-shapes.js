@@ -121,9 +121,12 @@ function softEdge(ctx, w, h, round) {
 
 // Show the current colour in the current shape (also used by js/carpet-colors.js).
 // fade: false swaps it straight away (while it's slid off screen).
+let hypercodeSrc = COLORS[0].src; // the rug as it is now (for the glimpse while swiping: js/carpet-collections.js)
+
 async function renderRug(zoomOut = false, fade = true) {
   await current.loaded;
   const src = await shapedSrc(current, currentShape);
+  hypercodeSrc = src;
   await changeRug(src, { round: Boolean(currentShape.round), zoomOut, fade });
   setBrushTone(current.tone);
 }

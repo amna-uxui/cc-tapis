@@ -183,6 +183,16 @@ body {
   font-display: swap;
 }
 
+/* The next collection's rug, glimpsed beside this one while you swipe (js/carpet-collections.js) */
+.peek-rug {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0; /* leans like the rug (its skew) */
+  pointer-events: none;
+  visibility: hidden;
+}
+
 /* The verb over the carpet: in quickly, on for about a second and a half, gone after 2.5 seconds (until the page is loaded again) */
 /* Sits on the middle of the rug: --rug-x / --rug-y are set by js/carpet-viewer.js as the rug moves */
 .verb {

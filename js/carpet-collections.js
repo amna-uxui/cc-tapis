@@ -18,6 +18,7 @@
 
 const SLIDE_OUT = 380;  // ms for the rug to slide off screen
 const SLIDE_IN = 780;   // ms for the next one to slide in, coming to rest slowly like a heavy rug
+const SETTLE = 350;    // ms for a glimpsed rug, once in, to settle into its own place
 
 const easeOut = (t) => 1 - Math.pow(1 - t, 2);              // already moving (let go of a swipe): carries on, then off
 const easeInOut = (t) => 0.5 - Math.cos(Math.PI * t) / 2;   // from rest (the menu): sets off gently
@@ -33,6 +34,81 @@ const COLLECTION_PARTS = {
   // Ripple Square: the finger paints colours (js/carpet-ripple.js), not the pile
   "ripple-square": { brush: false, enter: (whole) => enterRipple(whole), leave: () => leaveRipple(), tap: () => tapRipple() },
 };
+
+// ---------- The glimpse of the next rug ----------
+
+// While you swipe on the whole rug, the next collection's rug lies a screen's width beside this
+// one and comes along with the finger, so you see it coming; let go and it glides into place,
+// where the real one takes over (no white screen in between)
+
+const peek = document.createElement("canvas");
+peek.className = "peek-rug";
+peek.setAttribute("aria-hidden", "true");
+carpet.after(peek); // over the white page, beside the rug
+
+const peekImages = new Map(); // src -> loaded Image
+function peekImage(src) {
+  if (!peekImages.has(src)) {
+    const image = new Image();
+    image.src = src;
+    peekImages.set(src, image);
+  }
+  const image = peekImages.get(src);
+  return image.complete && image.naturalWidth ? image : null;
+}
+
+// What each collection's rug looks like right now, to glimpse it: { picture, w, h }
+function peekPicture(id) {
+  if (id === "hypercode") {
+    const image = peekImage(hypercodeSrc);
+    return image && { picture: image, w: image.naturalWidth, h: image.naturalHeight };
+  }
+  if (id === "grandma-patterns") {
+    const image = peekImage(currentRug.src);
+    return image && { picture: image, w: image.naturalWidth, h: image.naturalHeight };
+  }
+  if (id === "ripple-square") return own && { picture: rippleCanvas, w: own.w, h: own.h };
+  return null;
+}
+
+let peekAt = null; // while sliding to a collection: { index, side } (side 1: it comes from the right)
+let peekShown = null; // what's drawn on the peek now (so it's drawn once, not every frame)
+let peekRect = null;  // where it was last shown: { x, y, w } on the stage
+
+// Every frame the rug moves: the coming rug beside it, a screen's width away on the side it comes from
+function placePeek() {
+  if (peekAt && peekAt.arrived) return; // in place: held still while the real rug gets ready
+  let coming = peekAt;
+  if (!coming && swipeShift !== 0 && !sliding && isWhole()) {
+    const side = swipeShift < 0 ? 1 : -1; // swiping left: the next one, on the right
+    if (canSwitch(side)) coming = { index: collectionIndex + side, side };
+  }
+  const look = coming && peekPicture(MENU_COLLECTIONS[coming.index].id);
+  if (!look) {
+    peek.style.visibility = "hidden";
+    return;
+  }
+  const scale = Math.min(fit.width / look.w, fit.height / look.h);
+  const w = look.w * scale;
+  const h = look.h * scale;
+  const ratio = Math.min(2, window.devicePixelRatio || 1);
+  const key = `${coming.index}|${look.picture.src || "canvas"}|${Math.round(w)}`;
+  if (peekShown !== key) {
+    peekShown = key;
+    peek.width = Math.round(w * ratio);
+    peek.height = Math.round(h * ratio);
+    peek.style.width = `${w}px`;
+    peek.style.height = `${h}px`;
+    const ctx = peek.getContext("2d");
+    ctx.clearRect(0, 0, peek.width, peek.height);
+    ctx.drawImage(look.picture, 0, 0, peek.width, peek.height);
+  }
+  const x = fit.left + (fit.width - w) / 2 + swipeShift + coming.side * stage.clientWidth;
+  const y = fit.top + (fit.height - h) / 2;
+  peek.style.transform = `translate3d(${x}px, ${y}px, 0) skewX(${swipeLean}deg)`;
+  peekRect = { x, y, w };
+  peek.style.visibility = "visible";
+}
 
 const verbText = document.querySelector("[data-verb]");
 let collectionIndex = -1;
@@ -67,19 +143,38 @@ async function showCollection(index, dir = index > collectionIndex ? 1 : -1) {
   const whole = isWhole();
   const width = stage.clientWidth;
   const leaving = MENU_COLLECTIONS[collectionIndex].id;
+  // on the whole rug, the next one is glimpsed beside it and glides in with it, in one move
+  const glimpse = whole && peekPicture(MENU_COLLECTIONS[index].id);
+  if (glimpse) peekAt = { index, side: dir };
 
   // the name and the row fade out (css/main.css) while the rug slides away
   document.body.classList.add("is-switching");
-  await slideRug(-dir * width, SLIDE_OUT, swipeShift !== 0 ? easeOut : easeInOut);
+  if (glimpse) {
+    await slideRug(-dir * width, SLIDE_IN, settle);
+    peekAt.arrived = true;
+  }
+  else await slideRug(-dir * width, SLIDE_OUT, swipeShift !== 0 ? easeOut : easeInOut);
   COLLECTION_PARTS[leaving].leave();
   if (pile) wipeDrawing(); // the drawing stays with its rug (Hypercode's is kept for when you return)
   applyCollection(index);
   await COLLECTION_PARTS[MENU_COLLECTIONS[index].id].enter(whole);
 
-  // the next rug comes in from the other side, its name and row fading in
-  placeRug(dir * width);
-  document.body.classList.remove("is-switching");
-  await slideRug(0, SLIDE_IN, settle);
+  if (glimpse) {
+    // the glimpsed rug is in place: the real one takes over right there, and settles into its own
+    // place (each collection's rug sits a little higher or lower, with its own row under it)
+    const from = peekRect;
+    peekAt = null;
+    placeRug(0);
+    view = { scale: from.w / img.naturalWidth, x: from.x, y: from.y };
+    render();
+    animateTo(centredView(fitScale), SETTLE);
+    document.body.classList.remove("is-switching");
+  } else {
+    // the next rug comes in from the other side, its name and row fading in
+    placeRug(dir * width);
+    document.body.classList.remove("is-switching");
+    await slideRug(0, SLIDE_IN, settle);
+  }
   sliding = false;
   preloadNeighbours();
 }
@@ -106,10 +201,14 @@ function switchCollection(step) {
   else slideRug(0, SLIDE_IN);
 }
 
-// The rugs either side are loaded ahead, so they're ready when they slide in
+// The rugs either side are loaded ahead, so they're ready to glimpse and slide in
 function preloadNeighbours() {
   [1, -1].forEach((step) => {
-    if (canSwitch(step)) new Image().src = MENU_COLLECTIONS[collectionIndex + step].rug;
+    if (!canSwitch(step)) return;
+    const id = MENU_COLLECTIONS[collectionIndex + step].id;
+    if (id === "hypercode") peekImage(hypercodeSrc);
+    else if (id === "grandma-patterns") peekImage(currentRug.src);
+    else if (id === "ripple-square") readyRipple();
   });
 }
 

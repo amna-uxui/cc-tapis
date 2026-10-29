@@ -31,6 +31,7 @@ const RIPPLE_DESIGNER = "Patricia Urquiola";
 const RIPPLE_SIZE = "200 × 200 cm";
 const RIPPLE_PRICE = 12996;
 const RIPPLE_CANVAS = "images/ripple-canvas.png"; // the blank 200 × 200 cm square, 1500 px a side
+const RIPPLE_SIDE = 1500;
 const RIPPLE_SHAPE = "images/ripple-shape.png";   // the real Ripple rug's outline (white where the rug is)
 const RIPPLE_PILE = "images/ripple-pile.jpg";     // the real rug's wool, without its pattern (tools/ripple-pile.py)
 
@@ -107,14 +108,14 @@ const rugShape = needImage(RIPPLE_SHAPE);
 const rugPile = needImage(RIPPLE_PILE);
 
 function setUpOwn() {
-  const size = img.naturalWidth;
+  const size = RIPPLE_SIDE;
   const layer = () => {
     const c = document.createElement("canvas");
     c.width = size;
-    c.height = img.naturalHeight;
+    c.height = size;
     return c;
   };
-  own = { w: size, h: img.naturalHeight, strokes: [], done: layer(), band: layer(), leaves: layer(), reach: layer(), stroke: layer(), mix: layer(), woven: layer(), fibres: layer(), shape: layer(), line: layer(), floor: layer() };
+  own = { w: size, h: size, strokes: [], done: layer(), band: layer(), leaves: layer(), reach: layer(), stroke: layer(), mix: layer(), woven: layer(), fibres: layer(), shape: layer(), line: layer(), floor: layer() };
   own.pile = rugPile.naturalWidth ? rugPile : greyTile(4);
   own.rows = rowsTile();
   own.drift = driftTile();
@@ -616,13 +617,19 @@ async function enterRipple(whole) {
   buildRippleRow();
   await changeRug(RIPPLE_CANVAS, { zoomOut: whole, fade: false });
   if (typeof rippleSound !== "undefined") rippleSound.prepare(); // its sound, ready before the first stroke
+  await readyRipple();
+  fingerPaint = ripplePaint;
+}
+
+// The blank rug with its first ripple, drawn (also before Ripple Square is first shown, so the
+// rug can be glimpsed beside another as you swipe to it: js/carpet-collections.js)
+async function readyRipple() {
   await Promise.all([rugShape.loaded, rugPile.loaded]);
   if (!own) {
     setUpOwn();
     firstRipple();
   }
   drawAll();
-  fingerPaint = ripplePaint;
 }
 
 function leaveRipple() {
