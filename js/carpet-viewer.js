@@ -105,7 +105,21 @@ function render() {
   if (swipeShift !== lastShift && !leaning) leaning = requestAnimationFrame(dragFabric);
   stage.style.setProperty("--rug-y", `${view.y + (img.naturalHeight * view.scale) / 2}px`); // the arrows
   if (verb) placeVerb();
-  document.body.classList.toggle("is-zoomed-out", view.scale < fitScale * OUT_ZOOM);
+  const out = view.scale < fitScale * OUT_ZOOM;
+  document.body.classList.toggle("is-zoomed-out", out);
+  if (!out && verbWaiting) showVerb(); // the collection's verb waits for the close-up
+}
+
+// The verb only shows zoomed in: a collection that comes on zoomed out keeps it until you zoom in
+let verbWaiting = false;
+function showVerb() {
+  if (!verb) return;
+  verbWaiting = view.scale < fitScale * OUT_ZOOM;
+  verb.classList.toggle("is-waiting", verbWaiting);
+  if (verbWaiting) return;
+  verb.style.animation = "none"; // show the word again
+  void verb.offsetWidth;
+  verb.style.animation = "";
 }
 
 // The verb in the middle of the rug as you see it: of the part of it on the screen between the
@@ -785,9 +799,9 @@ stage.addEventListener("pointermove", (e) => {
   pointers.set(e.pointerId, p);
 
   if (gesture.type === "draw" && pointers.size === 1) {
-    // With the whole rug in view, a finger on the white page around it swipes between collections
-    // (on a rug you draw on, the finger on the rug draws; on one you don't, the rug swipes too)
-    if (gesture.swipe || (!moved && isWhole() && (!(brushing || fingerPaint) || !onCarpet(gesture.start.x, gesture.start.y)))) {
+    // With the whole rug in view, a finger anywhere swipes between collections: touching,
+    // painting and blowing only happen in the close-up
+    if (gesture.swipe || (!moved && isWhole())) {
       const dx = p.x - gesture.start.x;
       if (!gesture.swipe) {
         if (Math.hypot(dx, p.y - gesture.start.y) <= 6) return;

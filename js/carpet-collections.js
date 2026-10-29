@@ -46,9 +46,7 @@ function applyCollection(index) {
   brushing = COLLECTION_PARTS[collection.id].brush;
   if (verbText) {
     verbText.textContent = collection.verb;
-    verbText.style.animation = "none"; // show the word again
-    void verbText.offsetWidth;
-    verbText.style.animation = "";
+    showVerb(); // js/carpet-viewer.js: now if zoomed in, else once you zoom in
   }
   markMenu(collection.id);
   history.replaceState(null, "", `#${collection.id}`);

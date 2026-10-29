@@ -580,7 +580,8 @@ function frame(now) {
 
   if (audio) micBreath = hear(seconds);
   heldBreath += ((holding ? 0.8 : 0) - heldBreath) * Math.min(1, seconds * 6);
-  const want = Math.max(micBreath, heldBreath);
+  // zoomed out, breath does nothing (blowing is for the close-up)
+  const want = document.body.classList.contains("is-zoomed-out") ? 0 : Math.max(micBreath, heldBreath);
   breath += (want - breath) * (want > breath ? BREATH_RISE : BREATH_FALL);
   if (breath < 0.001) breath = 0;
   blowButton.style.setProperty("--breath", breath.toFixed(3));

@@ -208,6 +208,16 @@ body {
   animation: verb 2.5s ease-in-out forwards;
 }
 
+/* Zoomed out there's nothing to do on the rug, so no verb (it waits for the close-up) */
+.verb.is-waiting {
+  visibility: hidden;
+  animation: none;
+}
+
+.is-zoomed-out .verb {
+  visibility: hidden;
+}
+
 /* in within a second, there for about four, then gone */
 @keyframes verb {
   0% { opacity: 0; }
@@ -754,7 +764,7 @@ body {
   filter: brightness(0.72);
 }
 
-/* The wind, where Hypercode has its lamp (left of the rug's name), in view zoomed in or out.
+/* The wind, where Hypercode has its lamp (left of the rug's name), in the close-up only.
    White lines over the rug; while listening they sit in a white circle and stretch out with your
    breath (--breath, 0..1), and a ring round it breathes slowly and swells with your breath */
 .tool--blow {
@@ -773,7 +783,7 @@ body {
   -webkit-user-select: none;
   user-select: none;
   -webkit-touch-callout: none;
-  transition: background var(--duration) var(--ease), color var(--duration) var(--ease);
+  transition: background var(--duration) var(--ease), color var(--duration) var(--ease), opacity var(--duration) var(--ease);
 }
 
 .tool--blow svg {
@@ -805,6 +815,12 @@ body {
 .is-zoomed-out .tool--blow:not(.is-listening) {
   color: var(--color-ink);
   filter: none;
+}
+
+/* Blowing is for the close-up: zoomed out, the wind button isn't there */
+.is-zoomed-out .tool--blow {
+  opacity: 0;
+  pointer-events: none;
 }
 
 /* Zoomed out, a thin ring like the lamp's, so it reads as a button too */
