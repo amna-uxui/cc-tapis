@@ -19,7 +19,21 @@
     document.write('<link rel="stylesheet" href="css/main.css?' + fresh + '">');
   </script>
 </head>
-<body class="is-starting">
+<body class="is-starting is-intro">
+
+  <!-- The first screen: what you can do, and one tap to start, which asks for the microphone
+       (to blow) and turns the sound on, so nothing asks later (js/carpet-intro.js) -->
+  <section class="intro" data-intro>
+    <span class="wordmark">cc-tapis</span>
+    <p class="intro__kicker mono">Digital carpets</p>
+    <ul class="intro__verbs">
+      <li><span class="intro__verb">To touch</span><span class="intro__name mono">Hypercode</span></li>
+      <li><span class="intro__verb">To blow</span><span class="intro__name mono">GrandMa Patterns</span></li>
+      <li><span class="intro__verb">To paint</span><span class="intro__name mono">Ripple Square</span></li>
+    </ul>
+    <p class="intro__note">Turn your sound on, and allow what your phone asks: motion for the lamp, the microphone to blow.</p>
+    <button class="button button--wide button--start mono" data-intro-start>Start</button>
+  </section>
 
   <!-- Full screen: the carpet you can zoom and move around, with an arrow on each side -->
   <main class="stage" data-viewer>
@@ -178,6 +192,7 @@
       "js/carpet-info.js",
       "js/carpet-cart.js",
       "js/carpet-collections.js",
+      "js/carpet-intro.js",
     ].forEach(function (src) { document.write('<script src="' + src + '?' + fresh + '"><\/script>'); });
   </script>
 </body>

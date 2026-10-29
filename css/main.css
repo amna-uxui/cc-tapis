@@ -1692,3 +1692,93 @@ body {
     box-shadow: 0 0 0 12px rgba(160, 160, 160, 0);
   }
 }
+
+/* ---------- The first screen (js/carpet-intro.js) ---------- */
+
+/* White, over everything, the three verbs in the middle and Start at the bottom, where Buy is */
+.intro {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: calc(var(--space-6) + env(safe-area-inset-top)) var(--space-4) calc(var(--space-6) + env(safe-area-inset-bottom));
+  background: var(--color-paper);
+  color: var(--color-ink);
+  text-align: center;
+  transition: opacity 500ms var(--ease);
+}
+
+.intro.is-leaving {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.intro .wordmark {
+  font-size: 28px;
+  transform: none;
+}
+
+.intro__kicker {
+  margin: var(--space-2) 0 0;
+  color: #6b6b6b;
+}
+
+.intro__verbs {
+  list-style: none;
+  margin: auto 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-6);
+}
+
+.intro__verbs li {
+  display: grid;
+  gap: var(--space-2);
+  opacity: 0;
+  animation: intro-in 700ms var(--ease) forwards;
+}
+
+.intro__verbs li:nth-child(2) { animation-delay: 150ms; }
+.intro__verbs li:nth-child(3) { animation-delay: 300ms; }
+
+@keyframes intro-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* The verbs as they appear on the rugs, in the same light Karbon */
+.intro__verb {
+  font-family: "Karbon", var(--font-display);
+  font-size: 48px;
+  font-weight: 300;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.intro__name {
+  font-size: var(--text-xs);
+  color: #6b6b6b;
+}
+
+.intro__note {
+  max-width: 280px;
+  margin: 0 0 var(--space-5);
+  font-size: 13px;
+  color: #6b6b6b;
+}
+
+.button--start {
+  width: 120px;
+}
+
+.button--start:disabled {
+  opacity: 0.6;
+}
+
+/* Under the first screen, the rug's verb waits until you've started */
+.is-intro .verb {
+  visibility: hidden;
+  animation: none;
+}
