@@ -3,9 +3,10 @@
   up the shaggy pile from the bottom of the screen. The harder you blow, the further the pile
   bends and the faster it flutters; when you stop, it settles back.
 
-  Your breath always moves the whole rug, at any zoom: strongest along the rug's bottom edge (where
-  it reaches first) and calming gradually towards its top, while gusts keep rolling up from that
-  edge so the movement travels.
+  Your breath moves the whole rug (in the close-up; zoomed out it does nothing): strongest along
+  the rug's bottom edge and calming gradually towards its top. On top of that, puffs of wind come
+  in at that edge at random moments, each in its own place, as wide and as strong as chance makes
+  it, and travel up the rug, fading as they climb: never the same twice.
 
   - Tap the wind button (bottom right) to let the rug listen (the phone asks for the microphone
     once). Nothing moves until you blow. Tap again to stop listening.
@@ -39,8 +40,15 @@ const BREATH_FALL = 0.06;   // and one that fades (lower = the gust trails off m
 
 // ---------- The wind on the rug ----------
 const GRID = 96;            // the wind is worked out on a grid this many cells across the rug
-const GUST_SPEED = 900;     // screen pixels per second a gust travels up the screen (the same at any zoom)
-const GUST_FADE = 1.4;      // seconds for a gust to lose half its strength as it travels
+const GUST_CROSS = 1.6;     // seconds a gust takes to travel from the rug's bottom edge to its top
+const GUST_SPEED_JITTER = 0.35; // and the wind's speed wanders this much faster or slower
+const PUFF_EVERY = [0.12, 0.5]; // seconds between puffs, at random within this range
+const PUFF_WIDE = [0.12, 0.4];  // a puff's half width, as a share of the rug's width, at random
+const PUFF_STRONG = [0.65, 1.2]; // a puff's strength, as a share of the breath, at random
+const PUFF_TALL = [0.06, 0.16]; // a puff's half height, as a share of the rug's height, at random
+const PUFF_SPEED = [0.75, 1.3]; // a puff's speed, as a share of the wind's, at random
+const WIND_STEADY = 0.4;    // the steady wind under the puffs, as a share of the breath (lower = the puffs stand out more)
+const GUST_FADE = 1.0;      // seconds for a gust to lose half its strength as it travels
 const GUST_SWAY = 0.6;      // how much the gust curls left and right as it goes (in grid cells)
 const GUST_SPREAD = 0.18;   // how much it spreads sideways, so its front is soft, not a ruler line
 const WIND_TOP = 0.2;       // the wind at the rug's top edge, as a share of its strength at the bottom edge
@@ -318,6 +326,8 @@ let spare = null;   // the next frame's gusts
 let lay = null;     // how flat the pile lies in each cell, 0..1
 let windBytes = null;
 let clock = 0;
+let nextPuff = 0; // seconds until the next puff comes in
+let puffs = [];   // the puffs on their way up the rug: { x, y, half, tall, strength, speed } in grid cells
 
 function sizeWind() {
   gw = GRID;
@@ -358,8 +368,8 @@ function windAt(y) {
 // bends under it and rises again after
 function stepWind(seconds) {
   clock += seconds;
-  const cell = img.naturalWidth / gw;                       // photo pixels per cell
-  const rise = (GUST_SPEED / view.scale / cell) * seconds;  // cells the gusts travel this step
+  const gusty = 1 + GUST_SPEED_JITTER * (0.6 * Math.sin(clock * 1.3) + 0.4 * Math.sin(clock * 3.7 + 1));
+  const rise = (gh / GUST_CROSS) * gusty * seconds; // cells the gusts travel this step
   const keep = Math.pow(0.5, seconds / GUST_FADE);
 
   for (let y = 0; y < gh; y++) {
@@ -374,27 +384,64 @@ function stepWind(seconds) {
   [energy, spare] = [spare, energy];
 
   if (breath > 0.001) {
-    // gusts come in along the rug's bottom edge, and roll up
     const depth = Math.max(1, Math.ceil(rise)); // fill the rows a fast gust would otherwise skip
+    const between = (range) => range[0] + Math.random() * (range[1] - range[0]);
+
+    // a light wind comes in all along the rug's bottom edge, and rolls up
     for (let r = gh - 1; r > gh - 1 - depth && r >= 0; r--) {
       for (let x = 0; x < gw; x++) {
         const i = r * gw + x;
-        energy[i] = Math.max(energy[i], breath * (0.55 + 0.45 * ragged(x)));
+        energy[i] = Math.max(energy[i], breath * (0.15 + 0.15 * ragged(x)));
       }
     }
+
+    // now and then a puff comes in somewhere along the bottom edge: its own width, height,
+    // strength and speed
+    nextPuff -= seconds;
+    if (nextPuff <= 0) {
+      nextPuff = between(PUFF_EVERY);
+      const tall = between(PUFF_TALL) * gh;
+      puffs.push({
+        x: Math.random() * gw,
+        y: gh + tall,
+        half: between(PUFF_WIDE) * gw,
+        tall,
+        strength: Math.min(1, breath * between(PUFF_STRONG)),
+        speed: (gh / GUST_CROSS) * between(PUFF_SPEED),
+      });
+    }
+
     // and the breath reaches every part of the rug, strongest low down, calmer higher up
     for (let y = 0; y < gh; y++) {
-      const share = windAt(y);
+      const share = windAt(y) * WIND_STEADY;
       for (let x = 0; x < gw; x++) {
         const i = y * gw + x;
-        energy[i] = Math.max(energy[i], breath * share * (0.7 + 0.3 * ragged(x + y * 0.5)));
+        energy[i] = Math.max(energy[i], breath * share * (0.6 + 0.4 * ragged(x + y * 0.5)));
       }
     }
   }
 
+  // the puffs climb, and calm as they go (as the wind does towards the top)
+  puffs = puffs.filter((puff) => (puff.y -= puff.speed * seconds) > -2 * puff.tall);
+  puffs.forEach((puff) => {
+    const top = Math.max(0, Math.floor(puff.y - 2 * puff.tall));
+    const bottom = Math.min(gh - 1, Math.ceil(puff.y + 2 * puff.tall));
+    const left = Math.max(0, Math.floor(puff.x - 2 * puff.half));
+    const right = Math.min(gw - 1, Math.ceil(puff.x + 2 * puff.half));
+    for (let y = top; y <= bottom; y++) {
+      const dy = (y - puff.y) / puff.tall;
+      const row = puff.strength * windAt(y) * Math.exp(-dy * dy);
+      for (let x = left; x <= right; x++) {
+        const dx = (x - puff.x) / puff.half;
+        const i = y * gw + x;
+        energy[i] = Math.max(energy[i], row * Math.exp(-dx * dx) * (0.8 + 0.2 * ragged(x + y)));
+      }
+    }
+  });
+
   const down = Math.min(1, seconds / WIND_DOWN);
   const up = Math.pow(0.5, seconds / WIND_UP);
-  let moving = breath > 0.001;
+  let moving = breath > 0.001 || puffs.length > 0;
   for (let i = 0; i < lay.length; i++) {
     const e = energy[i];
     lay[i] = e > lay[i] ? lay[i] + (e - lay[i]) * down : lay[i] * up;
@@ -636,6 +683,7 @@ function calmWind() {
   breath = 0;
   if (energy) {
     energy.fill(0);
+    puffs = [];
     lay.fill(0);
   }
   document.body.classList.remove("is-blowing");
