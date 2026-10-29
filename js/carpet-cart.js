@@ -12,8 +12,8 @@
     show) or, on Ripple Square, your own design: a picture of what you drew.
   - The bag (tap it): each rug, cut out, with its name, size and price, [–] to take it out, the
     total, and Proceed to check out.
-  - Checking out: a thank-you, the end of the prototype (nothing is paid); back to the rugs, the
-    bag is empty again and Shop is back.
+  - Checking out: the rug's journey begins, knotted by hand in the Himalayas; the end of the
+    prototype (nothing is paid); back to the rugs, the bag is empty again and Shop is back.
 
   The bag and the thank-you in cc-tapis.com's look for these moments: pink, the mono font in
   capitals, °~*~° rules.
@@ -568,8 +568,14 @@ function checkOut() {
   });
   cartThanks.replaceChildren(
     rule,
-    tag("p", "cart-thanks__big", "Thank you"),
-    tag("p", "cart-thanks__text", cart.length > 1 ? "Your rugs are being made by hand" : "Your rug is being made by hand"),
+    tag("p", "cart-thanks__big", "From the Himalayas to you"),
+    tag(
+      "p",
+      "cart-thanks__text",
+      cart.length > 1
+        ? "Your rugs are being knotted by hand, far away in the mountains. We'll let you know when they set off."
+        : "Your rug is being knotted by hand, far away in the mountains. We'll let you know when it sets off."
+    ),
     pictures,
     tag("p", "cart-thanks__text", `${cart.length} ${cart.length > 1 ? "rugs" : "rug"} · ${euros(cart.reduce((sum, item) => sum + item.price, 0))}`),
     back,
