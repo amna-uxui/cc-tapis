@@ -520,10 +520,10 @@ function fillCart() {
   total.append(tag("span", null, "Total"), tag("span", null, euros(cart.reduce((sum, item) => sum + item.price, 0))));
   const buttons = tag("div", "cart-buttons");
   const goOn = tag("button", "cart-button mono", "Keep looking");
-  goOn.addEventListener("click", closeCart);
+  goOn.addEventListener("click", () => closeCart());
   const pay = tag("button", "cart-button cart-button--dark mono", "Proceed to check out");
   pay.addEventListener("click", () => {
-    closeCart();
+    closeCart(false); // the rug stays rolled up under the check-out, and unrolls when you go back
     checkOut();
   });
   buttons.append(goOn, pay);
@@ -537,16 +537,17 @@ function openCart() {
   document.body.classList.add("is-in-cart");
 }
 
-function closeCart() {
+// unrollRug: just bought, the clean rug unrolls back into place
+function closeCart(unrollRug = true) {
   cartSheet.classList.remove("is-open");
   cartSheet.setAttribute("aria-hidden", "true");
   document.body.classList.remove("is-in-cart");
-  unroll(); // just bought: the clean rug unrolls back into place
+  if (unrollRug) unroll();
 }
 
 bag.addEventListener("click", openCart);
-cartSheet.querySelector("[data-cart-close]").addEventListener("click", closeCart);
-cartBackdrop.addEventListener("click", closeCart);
+cartSheet.querySelector("[data-cart-close]").addEventListener("click", () => closeCart());
+cartBackdrop.addEventListener("click", () => closeCart());
 
 // ---------- Checking out: the end ----------
 
@@ -558,6 +559,7 @@ function checkOut() {
     showBag();
     cartThanks.classList.remove("is-open");
     cartThanks.setAttribute("aria-hidden", "true");
+    unroll(); // back to the rugs: the clean rug unrolls back into place
   });
   cartThanks.replaceChildren(
     rule,
