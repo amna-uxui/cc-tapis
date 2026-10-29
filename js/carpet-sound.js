@@ -18,6 +18,8 @@ const SOUND_VOLUME = 0.8;      // loudest the brushing gets (0..1)
 const SOUND_FULL_SPEED = 1.5;  // finger speed (screen px per ms) that gives the full volume
 const SOUND_FADE = 0.08;       // seconds the sound takes to follow the finger (higher = softer changes)
 
+let soundOn = true; // "Not now" to sound on the first screens (js/carpet-intro.js): the rugs stay silent
+
 const brushSound = (() => {
   let audio = null;
   let gain = null;
@@ -96,7 +98,7 @@ const brushSound = (() => {
   );
 
   function move(speed) {
-    if (!player || audio.state !== "running") return;
+    if (!soundOn || !player || audio.state !== "running") return;
     const amount = Math.min(speed / SOUND_FULL_SPEED, 1);
     const now = audio.currentTime;
     gain.gain.setTargetAtTime(SOUND_VOLUME * amount, now, SOUND_FADE);

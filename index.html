@@ -21,18 +21,43 @@
 </head>
 <body class="is-starting is-intro">
 
-  <!-- The first screen: what you can do, and one tap to start, which asks for the microphone
-       (to blow) and turns the sound on, so nothing asks later (js/carpet-intro.js) -->
+  <!-- The first screens, one at a time: the name and Start; then each permission the experience
+       uses, with what it's for and Allow, so nothing asks later (js/carpet-intro.js) -->
   <section class="intro" data-intro>
-    <span class="wordmark">cc-tapis</span>
-    <p class="intro__kicker mono">Digital carpets</p>
-    <ul class="intro__verbs">
-      <li><span class="intro__verb">To touch</span><span class="intro__name mono">Hypercode</span></li>
-      <li><span class="intro__verb">To blow</span><span class="intro__name mono">GrandMa Patterns</span></li>
-      <li><span class="intro__verb">To paint</span><span class="intro__name mono">Ripple Square</span></li>
-    </ul>
-    <p class="intro__note">Turn your sound on, and allow what your phone asks: motion for the lamp, the microphone to blow.</p>
-    <button class="button button--wide button--start mono" data-intro-start>Start</button>
+    <div class="intro__step" data-step="start">
+      <div class="intro__middle">
+        <span class="wordmark">cc-tapis</span>
+        <p class="intro__kicker mono">Digital carpets</p>
+      </div>
+      <button class="button button--wide button--start mono" data-next>Start</button>
+    </div>
+    <div class="intro__step" data-step="sound" hidden>
+      <div class="intro__middle">
+        <p class="intro__kicker mono">Permission <span data-step-count></span></p>
+        <h2 class="intro__title">Sound</h2>
+        <p class="intro__about">The rugs make sound as you play: the brush on Hypercode, the wool on Ripple Square, the wind on GrandMa Patterns. Turn your phone's sound up.</p>
+      </div>
+      <button class="button button--wide button--start mono" data-allow>Allow</button>
+      <button class="intro__skip mono" data-next>Not now</button>
+    </div>
+    <div class="intro__step" data-step="motion" hidden>
+      <div class="intro__middle">
+        <p class="intro__kicker mono">Permission <span data-step-count></span></p>
+        <h2 class="intro__title">Motion</h2>
+        <p class="intro__about">Hypercode's lamp follows your phone: tilt it, and the light moves across the rug.</p>
+      </div>
+      <button class="button button--wide button--start mono" data-allow>Allow</button>
+      <button class="intro__skip mono" data-next>Not now</button>
+    </div>
+    <div class="intro__step" data-step="microphone" hidden>
+      <div class="intro__middle">
+        <p class="intro__kicker mono">Permission <span data-step-count></span></p>
+        <h2 class="intro__title">Microphone</h2>
+        <p class="intro__about">Blow on the bottom of your phone and GrandMa Patterns' pile moves in the wind. It only listens once you tap Blow.</p>
+      </div>
+      <button class="button button--wide button--start mono" data-allow>Allow</button>
+      <button class="intro__skip mono" data-next>Not now</button>
+    </div>
   </section>
 
   <!-- Full screen: the carpet you can zoom and move around, with an arrow on each side -->

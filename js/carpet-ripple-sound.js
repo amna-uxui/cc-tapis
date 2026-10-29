@@ -83,7 +83,7 @@ const rippleSound = (() => {
   }
 
   function move(fast) {
-    if (!drawing || !audio) return;
+    if (!soundOn || !drawing || !audio) return;
     if (audio.currentTime >= nextAt) swish(Math.min(1, Math.max(0, fast)));
   }
 

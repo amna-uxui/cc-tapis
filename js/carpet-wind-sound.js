@@ -88,7 +88,7 @@ const windSound = (() => {
       gathered = Math.max(gathered, strength);
       blownFor += seconds;
     } else if (gathered > 0) {
-      answer(WIND_VOLUME * Math.min(1, gathered * (0.45 + 0.55 * Math.min(1, blownFor / WIND_LONG))));
+      if (soundOn) answer(WIND_VOLUME * Math.min(1, gathered * (0.45 + 0.55 * Math.min(1, blownFor / WIND_LONG))));
       gathered = 0;
       blownFor = 0;
     }

@@ -1693,17 +1693,14 @@ body {
   }
 }
 
-/* ---------- The first screen (js/carpet-intro.js) ---------- */
+/* ---------- The first screens (js/carpet-intro.js) ---------- */
 
-/* White, over everything, the three verbs in the middle and Start at the bottom, where Buy is */
+/* White, over everything: one screen at a time, its words in the middle and its button at the
+   bottom, where Buy is */
 .intro {
   position: fixed;
   inset: 0;
   z-index: 50;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: calc(var(--space-6) + env(safe-area-inset-top)) var(--space-4) calc(var(--space-6) + env(safe-area-inset-bottom));
   background: var(--color-paper);
   color: var(--color-ink);
   text-align: center;
@@ -1713,6 +1710,31 @@ body {
 .intro.is-leaving {
   opacity: 0;
   pointer-events: none;
+}
+
+.intro__step {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: calc(var(--space-6) + env(safe-area-inset-top)) var(--space-5) calc(var(--space-6) + env(safe-area-inset-bottom));
+  animation: intro-in 500ms var(--ease);
+}
+
+.intro__step[hidden] {
+  display: none;
+}
+
+@keyframes intro-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+.intro__middle {
+  margin: auto 0;
+  display: grid;
+  justify-items: center;
 }
 
 .intro .wordmark {
@@ -1725,31 +1747,9 @@ body {
   color: #6b6b6b;
 }
 
-.intro__verbs {
-  list-style: none;
-  margin: auto 0;
-  padding: 0;
-  display: grid;
-  gap: var(--space-6);
-}
-
-.intro__verbs li {
-  display: grid;
-  gap: var(--space-2);
-  opacity: 0;
-  animation: intro-in 700ms var(--ease) forwards;
-}
-
-.intro__verbs li:nth-child(2) { animation-delay: 150ms; }
-.intro__verbs li:nth-child(3) { animation-delay: 300ms; }
-
-@keyframes intro-in {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: none; }
-}
-
-/* The verbs as they appear on the rugs, in the same light Karbon */
-.intro__verb {
+/* The permission's name, in the light Karbon of the verbs on the rugs */
+.intro__title {
+  margin: var(--space-4) 0 0;
   font-family: "Karbon", var(--font-display);
   font-size: 48px;
   font-weight: 300;
@@ -1757,9 +1757,11 @@ body {
   line-height: 1;
 }
 
-.intro__name {
-  font-size: var(--text-xs);
-  color: #6b6b6b;
+.intro__about {
+  max-width: 270px;
+  margin: var(--space-4) 0 0;
+  font-size: 15px;
+  color: #444;
 }
 
 .intro__note {
@@ -1775,6 +1777,14 @@ body {
 
 .button--start:disabled {
   opacity: 0.6;
+}
+
+/* Not now: quiet, under Allow */
+.intro__skip {
+  margin-top: var(--space-3);
+  padding: var(--space-2);
+  color: #6b6b6b;
+  font-size: var(--text-xs);
 }
 
 /* Under the first screen, the rug's verb waits until you've started */
