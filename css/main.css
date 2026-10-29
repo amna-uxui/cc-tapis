@@ -1406,6 +1406,43 @@ body:not(.no-mic) .tool--blow, /* with the microphone the rug listens by itself:
   display: block;
 }
 
+/* Bought: "Thank you" on the floor in the middle of where the rug lay, under the rolling rug
+   (js/carpet-cart.js), as on cc-tapis.com: mono capitals in its periwinkle blue, between rules
+   of its °~*~° characters; it fades in as the rug rolls off it */
+.roll-thanks {
+  position: fixed;
+  top: var(--y, 50%);
+  left: var(--x, 50%);
+  z-index: 4;
+  display: grid;
+  justify-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  transform: translate(-50%, -50%);
+  white-space: nowrap;
+  color: var(--color-accent);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 400ms var(--ease);
+}
+
+.roll-thanks__words {
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1;
+}
+
+.roll-thanks__rule {
+  font-size: var(--text-sm);
+  letter-spacing: 0.1em;
+}
+
+.roll-thanks.is-shown {
+  opacity: 1;
+  transition: opacity 1200ms var(--ease) 500ms;
+}
+
 /* The rug being rolled up, in 3D (js/carpet-cart.js): drawn on a canvas over the whole screen,
    with the roll's two ends and its shadow on the floor (they fly into the bag together) */
 .roll-rug {

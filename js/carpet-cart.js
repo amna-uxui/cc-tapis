@@ -3,8 +3,10 @@
   its bottom edge, slowly, as a rug is for delivery (for real, in 3D: the rug wraps round a roll
   that grows with every turn, lit by its own curve, its back showing where it turns over), and
   the roll flies up into the bag at the top right
-  (Shop gives way to the bag at the first rug; the number in it counts the rugs). Then the rug
-  unrolls back into place, to play on or buy another.
+  (Shop gives way to the bag at the first rug; the number in it counts the rugs). Where the rug
+  lay, "Thank you" shows on the floor, uncovered as it rolls up, and the bag opens by itself.
+  Closing the bag (or checking out), the rug unrolls back into place over it, to play on or buy
+  another.
 
   - What goes in the bag: the rug on show (Hypercode in its shape and colour, the GrandMa rug on
     show) or, on Ripple Square, your own design: a picture of what you drew.
@@ -27,7 +29,7 @@ const ROLL_THICKNESS = 3.6;  // px: the rug's thickness (the roll grows by this 
 const BACK_MUTE = 0.4;       // the back of the rug (where it's turned over): its colours this much nearer grey ..
 const BACK_DARK = 0.82;      // .. and this much darker
 const ROLL_GRAIN = "images/ripple-pile.jpg"; // real wool pile (tools/ripple-pile.py), all over the rolling rug
-const ROLL_BACK_AFTER = 350; // ms in the bag before the rug unrolls back into place
+const BAG_OPENS_AFTER = 600; // ms in the bag before it opens by itself
 const CART_RULE = "°~*~"; // the rule along the top and bottom of the pink notes, as on cc-tapis.com
 
 const buyButton = document.querySelector("[data-buy]");
@@ -38,6 +40,7 @@ const cartSheet = document.querySelector("[data-cart-sheet]");
 const cartList = cartSheet.querySelector("[data-cart-list]");
 const cartBackdrop = document.querySelector("[data-cart-backdrop]");
 const cartThanks = document.querySelector("[data-cart-thanks]");
+const rollThanks = document.querySelector("[data-roll-thanks]"); // "Thank you", under the rug as it rolls up
 
 const cart = []; // { name, designer, size, price, picture }
 let buying = false;
@@ -411,14 +414,20 @@ async function buy() {
   const state = await readyRoll(item, img.getBoundingClientRect());
   cart.push(item);
   if (!state) {
-    // (no WebGL: straight into the bag)
+    // (no WebGL: straight into the bag, which opens)
     showBag();
     document.body.classList.remove("is-buying");
     buying = false;
+    openCart();
     return;
   }
   rollTo(state, 0);
   carpet.style.visibility = "hidden";
+  // "Thank you" on the floor in the middle of where the rug lies, uncovered as it rolls up
+  const lay = img.getBoundingClientRect();
+  rollThanks.style.setProperty("--x", `${lay.left + lay.width / 2}px`);
+  rollThanks.style.setProperty("--y", `${lay.top + lay.height / 2}px`);
+  rollThanks.classList.add("is-shown");
 
   await animate(ROLL_UP, (t) => rollTo(state, t));
 
@@ -447,11 +456,11 @@ async function buy() {
   void bag.offsetWidth;
   bag.classList.add("is-landing");
 
-  // the one that unrolls is a fresh, clean rug: what you drew went in the bag
+  // the one that unrolls (once the bag is closed) is a fresh, clean rug: what you drew went in the bag
   rolledAway = (await cleanRug()) || state;
   rollGl.stage.style.visibility = "hidden";
-  await wait(ROLL_BACK_AFTER);
-  await unroll();
+  await wait(BAG_OPENS_AFTER);
+  openCart();
   buying = false;
 }
 
@@ -469,6 +478,7 @@ async function unroll() {
   const state = rolledAway;
   if (!state) return;
   rolledAway = null;
+  rollThanks.classList.remove("is-shown"); // covered again by the rug
   const stage = rollGl.stage;
   stage.getAnimations().forEach((a) => a.cancel());
   stage.style.visibility = "visible";
@@ -531,6 +541,7 @@ function closeCart() {
   cartSheet.classList.remove("is-open");
   cartSheet.setAttribute("aria-hidden", "true");
   document.body.classList.remove("is-in-cart");
+  unroll(); // just bought: the clean rug unrolls back into place
 }
 
 bag.addEventListener("click", openCart);
