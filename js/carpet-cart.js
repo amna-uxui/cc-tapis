@@ -568,13 +568,14 @@ function checkOut() {
   });
   cartThanks.replaceChildren(
     rule,
-    tag("p", "cart-thanks__big", "From the Himalayas to you"),
+    tag("p", "cart-thanks__big", "Long way     but for you"), // the space in it is the long way
+    // broken where it pauses, so its lines are about as long as each other
     tag(
       "p",
-      "cart-thanks__text",
+      "cart-thanks__text cart-thanks__journey",
       cart.length > 1
-        ? "Your rugs are being knotted by hand, far away in the mountains. We'll let you know when they set off."
-        : "Your rug is being knotted by hand, far away in the mountains. We'll let you know when it sets off."
+        ? "Your rugs are being knotted by hand,\nfar away in the Himalayas.\nWe'll let you know when they set off."
+        : "Your rug is being knotted by hand,\nfar away in the Himalayas.\nWe'll let you know when it sets off."
     ),
     pictures,
     tag("p", "cart-thanks__text", `${cart.length} ${cart.length > 1 ? "rugs" : "rug"} · ${euros(cart.reduce((sum, item) => sum + item.price, 0))}`),

@@ -1674,9 +1674,18 @@ body:not(.no-mic) .tool--blow, /* with the microphone the rug listens by itself:
   letter-spacing: 0;
 }
 
+/* "Long way     but for you": on one line, its wide space kept (it's the long way), as large as
+   the screen's width allows */
 .cart-thanks__big {
-  font-size: 28px;
+  font-size: min(28px, calc((100vw - 48px) / 14.6));
   letter-spacing: 0.02em;
+  white-space: pre;
+}
+
+/* the lines of the journey as they're written, not as they'd happen to wrap */
+.cart-thanks__journey {
+  white-space: pre-line;
+  line-height: 1.6;
 }
 
 .cart-thanks__rugs {
