@@ -6,7 +6,8 @@
     mark. Brush back over a mark the opposite way and it disappears, like on real velvet.
   - Move and pinch with two fingers to move around and zoom. Flicks keep gliding.
   - On a computer: scroll to move, trackpad pinch / ctrl + scroll to zoom.
-  - Double-tap to wipe the drawing, back to the plain carpet. A single tap on the rug shows the
+  - The marks stay, whatever you do (another shape, colour or collection), until you double-tap:
+    that wipes the drawing, back to the plain carpet. A single tap on the rug shows the
     collection's next rug or shape (tapRug, js/carpet-collections.js).
   - With the whole rug in view, one finger on the white page around it swipes left or right to the
     next collection (the rug follows the finger; let go far enough, or flick, and the next one
@@ -37,7 +38,6 @@ const PILE_RICH = 0.45;      // darker pile also turns this much richer in colou
 const PILE_STREAKS = 0;      // fine streaks along each stroke (0 = none)
 const PILE_SOFT = 0.3;       // how much of the brush's width fades out softly: a firm, organic edge
 const PILE_WOBBLE = 0.35;    // how much the stroke's outline wanders, like the shapes in brushed velvet (0..1)
-const PILE_RECOVER = 25;     // seconds for brushed pile to spring halfway back (marks fade; about 2 min to vanish)
 const SWIPE_FAR = 0.22;      // on the whole rug: drag this share of the screen's width to go to the next collection
 const SWIPE_FLICK = 0.5;     // or flick at least this fast (screen pixels per ms)
 const SWIPE_BACK = 380;      // ms for the rug to spring back when the swipe wasn't far enough
@@ -456,7 +456,7 @@ function pushPile(from, to, dir) {
   }
   strokeTravel += length;
   markDirty(left, top, right, bottom);
-  // remember where there are marks, so the recovering pile only has to look there
+  // remember where there are marks, so the lamp only has to relight there
   pile.marked = pile.marked
     ? {
         left: Math.min(pile.marked.left, left),
@@ -589,7 +589,12 @@ function resizePile(w, h) {
   if (old && old.marked) pile.marked = { left: 0, top: 0, right: w - 1, bottom: h - 1 }; // marks came along
   brush.width = w;
   brush.height = h;
-  if (!old) return;
+  if (old) copyMarks(old);
+}
+
+// Lay marks kept from another pile ({ w, h, x, y }) onto this one: scaled to fit it, centred
+function copyMarks(old) {
+  const { w, h } = pile;
   const fit = Math.min(w / old.w, h / old.h);
   const offX = (w - old.w * fit) / 2;
   const offY = (h - old.h * fit) / 2;
@@ -602,6 +607,19 @@ function resizePile(w, h) {
       pile.y[py * w + px] = old.y[oy * old.w + ox];
     }
   }
+}
+
+// Hypercode's marks, put aside while another collection is on, so they're back when you return
+let keptMarks = null;
+function keepMarks() {
+  keptMarks = pile && pile.marked ? { w: pile.w, h: pile.h, x: pile.x.slice(), y: pile.y.slice() } : null;
+}
+function restoreMarks() {
+  if (!keptMarks || !pile) return;
+  copyMarks(keptMarks);
+  pile.marked = { left: 0, top: 0, right: pile.w - 1, bottom: pile.h - 1 };
+  keptMarks = null;
+  paintPile();
 }
 
 function startStroke(stroke, point) {
@@ -651,42 +669,6 @@ function wipeDrawing() {
   pile.marked = null;
   paintPile();
 }
-
-// ---------- The pile springs back ----------
-
-// A few times a second, every brushed bit of pile rises a little back towards untouched,
-// like velvet recovering after a hand has passed: marks slowly fade away
-const RECOVER_EVERY = 250; // ms between steps
-let lastRecover = performance.now();
-
-function recoverPile() {
-  const now = performance.now();
-  const seconds = (now - lastRecover) / 1000;
-  lastRecover = now;
-  if (!pile || !pile.marked) return;
-
-  const keep = Math.pow(0.5, seconds / PILE_RECOVER);
-  const { left, top, right, bottom } = pile.marked;
-  let anyLeft = false;
-  for (let py = top; py <= bottom; py++) {
-    for (let px = left; px <= right; px++) {
-      const i = py * pile.w + px;
-      if (pile.x[i] === 0 && pile.y[i] === 0) continue;
-      pile.x[i] *= keep;
-      pile.y[i] *= keep;
-      if (Math.abs(pile.x[i]) + Math.abs(pile.y[i]) < 0.004) {
-        pile.x[i] = 0; // fully back: untouched again
-        pile.y[i] = 0;
-      } else {
-        anyLeft = true;
-      }
-    }
-  }
-  markDirty(left, top, right, bottom);
-  if (!anyLeft) pile.marked = null;
-}
-
-setInterval(recoverPile, RECOVER_EVERY);
 
 // ---------- Swiping to the next collection ----------
 

@@ -27,7 +27,8 @@ const settle = (t) => 1 - Math.pow(1 - t, 4);               // arriving: glides 
 // what a tap on the rug does (the next shape on the whole Hypercode rug, where the close-up is
 // for drawing; the next rug on GrandMa Patterns, at any zoom)
 const COLLECTION_PARTS = {
-  hypercode: { brush: true, enter: (whole) => enterHypercode(whole), leave: () => {}, tap: () => isWhole() && nextShape() },
+  // Hypercode's marks are put aside while you're away, and come back with it (js/carpet-viewer.js)
+  hypercode: { brush: true, enter: (whole) => enterHypercode(whole).then(restoreMarks), leave: () => keepMarks(), tap: () => isWhole() && nextShape() },
   "grandma-patterns": { brush: false, enter: (whole) => enterGrandma(whole), leave: () => leaveGrandma(), tap: () => nextRug() },
   // Ripple Square: the finger paints colours (js/carpet-ripple.js), not the pile
   "ripple-square": { brush: false, enter: (whole) => enterRipple(whole), leave: () => leaveRipple(), tap: () => tapRipple() },
@@ -71,7 +72,7 @@ async function showCollection(index, dir = index > collectionIndex ? 1 : -1) {
   document.body.classList.add("is-switching");
   await slideRug(-dir * width, SLIDE_OUT, swipeShift !== 0 ? easeOut : easeInOut);
   COLLECTION_PARTS[leaving].leave();
-  if (pile) wipeDrawing(); // the drawing stays with its rug
+  if (pile) wipeDrawing(); // the drawing stays with its rug (Hypercode's is kept for when you return)
   applyCollection(index);
   await COLLECTION_PARTS[MENU_COLLECTIONS[index].id].enter(whole);
 
