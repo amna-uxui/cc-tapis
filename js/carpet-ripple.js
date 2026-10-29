@@ -73,6 +73,10 @@ const LEAF_VARY = 0.07;      // how much one hand-knotted leaf differs from the 
 const BRUSH_STEP = 0.12;     // the brush only moves on once the finger has gone this far (share of the band's
                              // width): a slowing or resting finger jitters, and those tiny moves in random
                              // directions would fan the band out into thin spikes
+const END_STRAIGHT = 0.6;    // each band's ends: this much of a band's width straightened, so they cut square
+const BRUSH_STRING = 0.4;    // the brush trails the finger on a string this long (share of the band's width):
+                             // the little twitches as a finger touches down or lifts never reach the rug,
+                             // so a band starts and ends straight, with square corners
 
 const rippleCanvas = carpet.querySelector(".carpet__paint");
 const rippleCtx = rippleCanvas.getContext("2d");
@@ -377,7 +381,7 @@ function ownTo(p, aim) {
 function drawBand(points, ground) {
   // the ground reaches from the ovals' tips on one side to their tips on the other
   const width = RIPPLE_BAND * (1 + ARCH.tall * 1.04);
-  const path = new Path2D(linePath(points, (width - RIPPLE_BAND) / 2));
+  const path = new Path2D(linePath(straightEnds(points, RIPPLE_BAND * END_STRAIGHT), (width - RIPPLE_BAND) / 2));
   const band = own.band.getContext("2d");
   band.clearRect(0, 0, own.w, own.h);
   band.lineCap = "butt";
@@ -397,6 +401,28 @@ function drawBand(points, ground) {
   reach.strokeStyle = "black";
   reach.lineWidth = width + 2 * WOOL_FUZZ;
   reach.stroke(path);
+}
+
+// The band's ends cut square, as on the real rug, whatever the finger did as it touched down or
+// lifted: the last stretch at each end (this long) becomes one straight piece, carrying on the way
+// the band runs just before it, so the cut runs straight across the band with clean square corners
+function straightEnds(points, stretch) {
+  if (points.length < 3) return points;
+  const end = (list) => {
+    const last = list[list.length - 1];
+    let k = list.length - 2;
+    while (k > 0 && Math.hypot(list[k].x - last.x, list[k].y - last.y) < stretch) k--;
+    let j = k - 1;
+    while (j > 0 && Math.hypot(list[j].x - list[k].x, list[j].y - list[k].y) < stretch) j--;
+    if (j < 0) return list; // too short a band to know which way it runs
+    const from = list[k];
+    const wayX = from.x - list[j].x;
+    const wayY = from.y - list[j].y;
+    const way = Math.hypot(wayX, wayY) || 1;
+    const length = Math.hypot(last.x - from.x, last.y - from.y);
+    return [...list.slice(0, k + 1), { x: from.x + (wayX / way) * length, y: from.y + (wayY / way) * length }];
+  };
+  return end(end(points).reverse()).reverse();
 }
 
 // A line through the points as SVG path data, moved this far to its right (to the right of the way
@@ -538,8 +564,17 @@ const ripplePaint = {
     if (own) ownStart(p);
     if (own && typeof rippleSound !== "undefined") rippleSound.begin();
   },
+  // the brush follows the finger on a short string: only once the finger is further away than
+  // the string is long does it move, towards the finger
   to(p) {
-    if (stroke) ownTo(p);
+    if (!stroke) return;
+    const brush = stroke.brush || stroke.last;
+    const away = Math.hypot(p.x - brush.x, p.y - brush.y);
+    const string = RIPPLE_BAND * BRUSH_STRING;
+    if (away <= string) return;
+    const pull = 1 - string / away;
+    stroke.brush = { x: brush.x + (p.x - brush.x) * pull, y: brush.y + (p.y - brush.y) * pull };
+    ownTo(stroke.brush);
   },
   end() {
     if (stroke) ownEnd();
