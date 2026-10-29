@@ -24,15 +24,13 @@ const easeOut = (t) => 1 - Math.pow(1 - t, 2);              // already moving (l
 const easeInOut = (t) => 0.5 - Math.cos(Math.PI * t) / 2;   // from rest (the menu): sets off gently
 const settle = (t) => 1 - Math.pow(1 - t, 4);               // arriving: glides in and settles softly
 
-// What each collection brings: whether one finger draws on its rug, how it comes on and goes, and
-// what a tap on the rug does (the next shape on the whole Hypercode rug, where the close-up is
-// for drawing; the next rug on GrandMa Patterns, at any zoom)
+// What each collection brings: whether one finger draws on its rug, and how it comes on and goes
 const COLLECTION_PARTS = {
   // Hypercode's marks are put aside while you're away, and come back with it (js/carpet-viewer.js)
-  hypercode: { brush: true, enter: (whole) => enterHypercode(whole).then(restoreMarks), leave: () => keepMarks(), tap: () => isWhole() && nextShape() },
-  "grandma-patterns": { brush: false, enter: (whole) => enterGrandma(whole), leave: () => leaveGrandma(), tap: () => nextRug() },
+  hypercode: { brush: true, enter: (whole) => enterHypercode(whole).then(restoreMarks), leave: () => keepMarks() },
+  "grandma-patterns": { brush: false, enter: (whole) => enterGrandma(whole), leave: () => leaveGrandma() },
   // Ripple Square: the finger paints colours (js/carpet-ripple.js), not the pile
-  "ripple-square": { brush: false, enter: (whole) => enterRipple(whole), leave: () => leaveRipple(), tap: () => tapRipple() },
+  "ripple-square": { brush: false, enter: (whole) => enterRipple(whole), leave: () => leaveRipple() },
 };
 
 // ---------- The glimpse of the next rug ----------
@@ -177,12 +175,6 @@ async function showCollection(index, dir = index > collectionIndex ? 1 : -1) {
   }
   sliding = false;
   preloadNeighbours();
-}
-
-// A single tap on the rug (js/carpet-viewer.js)
-function tapRug() {
-  if (sliding || collectionIndex < 0) return;
-  COLLECTION_PARTS[MENU_COLLECTIONS[collectionIndex].id].tap();
 }
 
 // Is there a collection that way? (step 1: the next one, -1: the one before)

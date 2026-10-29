@@ -7,8 +7,8 @@
   - Move and pinch with two fingers to move around and zoom. Flicks keep gliding.
   - On a computer: scroll to move, trackpad pinch / ctrl + scroll to zoom.
   - The marks stay, whatever you do (another shape, colour or collection), until you double-tap:
-    that wipes the drawing, back to the plain carpet. A single tap on the rug shows the
-    collection's next rug or shape (tapRug, js/carpet-collections.js).
+    that wipes the drawing, back to the plain carpet (in the close-up). A tap on the whole rug
+    zooms in there; shapes, colours and rugs change only from the row under it.
   - With the whole rug in view, one finger on the white page around it swipes left or right to the
     next collection (the rug follows the finger; let go far enough, or flick, and the next one
     slides in: js/carpet-collections.js; past the last one it springs back). On a rug you draw on, the finger on the rug draws as
@@ -909,11 +909,16 @@ function endPointer(e) {
   if (gesture.painting && fingerPaint) fingerPaint.end();
   if (typeof brushSound !== "undefined") brushSound.stop();
 
-  // Double-tap: wipe the drawing. A single tap on the rug (no second one follows): the next rug
+  // A tap on the whole rug zooms in there (shapes, colours and rugs change only from the row
+  // under it). In the close-up, a double-tap wipes the drawing.
   if (!moved) {
+    if (isWhole()) {
+      if (onCarpet(p.x, p.y) && swipeShift === 0) animateTo(clampView(zoomAt(view, closeUpScale(), p.x, p.y)));
+      lastTap = { time: 0, x: 0, y: 0 };
+      return;
+    }
     const quick = now - lastTap.time < DOUBLE_TAP;
     const near = Math.hypot(p.x - lastTap.x, p.y - lastTap.y) < 30;
-    clearTimeout(singleTap);
     if (quick && near) {
       wipeDrawing();
       if (fingerPaint) fingerPaint.wipe();
@@ -921,12 +926,10 @@ function endPointer(e) {
       return;
     }
     lastTap = { time: now, ...p };
-    if (onCarpet(p.x, p.y) && typeof tapRug === "function") singleTap = setTimeout(tapRug, DOUBLE_TAP);
   }
 }
 
 const DOUBLE_TAP = 300; // ms: a second tap within this is a double tap
-let singleTap = null;
 
 stage.addEventListener("pointerup", endPointer);
 stage.addEventListener("pointercancel", endPointer);

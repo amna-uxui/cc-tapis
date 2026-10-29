@@ -183,18 +183,16 @@ const TAB_FADE = 160; // ms the row takes to fade out before the other tab's cho
 
 const rugTabs = document.querySelector("[data-rug-tabs]");
 let rugTab = "shape"; // which the row shows: "shape" or "colour"
-let shapeStrip = null;
 
 function buildShapes() {
   rugTabs.querySelectorAll("[data-tab]").forEach((tab) => tab.setAttribute("aria-selected", tab.dataset.tab === rugTab));
   if (rugTab === "shape") {
-    shapeStrip = makeStrip(shapeRow, SHAPES, {
+    makeStrip(shapeRow, SHAPES, {
       draw: (shape) => shapeThumb(current, shape),
       choose: chooseShape,
       start: SHAPES.indexOf(currentShape),
     });
   } else {
-    shapeStrip = null;
     makeStrip(shapeRow, COLORS, {
       draw: (color) => shapeThumb(color, currentShape, color.name),
       choose: chooseColor,
@@ -216,13 +214,6 @@ rugTabs.addEventListener("click", (e) => {
     shapeRow.classList.remove("is-swapping");
   }, TAB_FADE);
 });
-
-// A tap on the whole rug (js/carpet-collections.js): the next shape, round and round
-function nextShape() {
-  const index = (SHAPES.indexOf(currentShape) + 1) % SHAPES.length;
-  if (shapeStrip) shapeStrip.show(index);
-  chooseShape(SHAPES[index]);
-}
 
 // Hypercode comes on (js/carpet-collections.js): its shapes in the row, its rug as you left it.
 // whole: show the whole rug.

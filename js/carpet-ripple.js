@@ -636,5 +636,3 @@ function leaveRipple() {
   fingerPaint = null;
 }
 
-// A tap on the rug does nothing here (the finger draws)
-function tapRipple() {}

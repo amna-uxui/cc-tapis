@@ -76,19 +76,11 @@ window.addEventListener("load", () => {
   }, 300);
 });
 
-let rugStrip = null;
-
 function buildRugs() {
-  rugStrip = makeStrip(rugRow, RUGS, { draw: rugThumb, choose: chooseRug, start: RUGS.indexOf(currentRug) });
+  makeStrip(rugRow, RUGS, { draw: rugThumb, choose: chooseRug, start: RUGS.indexOf(currentRug) });
   markRug();
 }
 
-// A tap on the rug (js/carpet-collections.js): the next rug, round and round
-function nextRug() {
-  const index = (RUGS.indexOf(currentRug) + 1) % RUGS.length;
-  rugStrip.show(index);
-  chooseRug(RUGS[index]);
-}
 
 // GrandMa Patterns comes on (js/carpet-collections.js): its rugs in the row, the rug you were on.
 // whole: show the whole rug.
