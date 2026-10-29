@@ -1072,6 +1072,7 @@ body {
 [data-collection]:not([data-collection="hypercode"]) .rug-tabs,
 [data-collection]:not([data-collection="hypercode"]) .carpet__light,
 [data-collection]:not([data-collection="grandma-patterns"]) .tool--blow,
+body:not(.no-mic) .tool--blow, /* with the microphone the rug listens by itself: no button */
 [data-collection]:not([data-collection="grandma-patterns"]) .carpet__wind {
   display: none;
 }

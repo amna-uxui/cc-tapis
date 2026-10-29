@@ -4,10 +4,11 @@
   - Sound: the brushing, the wool and the wind (the phone doesn't ask for it, but sound only plays
     after a tap). Allow plays a short brush stroke, so you hear it's on; Not now keeps the rugs silent.
   - Motion (only on iPhone, where it's asked): Hypercode's lamp follows the phone's tilt.
-  - Microphone: blowing on GrandMa Patterns. It's let go again at once (no recording light all
-    the way through); the rug only listens once you tap Blow.
+  - Microphone: blowing on GrandMa Patterns. It's let go again at once; GrandMa Patterns' rug then
+    listens by itself while it's on (js/carpet-blow.js, listenIfAllowed).
   The phone doesn't ask again on this visit, so nothing asks in the middle of the experience.
-  "Not now" or "Don't allow" still works: the lamp is dragged round instead, and holding Blow blows.
+  "Not now" or "Don't allow" still works: the lamp is dragged round instead, and a wind button
+  shows on GrandMa Patterns: holding it blows.
 
   Needs js/carpet-blow.js (noMic, micState) and js/carpet-viewer.js (showVerb) to be loaded first.
 */
@@ -30,6 +31,7 @@ const PERMISSIONS = {
   microphone: {
     needed: () => true,
     ask: askForMicrophone,
+    no: () => markNoMic(), // js/carpet-blow.js: holding the wind button blows instead
   },
 };
 
@@ -50,14 +52,18 @@ function playSample() {
 }
 
 async function askForMicrophone() {
-  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return; // Blow says why when tapped
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    markNoMic();
+    return;
+  }
   // iPhone: a page set to only play sound is refused the microphone (see startListening)
   if (navigator.audioSession) navigator.audioSession.type = "auto";
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     stream.getTracks().forEach((track) => track.stop());
+    micAllowed = true;
   } catch (error) {
-    noMic = true; // holding Blow blows instead
+    markNoMic(); // holding the wind button blows instead
     micState = `${error.name} at the start`;
   }
   if (navigator.audioSession) navigator.audioSession.type = "playback"; // the sound plays with the silent switch on
@@ -83,6 +89,7 @@ function nextStep() {
   intro.classList.add("is-leaving");
   document.body.classList.remove("is-intro");
   showVerb(); // the first rug's verb, now you can see it
+  listenIfAllowed(); // opened on GrandMa Patterns: its rug listens from now
   setTimeout(() => intro.remove(), 600);
 }
 

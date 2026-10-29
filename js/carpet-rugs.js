@@ -97,6 +97,7 @@ async function enterGrandma(whole) {
   await changeRug(currentRug.src, { zoomOut: whole, fade: false });
   loadPhoto();
   blowActive = true;
+  listenIfAllowed(); // js/carpet-blow.js: the rug listens by itself, if the microphone was allowed
 }
 
 // ... and goes: the wind stops and the microphone is let go

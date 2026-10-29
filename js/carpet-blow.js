@@ -8,10 +8,11 @@
   in at that edge at random moments, each in its own place, as wide and as strong as chance makes
   it, and travel up the rug, fading as they climb: never the same twice.
 
-  - Tap the wind button (bottom right) to let the rug listen (the phone asks for the microphone
-    once). Nothing moves until you blow. Tap again to stop listening.
-  - No microphone ("Don't allow", or none at all): then holding the wind button blows instead.
-    On a computer, holding the space bar always does.
+  - The microphone is allowed on the first screens (js/carpet-intro.js); from then on the rug
+    listens by itself while GrandMa Patterns is on (listenIfAllowed), and lets the microphone go
+    when you leave it. Nothing moves until you blow.
+  - No microphone ("Not now", "Don't allow", or none at all): then a wind button shows, and
+    holding it blows instead. On a computer, holding the space bar always does.
   - Add ?debug to the address to see what the microphone hears, for tuning the BLOW_ numbers.
 
   The rug is a photo, so its fibres can't really move: a WebGL layer redraws the photo every frame,
@@ -87,6 +88,7 @@ let heldBreath = 0;   // the breath from holding the button or the space bar, 0.
 let holding = false;
 let micState = "off"; // off, asking, on, or what went wrong (shown with ?debug)
 let noMic = false;    // the microphone was refused or is missing: holding the button blows instead
+let micAllowed = false; // allowed on the first screens (js/carpet-intro.js): the rug listens by itself
 let breath = 0;       // the breath that blows, smoothed
 
 const hearing = { level: -100, floor: -100, pitch: 0, hiss: 0 }; // for the debug meter
@@ -184,9 +186,21 @@ async function startListening() {
   wake();
 }
 
+// No microphone: the wind button shows, and holding it blows instead
+function markNoMic() {
+  noMic = true;
+  micAllowed = false;
+  document.body.classList.add("no-mic");
+}
+
+// GrandMa Patterns is on, the microphone was allowed and the page is in view: listen, by itself
+function listenIfAllowed() {
+  if (blowActive && micAllowed && !listening && micState !== "asking" && !document.hidden) startListening();
+}
+
 // No microphone: say why (in short above the button, in full with ?debug); holding blows instead
 function failListening(why, short = why) {
-  noMic = true;
+  markNoMic();
   micState = why;
   // the exact reason shows with ?debug; here, what to do about it
   showBlowStatus(
@@ -654,14 +668,7 @@ function showBlowStatus(text) {
   if (debugMeter) showHearing();
 }
 
-// A tap: listen, or stop listening (nothing blows until you do)
-blowButton.addEventListener("click", () => {
-  if (typeof windSound !== "undefined") windSound.start(); // a tap: the wind's sound may play from now
-  if (listening) stopListening();
-  else if (micState !== "asking") startListening(); // also tries again after it went wrong
-});
-
-// Without a microphone, holding the button blows instead
+// Without a microphone, holding the button blows instead (it only shows then)
 blowButton.addEventListener("pointerdown", () => {
   blowButton.classList.remove("is-inviting"); // found it: it stops calling
   if (!noMic) return;
@@ -692,9 +699,10 @@ function calmWind() {
 
 // The phone gives the microphone to one page at a time. So leaving the page (another tab, another
 // app, closing it) lets go of it, and when this page starts listening, any other open page of
-// this site lets go too. Tap the wind button again when you come back.
+// this site lets go too. Coming back, it listens again.
 document.addEventListener("visibilitychange", () => {
   if (document.hidden && listening) stopListening();
+  else listenIfAllowed();
 });
 window.addEventListener("pagehide", () => {
   if (listening) stopListening();
