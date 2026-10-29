@@ -3,11 +3,9 @@
   up the shaggy pile from the bottom of the screen. The harder you blow, the further the pile
   bends and the faster it flutters; when you stop, it settles back.
 
-  How close you are counts, as with a real rug: with the whole rug in view your breath rolls up all
-  of it; close up, it lands on the spot in the middle of what you see and the pile parts there,
-  the fibres splaying away from it every way, strongest in the middle and fading out gradually,
-  unevenly, so it has no edge (the closer, the smaller that spot is on the rug). In between, one
-  blends into the other.
+  Your breath always moves the whole rug, at any zoom: strongest along the rug's bottom edge (where
+  it reaches first) and calming gradually towards its top, while gusts keep rolling up from that
+  edge so the movement travels.
 
   - Tap the wind button (bottom right) to let the rug listen (the phone asks for the microphone
     once). Nothing moves until you blow. Tap again to stop listening.
@@ -45,10 +43,8 @@ const GUST_SPEED = 900;     // screen pixels per second a gust travels up the sc
 const GUST_FADE = 1.4;      // seconds for a gust to lose half its strength as it travels
 const GUST_SWAY = 0.6;      // how much the gust curls left and right as it goes (in grid cells)
 const GUST_SPREAD = 0.18;   // how much it spreads sideways, so its front is soft, not a ruler line
-const PATCH = 0.4;          // close up, the breath reaches about this far from the middle of the screen (share of its
-                            // narrower side), fading out gradually (a bell curve), so the spot has no edge
-const PATCH_WOBBLE = 0.2;   // how uneven that spot's outline is (share of its size), slowly changing
-const CORE_PX = 60;         // close up, within this many photo pixels of the spot the pile is pressed down, not splayed
+const WIND_TOP = 0.2;       // the wind at the rug's top edge, as a share of its strength at the bottom edge
+const WIND_CURVE = 1.6;     // how it eases off on the way up (1 = evenly; higher = stays strong low down, calms quicker higher up)
 const WIND_DOWN = 0.12;     // seconds for the pile to bend all the way when the wind reaches it
 const WIND_UP = 1.2;        // seconds for it to rise halfway back once the wind has passed
 
@@ -351,47 +347,19 @@ function sampleEnergy(x, y) {
   return top * (1 - fy) + bottom * fy;
 }
 
-// How close up the rug is: 0 with the whole rug in view .. 1 at the close-up (or closer)
-function closeness() {
-  const near = closeUpScale() / fitScale - 1;
-  return near > 0 ? Math.min(1, Math.max(0, (view.scale / fitScale - 1) / near)) : 0;
+// How much of the breath reaches a row of the rug: all of it at the bottom edge, calming gradually
+// towards the top
+function windAt(y) {
+  return WIND_TOP + (1 - WIND_TOP) * Math.pow(y / Math.max(1, gh - 1), WIND_CURVE);
 }
 
-// Close up, the spot the breath lands on: round the middle of the screen (in wind cells), and how
-// much of the breath reaches a cell: 1 in its middle, fading gradually and unevenly outwards
-// (everywhere 1 with the whole rug in view)
-function windPatch(cell) {
-  const near = closeness();
-  const radius = (PATCH * Math.min(stage.clientWidth, stage.clientHeight)) / view.scale / cell;
-  return {
-    near,
-    x: (stage.clientWidth / 2 - view.x) / view.scale / cell,
-    y: (stage.clientHeight / 2 - view.y) / view.scale / cell,
-    radius,
-    // the breath on the spot: a bell curve, its outline slowly wandering
-    spot(x, y) {
-      const dx = x - this.x;
-      const dy = y - this.y;
-      const a = Math.atan2(dy, dx);
-      const wobble = 1 + PATCH_WOBBLE * (0.6 * Math.sin(3 * a + clock * 1.3) + 0.4 * Math.sin(5 * a - clock * 2.1));
-      const d = Math.hypot(dx, dy) / (radius * wobble);
-      return Math.exp(-2.2 * d * d);
-    },
-    reach(x, y) {
-      return near <= 0 ? 1 : 1 - near * (1 - Math.min(1, this.spot(x, y) * 1.6));
-    },
-  };
-}
-
-// One step of the wind: gusts travel up the screen, fading and spreading, new ones come in at the
-// bottom of the screen with the breath (close up, at the bottom of the patch), and the pile bends
-// under them and rises again after
+// One step of the wind: gusts travel up the rug, fading and spreading, new ones come in at its
+// bottom edge with the breath, the breath reaches the whole rug (strongest low down), and the pile
+// bends under it and rises again after
 function stepWind(seconds) {
   clock += seconds;
   const cell = img.naturalWidth / gw;                       // photo pixels per cell
-  const patch = windPatch(cell);
-  // cells the gusts travel this step (close up, the breath lands where it is: no gusts rolling)
-  const rise = (GUST_SPEED / view.scale / cell) * seconds * (1 - patch.near);
+  const rise = (GUST_SPEED / view.scale / cell) * seconds;  // cells the gusts travel this step
   const keep = Math.pow(0.5, seconds / GUST_FADE);
 
   for (let y = 0; y < gh; y++) {
@@ -399,29 +367,27 @@ function stepWind(seconds) {
       const sway = (Math.sin(y * 0.21 + clock * 2.3) + Math.sin(x * 0.13 - clock * 1.7)) * 0.5 * GUST_SWAY;
       const here = sampleEnergy(x + sway, y + rise);
       const sides = (sampleEnergy(x - 1 + sway, y + rise) + sampleEnergy(x + 1 + sway, y + rise)) / 2;
-      spare[y * gw + x] = (here + (sides - here) * GUST_SPREAD) * keep * patch.reach(x, y);
+      // a gust loses strength as it climbs: never more than the rug's calm-towards-the-top allows
+      spare[y * gw + x] = Math.min((here + (sides - here) * GUST_SPREAD) * keep, windAt(y));
     }
   }
   [energy, spare] = [spare, energy];
 
-  // the breath comes in along the bottom of the screen (or the rug's bottom edge, if that's
-  // higher), and rolls up; close up, it lands on the spot in the middle of the screen instead
-  if (breath > 0.001 && patch.near < 1) {
-    const row = Math.min(gh - 1, Math.floor((stage.clientHeight - view.y) / view.scale / cell));
+  if (breath > 0.001) {
+    // gusts come in along the rug's bottom edge, and roll up
     const depth = Math.max(1, Math.ceil(rise)); // fill the rows a fast gust would otherwise skip
-    for (let r = row; r > row - depth && r >= 0; r--) {
+    for (let r = gh - 1; r > gh - 1 - depth && r >= 0; r--) {
       for (let x = 0; x < gw; x++) {
         const i = r * gw + x;
-        energy[i] = Math.max(energy[i], breath * (0.55 + 0.45 * ragged(x)) * patch.reach(x, r) * (1 - patch.near));
+        energy[i] = Math.max(energy[i], breath * (0.55 + 0.45 * ragged(x)));
       }
     }
-  }
-  if (breath > 0.001 && patch.near > 0) {
-    const span = patch.radius * 1.8;
-    for (let y = Math.max(0, Math.floor(patch.y - span)); y <= Math.min(gh - 1, patch.y + span); y++) {
-      for (let x = Math.max(0, Math.floor(patch.x - span)); x <= Math.min(gw - 1, patch.x + span); x++) {
+    // and the breath reaches every part of the rug, strongest low down, calmer higher up
+    for (let y = 0; y < gh; y++) {
+      const share = windAt(y);
+      for (let x = 0; x < gw; x++) {
         const i = y * gw + x;
-        energy[i] = Math.max(energy[i], breath * patch.near * patch.spot(x, y) * (0.85 + 0.15 * ragged(x + y)));
+        energy[i] = Math.max(energy[i], breath * share * (0.7 + 0.3 * ragged(x + y * 0.5)));
       }
     }
   }
@@ -460,8 +426,6 @@ uniform vec2 uPx;      // one photo pixel, in texture units
 uniform vec2 uCell;    // one wind cell, in texture units
 uniform float uTime;
 uniform float uReach;  // zoomed out, the bend reaches further in photo pixels, so it shows as much
-uniform vec2 uSpot;    // close up, where the breath lands (texture units) ..
-uniform float uNear;   // .. and how close up: 0 (the gust rolls up the rug) .. 1 (the pile parts round the spot)
 
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 
@@ -490,17 +454,10 @@ void main() {
   float t = tugAt(tuft);
 
   // how far the fibres here bend away from the wind, in photo pixels, further while the wind tugs
-  // at them: up the screen, away from a gust rolling up; close up, away from the spot every way
+  // at them: up the rug, away from the wind coming from its bottom edge
   float bend = (laid * ${LEAN_PX.toFixed(1)} + gust * ${SWAY_PX.toFixed(1)} * t) * uReach;
   float side = (t - 0.5) * ${SIDE_PX.toFixed(1)} * gust * uReach;
-  vec2 away = (vUv - uSpot) / uPx;
-  float far = length(away);
-  vec2 outward = far > 0.5 ? away / far : vec2(0.0, -1.0);
-  vec2 toRoot = mix(vec2(0.0, 1.0), -outward, uNear); // a fibre's root lies towards where the wind comes from
-  // right under the breath the pile is pressed down rather than splayed (no swirl in the middle)
-  float under = smoothstep(0.0, ${CORE_PX.toFixed(1)} * uReach, far);
-  bend *= mix(1.0, under, uNear);
-  side *= mix(1.0, under, uNear);
+  vec2 toRoot = vec2(0.0, 1.0); // a fibre's root lies towards where the wind comes from
   vec2 across = vec2(toRoot.y, -toRoot.x);
 
   // a bent fibre runs from its root to its tip (here): the photo is drawn out along it into a
@@ -517,13 +474,13 @@ void main() {
   c /= total;
   float alpha = texture2D(uPhoto, vUv).a; // the rug's soft edge stays where it is
 
-  // the front of a rolling gust: more wind just below than just above (close up there's no front)
+  // the front of a rolling gust: more wind just below than just above
   float front = texture2D(uWind, vUv + vec2(0.0, uCell.y * 1.5)).g - texture2D(uWind, vUv - vec2(0.0, uCell.y * 1.5)).g;
-  float tone = 1.0 - ${WIND_DEEP.toFixed(3)} * (1.0 - 0.4 * uNear) * laid
-             + ${WIND_SHEEN.toFixed(3)} * (1.0 - uNear) * clamp(front * 3.0, 0.0, 1.0)
+  float tone = 1.0 - ${WIND_DEEP.toFixed(3)} * laid
+             + ${WIND_SHEEN.toFixed(3)} * clamp(front * 3.0, 0.0, 1.0)
              + ${WIND_SHIMMER.toFixed(3)} * (t - 0.5) * 2.0 * gust;
   float grey = dot(c, vec3(0.3, 0.59, 0.11));
-  c = mix(vec3(grey), c, 1.0 + ${WIND_RICH.toFixed(3)} * (1.0 - 0.5 * uNear) * laid);
+  c = mix(vec3(grey), c, 1.0 + ${WIND_RICH.toFixed(3)} * laid);
   // the cut-out rug's soft edge and shadow stay see-through, as in the photo
   gl_FragColor = vec4(c * tone * alpha, alpha);
 }`;
@@ -571,8 +528,6 @@ function setupGl() {
     cell: gl.getUniformLocation(program, "uCell"),
     time: gl.getUniformLocation(program, "uTime"),
     reach: gl.getUniformLocation(program, "uReach"),
-    spot: gl.getUniformLocation(program, "uSpot"),
-    near: gl.getUniformLocation(program, "uNear"),
   };
   gl.uniform1i(gl.getUniformLocation(program, "uPhoto"), 0);
   gl.uniform1i(gl.getUniformLocation(program, "uWind"), 1);
@@ -605,9 +560,6 @@ function drawPile() {
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gw, gh, 0, gl.RGBA, gl.UNSIGNED_BYTE, windBytes);
   gl.uniform1f(glUniforms.time, clock);
   gl.uniform1f(glUniforms.reach, Math.min(3, Math.max(1, ZOOM_REACH / view.scale)));
-  // close up, the spot the breath lands on: the middle of the screen
-  gl.uniform2f(glUniforms.spot, (stage.clientWidth / 2 - view.x) / view.scale / img.naturalWidth, (stage.clientHeight / 2 - view.y) / view.scale / img.naturalHeight);
-  gl.uniform1f(glUniforms.near, closeness());
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 }
 
