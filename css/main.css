@@ -1682,10 +1682,13 @@ body:not(.no-mic) .tool--blow, /* with the microphone the rug listens by itself:
   white-space: pre-line;
 }
 
-/* the lines of the journey as they're written, not as they'd happen to wrap */
+/* the lines of the journey as they're written, not as they'd happen to wrap, and in normal
+   letters (not capitals) */
 .cart-thanks__journey {
   white-space: pre-line;
   line-height: 1.6;
+  text-transform: none;
+  letter-spacing: 0;
 }
 
 /* ---------- Making the lamp and the wind button easy to notice ---------- */
