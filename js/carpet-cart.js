@@ -552,13 +552,6 @@ cartBackdrop.addEventListener("click", closeCart);
 
 function checkOut() {
   const rule = tag("p", "cart-thanks__rule", ".:^:.".repeat(14));
-  const pictures = tag("div", "cart-thanks__rugs");
-  cart.forEach((item) => {
-    const picture = tag("img");
-    picture.src = item.cutOut;
-    picture.alt = item.name;
-    pictures.append(picture);
-  });
   const back = tag("button", "cart-button mono", "Back to the rugs");
   back.addEventListener("click", () => {
     cart.length = 0;
@@ -568,7 +561,7 @@ function checkOut() {
   });
   cartThanks.replaceChildren(
     rule,
-    tag("p", "cart-thanks__big", "Long way     but for you"), // the space in it is the long way
+    tag("p", "cart-thanks__big", "Long way\nbut for you"),
     // broken where it pauses, so its lines are about as long as each other
     tag(
       "p",
@@ -577,8 +570,9 @@ function checkOut() {
         ? "Your rugs are being knotted by hand,\nfar away in the Himalayas.\nWe'll let you know when they set off."
         : "Your rug is being knotted by hand,\nfar away in the Himalayas.\nWe'll let you know when it sets off."
     ),
-    pictures,
-    tag("p", "cart-thanks__text", `${cart.length} ${cart.length > 1 ? "rugs" : "rug"} · ${euros(cart.reduce((sum, item) => sum + item.price, 0))}`),
+    // each rug by its name, with its price (and the total, for more than one)
+    ...cart.map((item) => tag("p", "cart-thanks__text", `${item.name} · ${euros(item.price)}`)),
+    ...(cart.length > 1 ? [tag("p", "cart-thanks__text", `Total · ${euros(cart.reduce((sum, item) => sum + item.price, 0))}`)] : []),
     back,
     rule.cloneNode(true)
   );
