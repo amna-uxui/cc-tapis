@@ -9,7 +9,7 @@
   Phones only share their motion with secure (https) pages; where there is no motion
   (a computer, or http), drag the lamp round the dial.
 
-  Needs js/carpet-viewer.js (carpet) to be loaded first.
+  Needs js/carpet-viewer.js (carpet, img, view, stage) to be loaded first.
 */
 
 const LAMP_START = -135;   // degrees: where the lamp starts (0 = right, -90 = top, -135 = top left)
@@ -32,12 +32,34 @@ function setLamp(degrees) {
   const radians = (lampAngle * Math.PI) / 180;
   lampDial.style.setProperty("--lamp-angle", `${lampAngle}deg`);
   lampDial.setAttribute("aria-valuenow", Math.round(lampAngle));
-  light.style.setProperty("--light-x", `${(0.5 + Math.cos(radians) * LAMP_REACH) * 100}%`);
-  light.style.setProperty("--light-y", `${(0.5 + Math.sin(radians) * LAMP_REACH) * 100}%`);
-  // the night spotlight falls on the rug itself, part way out towards the lamp
-  light.style.setProperty("--spot-x", `${(0.5 + Math.cos(radians) * SPOT_REACH) * 100}%`);
-  light.style.setProperty("--spot-y", `${(0.5 + Math.sin(radians) * SPOT_REACH) * 100}%`);
+  placeLight();
   if (typeof relightPile === "function") relightPile(); // velvet marks catch the light (js/carpet-viewer.js)
+}
+
+// The light falls across what you see of the rug: the whole rug zoomed out, the close-up zoomed
+// in, so the lamp shows the same, from bright on its side to shadow on the far side, at any zoom.
+// Also called by js/carpet-viewer.js whenever the rug moves or zooms.
+function placeLight() {
+  if (!img.naturalWidth) return;
+  const radians = (lampAngle * Math.PI) / 180;
+  // what's on screen of the rug, in its own pixels
+  const left = Math.max(0, -view.x / view.scale);
+  const top = Math.max(0, -view.y / view.scale);
+  const right = Math.min(img.naturalWidth, (stage.clientWidth - view.x) / view.scale);
+  const bottom = Math.min(img.naturalHeight, (stage.clientHeight - view.y) / view.scale);
+  const w = Math.max(1, right - left);
+  const h = Math.max(1, bottom - top);
+  const at = (reach) => ({ x: left + w * (0.5 + Math.cos(radians) * reach), y: top + h * (0.5 + Math.sin(radians) * reach) });
+  // how far the light reaches: to the far corner of what's on screen
+  const farthest = (p) => Math.max(...[[left, top], [right, top], [left, bottom], [right, bottom]].map(([x, y]) => Math.hypot(x - p.x, y - p.y)));
+  const lamp = at(LAMP_REACH);
+  const spot = at(SPOT_REACH); // the night spotlight falls on the rug itself, part way out towards the lamp
+  light.style.setProperty("--light-x", `${lamp.x}px`);
+  light.style.setProperty("--light-y", `${lamp.y}px`);
+  light.style.setProperty("--light-size", `${farthest(lamp)}px`);
+  light.style.setProperty("--spot-x", `${spot.x}px`);
+  light.style.setProperty("--spot-y", `${spot.y}px`);
+  light.style.setProperty("--spot-size", `${farthest(spot)}px`);
 }
 
 // ---------- Tilting the phone ----------

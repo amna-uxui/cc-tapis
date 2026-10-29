@@ -106,6 +106,7 @@ function render() {
   stage.style.setProperty("--rug-y", `${view.y + (img.naturalHeight * view.scale) / 2}px`); // the arrows
   if (verb) placeVerb();
   if (typeof placePeek === "function") placePeek(); // the next rug beside this one (js/carpet-collections.js)
+  if (typeof placeLight === "function") placeLight(); // the lamp's light on what you see (js/carpet-lamp.js)
   const out = view.scale < fitScale * OUT_ZOOM;
   document.body.classList.toggle("is-zoomed-out", out);
   if (!out && verbWaiting) showVerb(); // the collection's verb waits for the close-up
