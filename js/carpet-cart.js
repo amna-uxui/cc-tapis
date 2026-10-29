@@ -67,8 +67,7 @@ document.querySelectorAll(".cart-rule__line").forEach((line) => (line.textConten
 // The rug on show, as it goes in the bag
 function rugNow() {
   const collection = document.body.dataset.collection;
-  const sizeLine = rugInfo.querySelector("[data-rug-size]").textContent;
-  const price = Number((sizeLine.split("€")[1] || "0").replace(/\D/g, ""));
+  const price = Number(rugInfo.dataset.price || 0); // set by showSizeAndPrice (js/carpet-viewer.js)
   let name = rugInfo.querySelector("[data-rug-name]").textContent;
   let picture = img.src; // Hypercode's photos are cut out already
   let cutOut = picture;
@@ -89,7 +88,7 @@ function rugNow() {
   return {
     name,
     designer: rugInfo.querySelector("[data-rug-designer]").textContent,
-    size: sizeLine.split("|")[0].trim(),
+    size: rugInfo.querySelector("[data-rug-size]").textContent.trim(),
     price,
     picture, // as on the page
     cutOut, // for the bag and the thank-you (no white round it)

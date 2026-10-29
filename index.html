@@ -124,7 +124,11 @@
       </svg>
     </button>
 
-    <button class="button button--wide mono" data-buy>Buy</button>
+    <!-- Buy, and the rug on show's price (set by each collection: showSizeAndPrice in js/carpet-viewer.js) -->
+    <button class="button button--wide button--buy mono" data-buy>
+      <span>Buy</span>
+      <span class="buy-price" data-rug-price></span>
+    </button>
 
     <!-- About this rug: opens the sheet below (js/carpet-info.js); only while the whole rug is in view -->
     <button class="tool info-button" aria-label="About this rug" aria-expanded="false" data-info>

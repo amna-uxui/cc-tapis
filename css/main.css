@@ -305,6 +305,28 @@ body {
   box-shadow: 0 1px 6px rgba(0, 0, 0, 0.18); /* stays visible over the white page when zoomed out */
 }
 
+/* Buy | € 8.999: as wide as it needs, a thin line between the word and the price */
+.button--buy {
+  width: auto;
+  padding: 0 var(--space-4) 1px;
+  gap: var(--space-3);
+  white-space: nowrap;
+}
+
+.buy-price {
+  display: flex;
+  align-items: center;
+  gap: 0.3em;
+  padding-left: var(--space-3);
+  border-left: 1px solid rgba(0, 0, 0, 0.3);
+  height: 14px;
+  color: var(--color-ink);
+}
+
+.buy-price:empty {
+  display: none;
+}
+
 .tool {
   width: 32px;
   height: 32px;

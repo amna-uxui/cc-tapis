@@ -39,7 +39,7 @@ function rugCard() {
   ctx.fillText(text("[data-rug-designer]"), middle, below + 32);
   ctx.fillStyle = "#6b6b6b";
   ctx.font = '400 20px "Space Mono", monospace';
-  ctx.fillText(text("[data-rug-size]").toUpperCase(), middle, below + 66);
+  ctx.fillText(`${text("[data-rug-size]")} | ${priceText()}`.toUpperCase(), middle, below + 66);
   return card;
 }
 

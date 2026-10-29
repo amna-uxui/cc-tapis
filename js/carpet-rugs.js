@@ -32,12 +32,7 @@ let switching = false;
 function markRug() {
   rugInfo.querySelector("[data-rug-name]").textContent = `${GRANDMA_NAME} ${currentRug.name}`;
   rugInfo.querySelector("[data-rug-designer]").textContent = `by ${GRANDMA_DESIGNER}`;
-  // Italian style, "€ 6.999"; the € in the plain font (in the mono font it looks crooked)
-  const euro = document.createElement("span");
-  euro.className = "rug-info__currency";
-  euro.textContent = "€";
-  const amount = String(currentRug.price).replace(/\B(?=(\d{3})+$)/g, "."); // 6999 -> 6.999
-  rugInfo.querySelector("[data-rug-size]").replaceChildren(`${currentRug.size} | `, euro, ` ${amount}`);
+  showSizeAndPrice(currentRug.size, currentRug.price);
 }
 
 // A new rug tapped. Tapped several quickly, the rug catches up with the last one once the one

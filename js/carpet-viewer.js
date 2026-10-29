@@ -61,6 +61,25 @@ const brushCtx = brush.getContext("2d");
 let brushTone = { light: BRUSH_LIGHT, shade: BRUSH_SHADE }; // the wool tones for the current rug colour
 const topBar = document.querySelector("[data-fit-top]");
 const rugInfo = document.querySelector("[data-rug-info]"); // collection name and size, under the top bar
+
+// The rug on show: its size at the top (under its name) and its price in the Buy button, in the
+// Italian way, "€ 8.999" (the € in the plain font: in the mono font it looks crooked). The price is
+// also kept on rugInfo.dataset.price, for the bag, the info sheet and the saved picture.
+function showSizeAndPrice(size, price) {
+  rugInfo.querySelector("[data-rug-size]").textContent = size;
+  rugInfo.dataset.price = price;
+  const tag = document.querySelector("[data-rug-price]");
+  if (!tag) return;
+  const euro = document.createElement("span");
+  euro.className = "rug-info__currency";
+  euro.textContent = "€";
+  tag.replaceChildren(euro, ` ${String(price).replace(/\B(?=(\d{3})+$)/g, ".")}`); // 8999 -> 8.999
+}
+
+// The price on show as text, "€ 8.999"
+function priceText() {
+  return `€ ${String(rugInfo.dataset.price || 0).replace(/\B(?=(\d{3})+$)/g, ".")}`;
+}
 const bottomBar = document.querySelector("[data-fit-bottom]");
 const underRug = document.querySelectorAll("[data-fit-under]"); // the row (and Hypercode's tabs), under the full rug
 

@@ -171,12 +171,7 @@ function shapeThumb(color, shape, name) {
 function markShape() {
   infoName.textContent = `${HYPERCODE_NAME} ${currentShape.name}`;
   infoDesigner.textContent = `by ${HYPERCODE_DESIGNER}`;
-  // Italian style, "€ 8.999"; the € in the plain font (in the mono font it looks crooked)
-  const euro = document.createElement("span");
-  euro.className = "rug-info__currency";
-  euro.textContent = "€";
-  const amount = String(currentShape.price).replace(/\B(?=(\d{3})+$)/g, "."); // 8999 -> 8.999
-  infoSize.replaceChildren(`${currentShape.size} | `, euro, ` ${amount}`);
+  showSizeAndPrice(currentShape.size, currentShape.price);
 }
 
 // ---------- The shapes ----------

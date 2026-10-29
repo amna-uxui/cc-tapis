@@ -135,11 +135,11 @@ function fillSheet() {
   head.append(
     element("p", "info-head__name", rugInfo.querySelector("[data-rug-name]").textContent),
     element("p", "info-head__designer", rugInfo.querySelector("[data-rug-designer]").textContent),
-    element("p", "info-head__size", rugInfo.querySelector("[data-rug-size]").textContent)
+    element("p", "info-head__size", `${rugInfo.querySelector("[data-rug-size]").textContent} | ${priceText()}`)
   );
   // the details: as on cc-tapis.com, and the rug on show's own size and colour
   const list = element("dl", "info-details");
-  const size = rugInfo.querySelector("[data-rug-size]").textContent.split("|")[0].trim();
+  const size = rugInfo.querySelector("[data-rug-size]").textContent.trim();
   [...story.details, ["Size", size], ...(colour ? [["Colour", colour]] : [])].forEach(([label, value]) => {
     list.append(element("dt", null, label), element("dd", null, value));
   });

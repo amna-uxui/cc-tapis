@@ -567,11 +567,7 @@ function waySwatch(way) {
 function markRipple() {
   rugInfo.querySelector("[data-rug-name]").textContent = RIPPLE_NAME;
   rugInfo.querySelector("[data-rug-designer]").textContent = `by ${RIPPLE_DESIGNER}`;
-  const euro = document.createElement("span");
-  euro.className = "rug-info__currency";
-  euro.textContent = "€";
-  const amount = String(RIPPLE_PRICE).replace(/\B(?=(\d{3})+$)/g, ".");
-  rugInfo.querySelector("[data-rug-size]").replaceChildren(`${RIPPLE_SIZE} | `, euro, ` ${amount}`);
+  showSizeAndPrice(RIPPLE_SIZE, RIPPLE_PRICE);
 }
 
 function buildRippleRow() {
